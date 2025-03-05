@@ -210,19 +210,15 @@ class DepthCamera(object):
             else:
                 # unlike realsense, the frames should be aligned by now
                 aligned_frames = frames
-                #print("getting frames...")
+
                 depth_frame = aligned_frames.get_depth_frame()
                 color_frame = aligned_frames.get_color_frame()
 
                 if depth_frame and color_frame:
 
                     # Convert images to numpy arrays
-
-
-                    color_data = self.get_orbbec_color_data(color_frame)
-                    #print(color_data.shape)
                     depth_data = self.get_orbbec_depth_data(depth_frame)
-                    #print(depth_data.shape)
+                    color_data = self.get_orbbec_color_data(color_frame)
 
         return depth_data, color_data
 
@@ -247,30 +243,8 @@ class DepthCamera(object):
         height = orbbec_depth_frame.get_height()
         scale = orbbec_depth_frame.get_depth_scale() # scale is 1.0, the HW are in milimeters
 
-        #print(width)
-        #raw_data = orbbec_depth_frame.get_data()
-        #print(type(raw_data))               # Should be bytes or bytearray
-        #print(len(raw_data))
-        #depth_data = np.frombuffer(orbbec_depth_frame.get_data(), dtype=np.uint16)
-        depth_data = orbbec_depth_frame.get_data()
-        depth_data = np.ascontiguousarray(depth_data)
-
-        # Check data properties
-        print(type(depth_data))          # Should be <class 'numpy.ndarray'>
-        print(depth_data.dtype)          # Likely np.uint8
-        print(depth_data.shape)          # Should be (width * height * 2,)
-        """
-        <class 'numpy.ndarray'>
-        uint8
-        (2457600,)
-        To change to a dtype of a different size, the last axis must be contiguous
-        """
-        depth_data = depth_data.view(np.uint16)
-
-        # Reshape the array to (height, width) and ensure it's C-contiguous
-        depth_data = np.ascontiguousarray(depth_data.reshape((height, width)))
-        #print(height)
-        #depth_data = depth_data.reshape((height, width))
+        depth_data = np.frombuffer(orbbec_depth_frame.get_data(), dtype=np.uint16)
+        depth_data = depth_data.reshape((height, width))
         depth_data = depth_data.astype(np.float32) * scale
 
         return depth_data
