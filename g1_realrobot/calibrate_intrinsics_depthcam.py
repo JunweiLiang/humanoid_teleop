@@ -217,8 +217,11 @@ class DepthCamera(object):
                 if depth_frame and color_frame:
 
                     # Convert images to numpy arrays
-                    depth_data = self.get_orbbec_depth_data(depth_frame)
+
+
                     color_data = self.get_orbbec_color_data(color_frame)
+                    print(color_data)
+                    depth_data = self.get_orbbec_depth_data(depth_frame)
                     print(depth_data.shape)
 
         return depth_data, color_data
