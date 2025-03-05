@@ -512,6 +512,13 @@ class H1_2_ArmIK:
             return current_lr_arm_motor_q, np.zeros(self.reduced_robot.model.nv)
 
 
+printed = False
+def print_once(string):
+    global printed
+    if not printed:
+        print(string)
+        printed = True
+
 if __name__ == "__main__":
     # 这里直接开了meshcat web browser visualization
     arm_ik = G1_29_ArmIK(Unit_Test = True, Visualization = True)
@@ -572,6 +579,7 @@ if __name__ == "__main__":
             )
 
             sol_q, sol_tauff = arm_ik.solve_ik(L_tf_target.homogeneous, R_tf_target.homogeneous)
+            print_once(sol_q)
 
             step += 1
             if step > 240:
