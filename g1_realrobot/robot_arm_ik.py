@@ -222,14 +222,13 @@ class G1_29_ArmIK:
                     )
                 )
 
-    def solve_ik(self, left_wrist, right_wrist, current_lr_arm_motor_q = None, current_lr_arm_motor_dq = None):
+    def solve_ik(self, left_wrist, current_lr_arm_motor_q = None, current_lr_arm_motor_dq = None):
         if current_lr_arm_motor_q is not None:
             self.init_data = current_lr_arm_motor_q
         self.opti.set_initial(self.var_q, self.init_data)
 
-
         self.opti.set_value(self.param_tf_l, left_wrist)
-        self.opti.set_value(self.param_tf_r, right_wrist)
+
         self.opti.set_value(self.var_q_last, self.init_data) # for smooth
 
 

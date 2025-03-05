@@ -400,34 +400,55 @@ def camera_frame_to_robot_frame(xyz_in_camera):
         z_in_arm_frame,
     ]
 
+def interpolate_se3(start, end, alpha):
+    # Interpolate translation linearly
+    interp_translation = (1 - alpha) * start.translation + alpha * end.translation
+
+    # Slerp (spherical linear interpolation) for rotation
+    start_quat = pin.Quaternion(start.rotation)
+    end_quat = pin.Quaternion(end.rotation)
+    interp_quat = start_quat.slerp(alpha, end_quat)
+
+    return pin.SE3(interp_quat.matrix(), interp_translation)
+
+def move_arm_fromto(arm_ctr, start_xyz, target_xyz, in_seconds=1.2):
+
+    time_gap = 0.01
+    max_steps = int(in_seconds / time_gap)
+
+    start = pin.SE3(pin.Quaternion(1, 0, 0, 0), np.array(start_xyz))
+    target = pin.SE3(pin.Quaternion(1, 0, 0, 0), np.array(target_xyz))
+
+    for step in range(max_steps)
+        # Normalize step to [0, 1] range for interpolation
+        alpha = ((step + 1) % max_steps) / max_steps
+         # Move forward for first half, backward for second half
+        if alpha <= 0.5:
+            alpha *= 2  # Scale alpha to [0, 1] for first phase
+        else:
+            alpha = 2 * (1 - alpha)  # Reverse alpha for the second phase
+
+        # Interpolate left end-effector smoothly
+        target_tmp = interpolate_se3(start, target, alpha)
+
+        # both list of 14
+        sol_q, sol_tauff = arm_ctr.solve_ik(target_tmp.homogeneous)
+
+        time.sleep(time_gap)
+
+
 # Function to control the robot arm asynchronously
-def move_robot_arm(arm_ctr, piper_ctr, target_xyz_arm):
+def move_robot_arm(arm_ctr, target_xyz_in_robot_frame):
 
-    # assuming our target rotation to be leveled
-    roll = 0
-    pitch = 0
-    yaw = 0
-
-    # Compute inverse kinematics solution
-    solution_q, succeed, err = arm_ctr.solve_pink(np.array([roll, pitch, yaw] + target_xyz_arm))
-
-    if not succeed:
-        # we do not exit even if ik is not converged
-        print("warning, ik compute not converged. err:%s > 0.001" % err)
-
-    print("joint pos", solution_q)
-    target_j6_degrees = np.degrees(solution_q).tolist()
-    print("pos degrees: ", target_j6_degrees)
+    start = [0.25, 0.25, 0.1]
+    print("moving to ", target_xyz_in_robot_frame)
 
     # now we start to control the arm
 
+    move_arm_fromto(arm_ctr, start, target_xyz_in_robot_frame, in_seconds=1.2)
+
     # 零位
-    piper_ctr.to_zero(speed=80)
-
-    # execute the command in k second
-    piper_ctr.to_j6(target_j6_degrees, 6.0, speed=40)
-
-    piper_ctr.to_zero(speed=80)
+    move_arm_fromto(arm_ctr, target_xyz_in_robot_frame, start, in_seconds=1.2)
 
 
 
@@ -530,7 +551,7 @@ if __name__ == "__main__":
 
                 # we visualize the target in the robot frame
                 target_xyz_in_robot_frame = camera_frame_to_robot_frame(target_xyz)
-                print(target_xyz_in_robot_frame)
+                #print(target_xyz_in_robot_frame)
                 robot_target = pin.SE3(pin.Quaternion(1, 0, 0, 0), np.array(target_xyz_in_robot_frame))
                 arm_ik.vis.viewer["L_ee_target/sphere"].set_object(g.Sphere(0.05), g.MeshLambertMaterial(color=0xff0000))
                 arm_ik.vis.viewer["L_ee_target"].set_transform(robot_target.homogeneous)
@@ -547,13 +568,13 @@ if __name__ == "__main__":
                     # make sure the previous thread is finished
                     if robot_ctr_thread is None or not robot_ctr_thread.is_alive():
 
-                        print("ok, will move to button %s" % target_xyz)
+                        print("ok, will move to button %s" % target_xyz_in_robot_frame)
 
                         # Make a copy of target_xyz to pass to the thread
-                        target_xyz_copy = target_xyz[:]
+                        target_xyz_in_robot_frame_copy = target_xyz_in_robot_frame[:]
 
-                        #robot_ctr_thread = threading.Thread(target=move_robot_arm, args=(arm_ctr, piper_ctr, target_xyz_copy,))
-                        #robot_ctr_thread.start()
+                        robot_ctr_thread = threading.Thread(target=move_robot_arm, args=(arm_ik, target_xyz_in_robot_frame_copy,))
+                        robot_ctr_thread.start()
                     else:
                         print("Arm is not ready for next move! skipping..")
 
