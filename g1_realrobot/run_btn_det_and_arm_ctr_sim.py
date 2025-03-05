@@ -74,6 +74,7 @@ class DetDepthModel:
 
         self.camera_obj = DepthCamera(
             is_realsense=is_realsense, camera_type=camera_type)
+        print("camera initialized!")
 
         # for FPS computation
         self.frame_count = 0
