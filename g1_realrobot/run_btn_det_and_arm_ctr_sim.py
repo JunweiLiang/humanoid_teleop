@@ -447,10 +447,14 @@ def move_robot_arm(arm_ctr, target_xyz_in_robot_frame):
 
     move_arm_to_and_back(arm_ctr, start, target_xyz_in_robot_frame, in_seconds=2.0)
 
+    stop_update_target_sphere = False
 
 
 
 if __name__ == "__main__":
+
+    global stop_update_target_sphere
+
     args = parser.parse_args()
 
     #urdf_path = args.urdf
@@ -487,6 +491,7 @@ if __name__ == "__main__":
 
 
         target_xyz_is_init = False
+        stop_update_target_sphere = False # when arm is moving ,this should not be updated and meshcat might fail
         while True:
             # get one frame and run the detection
             frame, det_results = depth_det_camera_model.run_od_and_return_frame(
@@ -549,10 +554,11 @@ if __name__ == "__main__":
                     fontScale=1.3, color=(0, 255, 0), thickness=4)
 
                 # we visualize the target in the robot frame
-                target_xyz_in_robot_frame = camera_frame_to_robot_frame(target_xyz)
-                #print(target_xyz_in_robot_frame)
-                robot_target = pin.SE3(pin.Quaternion(1, 0, 0, 0), np.array(target_xyz_in_robot_frame))
-                arm_ik.vis.viewer["L_ee_target"].set_transform(robot_target.homogeneous)
+                if not stop_update_target_sphere:
+                    target_xyz_in_robot_frame = camera_frame_to_robot_frame(target_xyz)
+                    #print(target_xyz_in_robot_frame)
+                    robot_target = pin.SE3(pin.Quaternion(1, 0, 0, 0), np.array(target_xyz_in_robot_frame))
+                    arm_ik.vis.viewer["L_ee_target"].set_transform(robot_target.homogeneous)
 
             cv2.imshow("frame", frame)
 
@@ -569,6 +575,7 @@ if __name__ == "__main__":
                         # Make a copy of target_xyz to pass to the thread
                         target_xyz_in_robot_frame_copy = target_xyz_in_robot_frame[:]
 
+                        stop_update_target_sphere = True
                         robot_ctr_thread = threading.Thread(target=move_robot_arm, args=(arm_ik, target_xyz_in_robot_frame_copy,))
                         robot_ctr_thread.start()
                     else:
