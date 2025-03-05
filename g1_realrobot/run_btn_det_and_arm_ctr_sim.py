@@ -439,7 +439,7 @@ def move_arm_to_and_back(arm_ctr, start_xyz, target_xyz, in_seconds=2.0):
 
 # Function to control the robot arm asynchronously
 def move_robot_arm(arm_ctr, target_xyz_in_robot_frame):
-
+    global stop_update_target_sphere
     start = [0.25, 0.25, 0.1]
     print("moving to ", target_xyz_in_robot_frame)
 
