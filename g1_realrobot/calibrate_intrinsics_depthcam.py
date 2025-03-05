@@ -210,7 +210,7 @@ class DepthCamera(object):
             else:
                 # unlike realsense, the frames should be aligned by now
                 aligned_frames = frames
-                print("getting frames...")
+                #print("getting frames...")
                 depth_frame = aligned_frames.get_depth_frame()
                 color_frame = aligned_frames.get_color_frame()
 
@@ -220,9 +220,9 @@ class DepthCamera(object):
 
 
                     color_data = self.get_orbbec_color_data(color_frame)
-                    print(color_data)
+                    #print(color_data.shape)
                     depth_data = self.get_orbbec_depth_data(depth_frame)
-                    print(depth_data.shape)
+                    #print(depth_data.shape)
 
         return depth_data, color_data
 
@@ -247,6 +247,8 @@ class DepthCamera(object):
         height = orbbec_depth_frame.get_height()
         scale = orbbec_depth_frame.get_depth_scale() # scale is 1.0, the HW are in milimeters
 
+        depth_array = np.ascontiguousarray(orbbec_depth_frame)
+        print(depth_array.shape)
         depth_data = np.frombuffer(orbbec_depth_frame.get_data(), dtype=np.uint16)
         depth_data = depth_data.reshape((height, width))
         depth_data = depth_data.astype(np.float32) * scale
