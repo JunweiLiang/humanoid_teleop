@@ -29,10 +29,13 @@ class G1_29_ArmIK:
         # get the head link position
         head_link_idx = self.robot.model.getFrameId('head_link')
         data = self.robot.data
-        # Compute the placement (position and orientation) of the 'head_link' in the world frame
-        self.robot.computeAllTerms(data)
+        # Initialize the robot configuration (e.g., a default zero configuration)
+        q = np.zeros(self.robot.model.nq)  # nq is the number of generalized coordinates (degrees of freedom)
 
-        # Extract the transformation matrix (4x4) of the 'head_link'
+        # Compute the joint placements (positions and orientations) for all links
+        self.robot.computeAllForwardKinematics(data, q)
+
+        # Extract the transformation matrix (4x4) of the 'head_link' in the world frame
         head_link_transform = self.robot.framePlacement(data, head_link_idx)
 
         # The position is stored in the last column of the transformation matrix
