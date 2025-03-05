@@ -12,7 +12,7 @@ from ultralytics import YOLO
 import threading  # run the arm control async
 
 from calibrate_intrinsics_depthcam import DepthCamera
-
+from robot_arm_ik import  G1_29_ArmIK
 
 parser = argparse.ArgumentParser()
 
@@ -411,6 +411,8 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     #urdf_path = args.urdf
+    arm_ik = G1_29_ArmIK(urdf=args.urdf, visualization=True)
+
     # the xyz overwrites for the button. Use when z is not accurate for example
     set_xyz = [args.set_x, args.set_y, args.set_z]
 
