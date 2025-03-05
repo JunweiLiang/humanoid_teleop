@@ -27,7 +27,7 @@ class G1_29_ArmIK:
             self.robot = pin.RobotWrapper.BuildFromURDF('../../assets/g1/g1_body29_hand14.urdf', '../../assets/g1/') # for test
 
         # get the head link position
-        head_link_idx = self.robot.model.getFrameId('left_elbow_link')
+        head_link_idx = self.robot.model.getFrameId('logo_link')
 
         # Initialize the robot configuration (e.g., a default zero configuration)
         q = np.zeros(self.robot.model.nq)  # nq is the number of generalized coordinates (degrees of freedom)
