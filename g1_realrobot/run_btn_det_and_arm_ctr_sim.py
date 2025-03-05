@@ -74,7 +74,6 @@ class DetDepthModel:
 
         self.camera_obj = DepthCamera(
             is_realsense=is_realsense, camera_type=camera_type)
-        print("camera initialized!")
 
         # for FPS computation
         self.frame_count = 0
@@ -168,14 +167,12 @@ class DetDepthModel:
 
         # see here for inference arguments
         # https://docs.ultralytics.com/modes/predict/#inference-arguments
-        print("start det")
         results = self.det_model.predict(
             frame_cv2,
             classes=classes,  # you can specify the classes you want
             # see here for coco class indexes [0-79], 0 is person: https://gist.github.com/AruniRC/7b3dadd004da04c80198557db5da4bda
             #classes=[0, 32], # detect person and sports ball only
             conf=conf, verbose=False)
-        print("done")
 
         # see here for the API documentation of results
         # https://docs.ultralytics.com/modes/predict/#working-with-results

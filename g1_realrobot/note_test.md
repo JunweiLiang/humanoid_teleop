@@ -196,6 +196,11 @@
 
         $ pip install ultralytics
 
+        # The code stuck at cv2.imshow after using ultralytics, removing pyav fixed it
+            # https://github.com/ultralytics/ultralytics/issues/3005
+            $ pip uninstall av
+            # 所以，PyAV和ultralytics的import会有冲突，导致opencv imshow卡住
+
         # 电梯按钮模型
         (g1) junweil@home-lab:~/projects/humanoid_teleop$ python g1_realrobot/run_btn_det_and_arm_ctr_sim.py ../elevator_project/elevator_det_models/combtn59v1.pt avp_teleoperate/assets/g1/g1_body29_hand14.urdf --is_realsense --cam d455 --target_btn "("
 
