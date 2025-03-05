@@ -210,9 +210,10 @@ class DepthCamera(object):
             else:
                 # unlike realsense, the frames should be aligned by now
                 aligned_frames = frames
-
+                print("getting frames...")
                 depth_frame = aligned_frames.get_depth_frame()
                 color_frame = aligned_frames.get_color_frame()
+                print(depth_frame.shape)
 
                 if depth_frame and color_frame:
 
