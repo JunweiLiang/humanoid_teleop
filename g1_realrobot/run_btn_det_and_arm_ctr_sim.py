@@ -12,6 +12,7 @@ from ultralytics import YOLO
 import threading  # run the arm control async
 
 from calibrate_intrinsics_depthcam import DepthCamera
+from calibrate_intrinsics_depthcam import image_resize
 from robot_arm_ik import  G1_29_ArmIK
 
 import meshcat.geometry as g
@@ -439,6 +440,7 @@ def move_arm_to_and_back(arm_ctr, start_xyz, target_xyz, in_seconds=2.0):
 
 # Function to control the robot arm asynchronously
 def move_robot_arm(arm_ctr, target_xyz_in_robot_frame):
+    # need this to tell the main thread not to update meshcat with the sphere, otherwise socket is occupied
     global stop_update_target_sphere
     start = [0.25, 0.25, 0.1]
     print("moving to ", target_xyz_in_robot_frame)
@@ -453,7 +455,7 @@ def move_robot_arm(arm_ctr, target_xyz_in_robot_frame):
 
 if __name__ == "__main__":
 
-    global stop_update_target_sphere
+
 
     args = parser.parse_args()
 
@@ -491,7 +493,10 @@ if __name__ == "__main__":
 
 
         target_xyz_is_init = False
+
+        global stop_update_target_sphere
         stop_update_target_sphere = False # when arm is moving ,this should not be updated and meshcat might fail
+
         while True:
             # get one frame and run the detection
             frame, det_results = depth_det_camera_model.run_od_and_return_frame(
@@ -560,6 +565,7 @@ if __name__ == "__main__":
                     robot_target = pin.SE3(pin.Quaternion(1, 0, 0, 0), np.array(target_xyz_in_robot_frame))
                     arm_ik.vis.viewer["L_ee_target"].set_transform(robot_target.homogeneous)
 
+            frame = image_resize(frame, width=900, height=None)
             cv2.imshow("frame", frame)
 
             pressedKey = cv2.waitKey(1) & 0xFF
