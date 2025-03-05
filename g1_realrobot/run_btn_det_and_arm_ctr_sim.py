@@ -81,7 +81,7 @@ class DetDepthModel:
         assert len(xyz_delta) == 3
         self.xyz_delta = xyz_delta
 
-    def run_od_and_return_frame(self, visualize_box=True, visualize_depth=False):
+    def run_od_and_return_frame(self, visualize_box=True, visualize_depth=True):
         # get one frame from stream and run object detection
         # then return the visualization image
         return_frame, det_results = None, None

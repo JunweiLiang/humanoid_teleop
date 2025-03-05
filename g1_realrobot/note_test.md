@@ -215,8 +215,8 @@
             ../elevator_project/elevator_det_models/panelv1.pt --target_btn elevator-panel
 
             # 测试，识别上按钮，并且控制机器人动
-
-                (g1) junweil@home-lab:~/projects/humanoid_teleop$ python g1_realrobot/run_btn_det_and_arm_ctr_sim.py ../elevator_project/elevator_det_models/combtn59v3.20241206_2326.pt avp_teleoperate/assets/g1/g1_body29_hand14.urdf --is_realsense --cam d455 --target_btn "(" --use_tracking
+                # 同时显示其他检测到的button， 目标上楼的button "("会用蓝色框
+                (g1) junweil@home-lab:~/projects/humanoid_teleop$ python g1_realrobot/run_btn_det_and_arm_ctr_sim.py ../elevator_project/elevator_det_models/combtn59v3.20241206_2326.pt avp_teleoperate/assets/g1/g1_body29_hand14.urdf --is_realsense --cam d455 --target_btn "(" --use_tracking --det_all
 
 
 ```
