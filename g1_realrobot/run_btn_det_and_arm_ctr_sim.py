@@ -411,7 +411,7 @@ def interpolate_se3(start, end, alpha):
 
     return pin.SE3(interp_quat.matrix(), interp_translation)
 
-def move_arm_fromto(arm_ctr, start_xyz, target_xyz, in_seconds=1.2):
+def move_arm_to_and_back(arm_ctr, start_xyz, target_xyz, in_seconds=2.0):
 
     time_gap = 0.01
     max_steps = int(in_seconds / time_gap)
@@ -445,10 +445,8 @@ def move_robot_arm(arm_ctr, target_xyz_in_robot_frame):
 
     # now we start to control the arm
 
-    move_arm_fromto(arm_ctr, start, target_xyz_in_robot_frame, in_seconds=1.2)
+    move_arm_to_and_back(arm_ctr, start, target_xyz_in_robot_frame, in_seconds=2.0)
 
-    # 零位
-    move_arm_fromto(arm_ctr, target_xyz_in_robot_frame, start, in_seconds=1.2)
 
 
 
