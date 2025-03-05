@@ -568,8 +568,6 @@ if __name__ == "__main__":
                     # make sure the previous thread is finished
                     if robot_ctr_thread is None or not robot_ctr_thread.is_alive():
 
-                        print("ok, will move to button %s" % target_xyz_in_robot_frame)
-
                         # Make a copy of target_xyz to pass to the thread
                         target_xyz_in_robot_frame_copy = target_xyz_in_robot_frame[:]
 
