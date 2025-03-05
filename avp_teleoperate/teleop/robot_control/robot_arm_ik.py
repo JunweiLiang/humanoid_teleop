@@ -528,6 +528,24 @@ if __name__ == "__main__":
         np.array([0.25, -0.25, 0.1]),
     )
 
+    sol_q, sol_tauff = arm_ik.solve_ik(L_tf_target.homogeneous, R_tf_target.homogeneous)
+    print(sol_q, sol_tauff)
+
+    L_tf_target = pin.SE3(
+        pin.Quaternion(1, 0, 0, 0),
+        np.array([0.6, 0.5, 0.3]),
+    )
+
+    R_tf_target = pin.SE3(
+        pin.Quaternion(1, 0, 0, 0),
+        np.array([0.25, -0.25, 0.1]),
+    )
+
+    sol_q, sol_tauff = arm_ik.solve_ik(L_tf_target.homogeneous, R_tf_target.homogeneous)
+    print(sol_q, sol_tauff)
+
+    sys.exit()
+
     rotation_speed = 0.005
     noise_amplitude_translation = 0.001
     noise_amplitude_rotation = 0.1
@@ -556,17 +574,9 @@ if __name__ == "__main__":
                 L_tf_target.translation -= (np.array([0.001,  0.001, 0.001]) + np.random.normal(0, noise_amplitude_translation, 3))
                 R_tf_target.translation -= (np.array([0.001, -0.001, 0.001]) + np.random.normal(0, noise_amplitude_translation, 3))
 
-            L_tf_target = pin.SE3(
-                pin.Quaternion(1, 0, 0, 0),
-                np.array([0.6, 0.5, 0.3]),
-            )
 
-            R_tf_target = pin.SE3(
-                pin.Quaternion(1, 0, 0, 0),
-                np.array([0.25, -0.25, 0.1]),
-            )
 
-            arm_ik.solve_ik(L_tf_target.homogeneous, R_tf_target.homogeneous)
+            sol_q, sol_tauff = arm_ik.solve_ik(L_tf_target.homogeneous, R_tf_target.homogeneous)
 
             step += 1
             if step > 240:
