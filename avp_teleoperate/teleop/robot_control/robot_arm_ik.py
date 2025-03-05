@@ -545,6 +545,10 @@ if __name__ == "__main__":
     L_start = pin.SE3(pin.Quaternion(1, 0, 0, 0), np.array([0.25, 0.25, 0.1]))
     L_target = pin.SE3(pin.Quaternion(1, 0, 0, 0), np.array([0.4, 0.1, 0.3]))
 
+    arm_ik.vis.set_object(pin.visual.Frame(0.1))
+    arm_ik.vis.set_transform(L_target.homogeneous)
+
+    # 这里会以100Hz计算IK，把左手从初始位置移动到一个目标位置，然后回来，丝滑
 
     user_input = input("Please enter the start signal (enter 's' to start the subsequent program):\n")
     if user_input.lower() == 's':

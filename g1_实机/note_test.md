@@ -183,7 +183,8 @@
         # 使用 pinocchio 和 CasADi 库加载 URDF 并进行逆运动学计算，求解出到达该位姿的关节电机角度值。 meshcat 库则用于调试时在 Web 端进行可视化显示。
             # 添加了双目相机，可以在AVP中看到机器人的视野; 连接到PC2，把双目相机视觉推流到一个server，然后在另一台有线连接的主机host开client，然后在AVP中，打开浏览器观看主机上的推流
 
-    # 直接浏览器可视化，H1_2 或者 G1 (改代码第一行注释)，追踪手臂上的位姿
+    # 直接浏览器可视化，给定一个左手的目标位置，丝滑移动过去再回来
+        # 自己的代码在: https://github.com/JunweiLiang/humanoid_teleop
 
-        (g1) junweil@home-lab:~/projects/robot_dog_and_arm/avp_teleoperate/teleop/robot_control$ python robot_arm_ik.py
+        (g1) junweil@home-lab:~/projects/humanoid_teleop/avp_teleoperate/teleop/robot_control$ python robot_arm_ik.py
 ```
