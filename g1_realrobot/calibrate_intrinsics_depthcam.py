@@ -248,9 +248,10 @@ class DepthCamera(object):
         scale = orbbec_depth_frame.get_depth_scale() # scale is 1.0, the HW are in milimeters
 
         print(width)
-        data = orbbec_depth_frame.get_data()
-        print("ok")
-        depth_data = np.frombuffer(orbbec_depth_frame.get_data(), dtype=np.uint16, copy=True)
+        raw_data = orbbec_depth_frame.get_data()
+        print(type(raw_data))               # Should be bytes or bytearray
+        print(len(raw_data))
+        depth_data = np.frombuffer(orbbec_depth_frame.get_data(), dtype=np.uint16)
         print(height)
         depth_data = depth_data.reshape((height, width), order='C')
         depth_data = depth_data.astype(np.float32) * scale
