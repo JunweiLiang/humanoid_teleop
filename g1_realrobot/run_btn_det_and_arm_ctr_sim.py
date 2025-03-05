@@ -528,6 +528,7 @@ if __name__ == "__main__":
 
                 # we visualize the target in the robot frame
                 target_xyz_in_robot_frame = camera_frame_to_robot_frame(target_xyz)
+                print(target_xyz_in_robot_frame)
                 robot_target = pin.SE3(pin.Quaternion(1, 0, 0, 0), np.array(target_xyz_in_robot_frame))
                 arm_ik.vis.viewer["L_ee_target/sphere"].set_object(g.Sphere(0.05), g.MeshLambertMaterial(color=0xff0000))
                 arm_ik.vis.viewer["L_ee_target"].set_transform(robot_target.homogeneous)
