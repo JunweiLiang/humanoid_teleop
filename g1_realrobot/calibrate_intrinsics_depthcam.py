@@ -253,8 +253,12 @@ class DepthCamera(object):
         #print(len(raw_data))
         #depth_data = np.frombuffer(orbbec_depth_frame.get_data(), dtype=np.uint16)
         depth_data = orbbec_depth_frame.get_data()
+        depth_data = depth_data.view(np.uint16)
+
+        # Reshape the array to (height, width) and ensure it's C-contiguous
+        depth_data = np.ascontiguousarray(depth_data.reshape((height, width)))
         #print(height)
-        depth_data = depth_data.reshape((height, width), order='C')
+        #depth_data = depth_data.reshape((height, width))
         depth_data = depth_data.astype(np.float32) * scale
 
         return depth_data
