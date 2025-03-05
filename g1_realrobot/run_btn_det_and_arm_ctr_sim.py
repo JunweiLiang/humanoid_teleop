@@ -467,7 +467,7 @@ if __name__ == "__main__":
                     target_xyz_in_camera_frame_in_mm = point_3d
                     # mm to meters
                     target_xyz_in_camera_frame = [o*0.001 for o in point_3d]
-                    target_xyz_det = target_xyz_in_camera_frame
+                    target_xyz = target_xyz_in_camera_frame
                     # now we convert the button coordinates in camera frame
                     # to the arm world frame, so we can use it to compute ik
                     #target_xyz = depth_det_camera_model.camera_frame_to_arm_frame(target_xyz_in_camera_frame)
