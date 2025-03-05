@@ -444,7 +444,7 @@ if __name__ == "__main__":
         while True:
             # get one frame and run the detection
             frame, det_results = depth_det_camera_model.run_od_and_return_frame(
-                visualize_box=True, visualize_depth=True)
+                visualize_box=True, visualize_depth=False)
 
             # the frame will be empty when just start the program
             if frame is None:
