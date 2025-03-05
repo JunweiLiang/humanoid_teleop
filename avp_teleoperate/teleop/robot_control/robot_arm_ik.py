@@ -208,9 +208,9 @@ class G1_29_ArmIK:
         self.opti.set_initial(self.var_q, self.init_data)
 
         # left_wrist, right_wrist = self.scale_arms(left_wrist, right_wrist)
-        if self.Visualization:
-            self.vis.viewer['L_ee_target'].set_transform(left_wrist)   # for visualization
-            self.vis.viewer['R_ee_target'].set_transform(right_wrist)  # for visualization
+        #if self.Visualization:
+        #    self.vis.viewer['L_ee_target'].set_transform(left_wrist)   # for visualization
+        #    self.vis.viewer['R_ee_target'].set_transform(right_wrist)  # for visualization
 
         self.opti.set_value(self.param_tf_l, left_wrist)
         self.opti.set_value(self.param_tf_r, right_wrist)
