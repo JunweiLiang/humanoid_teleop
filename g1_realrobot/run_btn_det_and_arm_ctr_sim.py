@@ -455,6 +455,7 @@ if __name__ == "__main__":
 
     #urdf_path = args.urdf
     arm_ik = G1_29_ArmIK(urdf=args.urdf, visualization=True)
+    arm_ik.vis.viewer["L_ee_target/sphere"].set_object(g.Sphere(0.05), g.MeshLambertMaterial(color=0xff0000))
 
     # the xyz overwrites for the button. Use when z is not accurate for example
     set_xyz = [args.set_x, args.set_y, args.set_z]
@@ -551,7 +552,6 @@ if __name__ == "__main__":
                 target_xyz_in_robot_frame = camera_frame_to_robot_frame(target_xyz)
                 #print(target_xyz_in_robot_frame)
                 robot_target = pin.SE3(pin.Quaternion(1, 0, 0, 0), np.array(target_xyz_in_robot_frame))
-                arm_ik.vis.viewer["L_ee_target/sphere"].set_object(g.Sphere(0.05), g.MeshLambertMaterial(color=0xff0000))
                 arm_ik.vis.viewer["L_ee_target"].set_transform(robot_target.homogeneous)
 
             cv2.imshow("frame", frame)
