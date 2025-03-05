@@ -28,12 +28,12 @@ class G1_29_ArmIK:
 
         # get the head link position
         head_link_idx = self.robot.model.getFrameId('head_link')
-        data = self.robot.data
+
         # Initialize the robot configuration (e.g., a default zero configuration)
         q = np.zeros(self.robot.model.nq)  # nq is the number of generalized coordinates (degrees of freedom)
 
         # Compute forward kinematics for all links
-        self.robot.forwardKinematics(data, q)
+        self.robot.forwardKinematics(q)
 
         # Extract the transformation matrix (4x4) of the 'head_link' in the world frame
         head_link_transform = self.robot.framePlacement(q, head_link_idx)
