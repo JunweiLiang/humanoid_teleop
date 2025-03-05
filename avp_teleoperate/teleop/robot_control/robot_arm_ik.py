@@ -231,6 +231,8 @@ class G1_29_ArmIK:
 
             self.init_data = sol_q
 
+            # Calculate Feedforward Torques
+            # Uses Recursive Newton-Euler Algorithm (RNEA) to compute the inverse dynamics.
             sol_tauff = pin.rnea(self.reduced_robot.model, self.reduced_robot.data, sol_q, v, np.zeros(self.reduced_robot.model.nv))
 
             if self.Visualization:
@@ -548,6 +550,7 @@ if __name__ == "__main__":
     if user_input.lower() == 's':
         step = 0
         while True:
+            """
             # Apply rotation noise with bias towards y and z axes
             rotation_noise_L = pin.Quaternion(
                 np.cos(np.random.normal(0, noise_amplitude_rotation) / 2), 0, np.random.normal(0, noise_amplitude_rotation / 2),0).normalized()  # y bias
@@ -567,16 +570,28 @@ if __name__ == "__main__":
                 R_tf_target.rotation = (rotation_noise_R * pin.Quaternion(np.cos(angle / 2), 0, 0, np.sin(angle / 2))).toRotationMatrix()  # z axis
                 L_tf_target.translation -= (np.array([0.001,  0.001, 0.001]) + np.random.normal(0, noise_amplitude_translation, 3))
                 R_tf_target.translation -= (np.array([0.001, -0.001, 0.001]) + np.random.normal(0, noise_amplitude_translation, 3))
+            """
+            if step <= 120:
+                L_tf_target = pin.SE3(
+                    pin.Quaternion(1, 0, 0, 0),
+                    np.array([0.4, 0.1, 0.3]),
+                )
 
-            L_tf_target = pin.SE3(
-                pin.Quaternion(1, 0, 0, 0),
-                np.array([0.4, 0.1, 0.3]),
-            )
+                R_tf_target = pin.SE3(
+                    pin.Quaternion(1, 0, 0, 0),
+                    np.array([0.25, -0.25, 0.1]),
+                )
+            else:
+                # initial positon
+                L_tf_target = pin.SE3(
+                    pin.Quaternion(1, 0, 0, 0),
+                    np.array([0.25, +0.25, 0.1]),
+                )
 
-            R_tf_target = pin.SE3(
-                pin.Quaternion(1, 0, 0, 0),
-                np.array([0.25, -0.25, 0.1]),
-            )
+                R_tf_target = pin.SE3(
+                    pin.Quaternion(1, 0, 0, 0),
+                    np.array([0.25, -0.25, 0.1]),
+                )
 
             sol_q, sol_tauff = arm_ik.solve_ik(L_tf_target.homogeneous, R_tf_target.homogeneous)
             print_once(sol_q)
