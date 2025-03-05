@@ -32,11 +32,11 @@ class G1_29_ArmIK:
         # Initialize the robot configuration (e.g., a default zero configuration)
         q = np.zeros(self.robot.model.nq)  # nq is the number of generalized coordinates (degrees of freedom)
 
-        # Compute the joint placements (positions and orientations) for all links
-        self.robot.computeAllForwardKinematics(data, q)
+        # Compute forward kinematics for all links
+        pin.forwardKinematics(self.robot.model, data, q)
 
         # Extract the transformation matrix (4x4) of the 'head_link' in the world frame
-        head_link_transform = self.robot.framePlacement(data, head_link_idx)
+        head_link_transform = pin.framePlacement(self.robot.model, data, head_link_idx)
 
         # The position is stored in the last column of the transformation matrix
         position = head_link_transform.translation
