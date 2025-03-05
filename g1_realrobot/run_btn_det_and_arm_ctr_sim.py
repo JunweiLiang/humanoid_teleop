@@ -575,8 +575,8 @@ if __name__ == "__main__":
                         print("Arm is not ready for next move! skipping..")
 
 
-    except Exception as e:
-        print(e)
+    #except Exception as e:
+    #    print(e)
 
     finally:
         # Wait for the movement thread to finish if it's still running
