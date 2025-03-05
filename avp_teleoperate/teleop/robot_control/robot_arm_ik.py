@@ -599,4 +599,4 @@ if __name__ == "__main__":
             step += 1
             if step > 240:
                 step = 0
-            time.sleep(0.1)
+            time.sleep(0.01)
