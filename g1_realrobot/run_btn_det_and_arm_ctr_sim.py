@@ -419,7 +419,7 @@ def move_arm_fromto(arm_ctr, start_xyz, target_xyz, in_seconds=1.2):
     start = pin.SE3(pin.Quaternion(1, 0, 0, 0), np.array(start_xyz))
     target = pin.SE3(pin.Quaternion(1, 0, 0, 0), np.array(target_xyz))
 
-    for step in range(max_steps)
+    for step in range(max_steps):
         # Normalize step to [0, 1] range for interpolation
         alpha = ((step + 1) % max_steps) / max_steps
          # Move forward for first half, backward for second half
