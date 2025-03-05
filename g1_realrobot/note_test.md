@@ -197,7 +197,7 @@
         $ pip install ultralytics
 
         # 电梯按钮模型
-        (g1) junweil@home-lab:~/projects/humanoid_teleop$ python g1_realrobot/run_btn_det_and_arm_ctr_sim.py ../elevator_project/elevator_det_models/panelv1.pt avp_teleoperate/assets/g1/g1_body29_hand14.urdf --is_realsense --cam d455
+        (g1) junweil@home-lab:~/projects/humanoid_teleop$ python g1_realrobot/run_btn_det_and_arm_ctr_sim.py ../elevator_project/elevator_det_models/combtn59v1.pt avp_teleoperate/assets/g1/g1_body29_hand14.urdf --is_realsense --cam d455 --target_btn "("
 
         # 电梯面板检测模型
             ../elevator_project/elevator_det_models/panelv1.pt --target_btn elevator-panel
