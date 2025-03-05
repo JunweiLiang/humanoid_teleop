@@ -253,11 +253,18 @@ class DepthCamera(object):
         #print(len(raw_data))
         #depth_data = np.frombuffer(orbbec_depth_frame.get_data(), dtype=np.uint16)
         depth_data = orbbec_depth_frame.get_data()
+        depth_data = np.ascontiguousarray(depth_data)
 
         # Check data properties
         print(type(depth_data))          # Should be <class 'numpy.ndarray'>
         print(depth_data.dtype)          # Likely np.uint8
         print(depth_data.shape)          # Should be (width * height * 2,)
+        """
+        <class 'numpy.ndarray'>
+        uint8
+        (2457600,)
+        To change to a dtype of a different size, the last axis must be contiguous
+        """
         depth_data = depth_data.view(np.uint16)
 
         # Reshape the array to (height, width) and ensure it's C-contiguous
