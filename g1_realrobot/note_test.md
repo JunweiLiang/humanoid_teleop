@@ -194,4 +194,6 @@
 
     # 使用真实realsense相机识别电梯按钮，然后控制虚拟G1左手到目标位置
 
+        $ pip install ultralytics
+
 ```

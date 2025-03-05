@@ -21,7 +21,7 @@ parser.add_argument("urdf")
 
 #
 parser.add_argument("--is_realsense", action="store_true", help="if not then orbbec")
-parser.add_argument("--camera_type", default="gemini, d455")
+parser.add_argument("--camera_type", default="d455")
 
 parser.add_argument("--ee_link_name", default="ee_link")
 
