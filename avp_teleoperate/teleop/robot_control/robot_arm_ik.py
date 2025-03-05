@@ -33,10 +33,10 @@ class G1_29_ArmIK:
         q = np.zeros(self.robot.model.nq)  # nq is the number of generalized coordinates (degrees of freedom)
 
         # Compute forward kinematics for all links
-        pin.forwardKinematics(self.robot.model, data, q)
+        self.robot.forwardKinematics(data, q)
 
         # Extract the transformation matrix (4x4) of the 'head_link' in the world frame
-        head_link_transform = self.robot.framePlacement(data, head_link_idx)
+        head_link_transform = self.robot.framePlacement(q, head_link_idx)
 
         # The position is stored in the last column of the transformation matrix
         position = head_link_transform.translation
