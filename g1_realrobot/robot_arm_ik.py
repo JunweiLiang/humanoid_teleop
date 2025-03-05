@@ -227,8 +227,10 @@ class G1_29_ArmIK:
             self.init_data = current_lr_arm_motor_q
         self.opti.set_initial(self.var_q, self.init_data)
 
+        R_target = pin.SE3(pin.Quaternion(1, 0, 0, 0), np.array([0.25, -0.25, 0.1]))
+        right_wrist = R_target.homogeneous
         self.opti.set_value(self.param_tf_l, left_wrist)
-
+        self.opti.set_value(self.param_tf_r, right_wrist)
         self.opti.set_value(self.var_q_last, self.init_data) # for smooth
 
 
