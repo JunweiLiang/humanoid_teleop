@@ -521,82 +521,58 @@ def print_once(string):
         print(string)
         printed = True
 
+
+def interpolate_se3(start, end, alpha):
+    # Interpolate translation linearly
+    interp_translation = (1 - alpha) * start.translation + alpha * end.translation
+
+    # Slerp (spherical linear interpolation) for rotation
+    start_quat = pin.Quaternion(start.rotation)
+    end_quat = pin.Quaternion(end.rotation)
+    interp_quat = start_quat.slerp(alpha, end_quat)
+
+    return pin.SE3(interp_quat.matrix(), interp_translation)
+
 if __name__ == "__main__":
     # 这里直接开了meshcat web browser visualization
     arm_ik = G1_29_ArmIK(Unit_Test = True, Visualization = True)
     #arm_ik = H1_2_ArmIK(Unit_Test = True, Visualization = True)
 
     # initial positon
-    L_tf_target = pin.SE3(
-        pin.Quaternion(1, 0, 0, 0),
-        np.array([0.25, +0.25, 0.1]),
-    )
+    # we are not moving right arm
+    R_target = pin.SE3(pin.Quaternion(1, 0, 0, 0), np.array([0.25, -0.25, 0.1]))
 
-    R_tf_target = pin.SE3(
-        pin.Quaternion(1, 0, 0, 0),
-        np.array([0.25, -0.25, 0.1]),
-    )
+    L_start = pin.SE3(pin.Quaternion(1, 0, 0, 0), np.array([0.25, 0.25, 0.1]))
+    L_target = pin.SE3(pin.Quaternion(1, 0, 0, 0), np.array([0.4, 0.1, 0.3]))
 
-    # both list of 14
-    #sol_q, sol_tauff = arm_ik.solve_ik(L_tf_target.homogeneous, R_tf_target.homogeneous)
-    #print(sol_q, sol_tauff)
-
-
-    rotation_speed = 0.005
-    noise_amplitude_translation = 0.001
-    noise_amplitude_rotation = 0.1
 
     user_input = input("Please enter the start signal (enter 's' to start the subsequent program):\n")
     if user_input.lower() == 's':
+
         step = 0
+        max_steps = 240
+
         while True:
-            """
-            # Apply rotation noise with bias towards y and z axes
-            rotation_noise_L = pin.Quaternion(
-                np.cos(np.random.normal(0, noise_amplitude_rotation) / 2), 0, np.random.normal(0, noise_amplitude_rotation / 2),0).normalized()  # y bias
-
-            rotation_noise_R = pin.Quaternion(
-                np.cos(np.random.normal(0, noise_amplitude_rotation) / 2),0,0,np.random.normal(0, noise_amplitude_rotation / 2)).normalized()  # z bias
-            
-            if step <= 120:
-                angle = rotation_speed * step
-                L_tf_target.rotation = (rotation_noise_L * pin.Quaternion(np.cos(angle / 2), 0, np.sin(angle / 2), 0)).toRotationMatrix()  # y axis
-                R_tf_target.rotation = (rotation_noise_R * pin.Quaternion(np.cos(angle / 2), 0, 0, np.sin(angle / 2))).toRotationMatrix()  # z axis
-                L_tf_target.translation += (np.array([0.001,  0.001, 0.001]) + np.random.normal(0, noise_amplitude_translation, 3))
-                R_tf_target.translation += (np.array([0.001, -0.001, 0.001]) + np.random.normal(0, noise_amplitude_translation, 3))
+            # Normalize step to [0, 1] range for interpolation
+            alpha = (step % max_steps) / max_steps
+             # Move forward for first half, backward for second half
+            if alpha <= 0.5:
+                alpha *= 2  # Scale alpha to [0, 1] for first phase
             else:
-                angle = rotation_speed * (240 - step)
-                L_tf_target.rotation = (rotation_noise_L * pin.Quaternion(np.cos(angle / 2), 0, np.sin(angle / 2), 0)).toRotationMatrix()  # y axis
-                R_tf_target.rotation = (rotation_noise_R * pin.Quaternion(np.cos(angle / 2), 0, 0, np.sin(angle / 2))).toRotationMatrix()  # z axis
-                L_tf_target.translation -= (np.array([0.001,  0.001, 0.001]) + np.random.normal(0, noise_amplitude_translation, 3))
-                R_tf_target.translation -= (np.array([0.001, -0.001, 0.001]) + np.random.normal(0, noise_amplitude_translation, 3))
-            """
-            if step <= 120:
-                L_tf_target = pin.SE3(
-                    pin.Quaternion(1, 0, 0, 0),
-                    np.array([0.4, 0.1, 0.3]),
-                )
+                alpha = 2 * (1 - alpha)  # Reverse alpha for the second phase
 
-                R_tf_target = pin.SE3(
-                    pin.Quaternion(1, 0, 0, 0),
-                    np.array([0.25, -0.25, 0.1]),
-                )
-            else:
-                # initial positon
-                L_tf_target = pin.SE3(
-                    pin.Quaternion(1, 0, 0, 0),
-                    np.array([0.25, +0.25, 0.1]),
-                )
 
-                R_tf_target = pin.SE3(
-                    pin.Quaternion(1, 0, 0, 0),
-                    np.array([0.25, -0.25, 0.1]),
-                )
+            # Interpolate left end-effector smoothly
+            L_tf_target = interpolate_se3(L_start, L_target, alpha)
 
+            # Right end-effector remains fixed
+            R_tf_target = R_target
+
+            # both list of 14
             sol_q, sol_tauff = arm_ik.solve_ik(L_tf_target.homogeneous, R_tf_target.homogeneous)
             print_once(sol_q)
 
             step += 1
-            if step > 240:
+            if step > max_steps:
                 step = 0
             time.sleep(0.01)
