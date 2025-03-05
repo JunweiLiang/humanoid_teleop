@@ -7,6 +7,7 @@ import mujoco.viewer
 import argparse
 import sys
 import re
+import numpy as np
 
 parser = argparse.ArgumentParser()
 parser.add_argument("urdf")

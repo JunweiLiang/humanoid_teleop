@@ -26,23 +26,6 @@ class G1_29_ArmIK:
         else:
             self.robot = pin.RobotWrapper.BuildFromURDF('../../assets/g1/g1_body29_hand14.urdf', '../../assets/g1/') # for test
 
-        # get the head link position
-        head_link_idx = self.robot.model.getFrameId('logo_link')
-
-        # Initialize the robot configuration (e.g., a default zero configuration)
-        q = np.zeros(self.robot.model.nq)  # nq is the number of generalized coordinates (degrees of freedom)
-
-        # Compute forward kinematics for all links
-        self.robot.forwardKinematics(q)
-
-        # Extract the transformation matrix (4x4) of the 'head_link' in the world frame
-        head_link_transform = self.robot.framePlacement(q, head_link_idx)
-
-        # The position is stored in the last column of the transformation matrix
-        position = head_link_transform.translation
-
-        print(f"The position of 'head_link' relative to the world frame is: {position}")
-
         self.mixed_jointsToLockIDs = [
                                         "left_hip_pitch_joint" ,
                                         "left_hip_roll_joint" ,

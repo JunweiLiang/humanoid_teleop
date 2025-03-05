@@ -14,6 +14,13 @@ import threading  # run the arm control async
 from calibrate_intrinsics_depthcam import DepthCamera
 from robot_arm_ik import  G1_29_ArmIK
 
+import meshcat.geometry as g
+import pinocchio as pin
+import time
+from pinocchio import casadi as cpin
+from pinocchio.robot_wrapper import RobotWrapper
+from pinocchio.visualize import MeshcatVisualizer
+
 parser = argparse.ArgumentParser()
 
 parser.add_argument("det_model", default="combtn59.pt")
@@ -377,6 +384,19 @@ class DetDepthModel:
         return resized
 
 
+def camera_frame_to_robot_frame(xyz_in_camera):
+    # the G1 robot origin is at pelvis, z-axis up, x-axis forward, y-axis left side
+    # the camera is up 0.65 and forward 0.05 from the pelvis, which means [0.05, 0, 0.65]
+
+    x_in_arm_frame = xyz_in_camera[2] + 0.05
+    y_in_arm_frame = -xyz_in_camera[0]
+    z_in_arm_frame = -xyz_in_camera[1] + 0.65
+
+    return [
+        x_in_arm_frame,
+        y_in_arm_frame,
+        z_in_arm_frame,
+    ]
 
 # Function to control the robot arm asynchronously
 def move_robot_arm(arm_ctr, piper_ctr, target_xyz_arm):
@@ -406,6 +426,8 @@ def move_robot_arm(arm_ctr, piper_ctr, target_xyz_arm):
     piper_ctr.to_j6(target_j6_degrees, 6.0, speed=40)
 
     piper_ctr.to_zero(speed=80)
+
+
 
 if __name__ == "__main__":
     args = parser.parse_args()
@@ -503,6 +525,12 @@ if __name__ == "__main__":
                     "[%.3f, %.3f, %.3f]" % (target_xyz[0], target_xyz[1], target_xyz[2]),
                     (round(center_x)+40, round(center_y)-50), cv2.FONT_HERSHEY_SIMPLEX,
                     fontScale=1.3, color=(0, 255, 0), thickness=4)
+
+                # we visualize the target in the robot frame
+                target_xyz_in_robot_frame = camera_frame_to_robot_frame(target_xyz)
+                robot_target = pin.SE3(pin.Quaternion(1, 0, 0, 0), np.array(target_xyz_in_robot_frame))
+                arm_ik.vis.viewer["L_ee_target/sphere"].set_object(g.Sphere(0.05), g.MeshLambertMaterial(color=0xff0000))
+                arm_ik.vis.viewer["L_ee_target"].set_transform(robot_target.homogeneous)
 
             cv2.imshow("frame", frame)
 
