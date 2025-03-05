@@ -388,9 +388,11 @@ def camera_frame_to_robot_frame(xyz_in_camera):
     # the G1 robot origin is at pelvis, z-axis up, x-axis forward, y-axis left side
     # the camera is up 0.65 and forward 0.05 from the pelvis, which means [0.05, 0, 0.65]
 
+    pelvis_to_camera_up = 0.5
+
     x_in_arm_frame = xyz_in_camera[2] + 0.05
     y_in_arm_frame = -xyz_in_camera[0]
-    z_in_arm_frame = -xyz_in_camera[1] + 0.65
+    z_in_arm_frame = -xyz_in_camera[1] + pelvis_to_camera_up
 
     return [
         x_in_arm_frame,
