@@ -273,6 +273,7 @@ class DetDepthModel:
                 #depth = depth_data[round(center_y), round(center_x)]
                 #point_3d = self.deproject_pixel_to_point([center_x, center_y], depth)
                 point_3d = self.camera_obj.deproject_pixel_to_point([center_x, center_y], depth_data)
+                print(point_3d)
 
                 det_results.append([bbox, point_3d, class_id, class_name, conf])
 
