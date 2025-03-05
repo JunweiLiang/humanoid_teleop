@@ -183,8 +183,15 @@
         # 使用 pinocchio 和 CasADi 库加载 URDF 并进行逆运动学计算，求解出到达该位姿的关节电机角度值。 meshcat 库则用于调试时在 Web 端进行可视化显示。
             # 添加了双目相机，可以在AVP中看到机器人的视野; 连接到PC2，把双目相机视觉推流到一个server，然后在另一台有线连接的主机host开client，然后在AVP中，打开浏览器观看主机上的推流
 
+    # 可视化URDF，可以看到原点在哪里, xyz轴在哪，IK会根据这个坐标系计算
+        # g1的原点在骨盆pelvis 关节，x往前，y往左手，z往上
+        junweiliang@work_laptop:~/Desktop/projects/humanoid_teleop/avp_teleoperate/assets/g1$ python ../../../g1_realrobot/urdf_viewer.py g1_body29_hand14.urdf
+
     # 直接浏览器可视化，给定一个左手的目标位置，丝滑移动过去再回来
         # 自己的代码在: https://github.com/JunweiLiang/humanoid_teleop
 
         (g1) junweil@home-lab:~/projects/humanoid_teleop/avp_teleoperate/teleop/robot_control$ python robot_arm_ik.py
+
+    # 使用真实realsense相机识别电梯按钮，然后控制虚拟G1左手到目标位置
+
 ```
