@@ -395,6 +395,10 @@ def camera_frame_to_robot_frame(xyz_in_camera, T_base_to_camera=None):
     if T_base_to_camera is not None:
         P_camera = np.array(xyz_in_camera)
 
+        P_camera = np.array([[ 0., 0., 1., 0.05      ],
+             [ 0.70710678,-0.70710678,0., 0.        ],
+             [-0.70710678, -0.70710678, 0. ,  0.65      ],
+             [ 0. ,   0.   ,  0.  ,   1.        ]])
         # Convert to homogeneous coordinates
         P_camera_homogeneous = np.append(P_camera, 1)  # [X, Y, Z, 1]
 
@@ -409,12 +413,17 @@ def camera_frame_to_robot_frame(xyz_in_camera, T_base_to_camera=None):
         # do the eye-to-hand manually
         # the G1 robot origin is at pelvis, z-axis up, x-axis forward, y-axis left side
         # the camera is up 0.65 and forward 0.05 from the pelvis, which means [0.05, 0, 0.65]
+        # and 45 degree looking down
 
         pelvis_to_camera_up = 0.5
 
         x_in_arm_frame = xyz_in_camera[2] + 0.05
         y_in_arm_frame = -xyz_in_camera[0]
         z_in_arm_frame = -xyz_in_camera[1] + pelvis_to_camera_up
+        # this axis mapping can use the rotation matrix to do so
+        # [0  0  1]
+        # [1  0  1]
+        # [0  -1  1]
 
         P_base = np.array([
             x_in_arm_frame,
@@ -584,7 +593,7 @@ if __name__ == "__main__":
                 # we visualize the coordinate in Piper arm frame
                 frame = cv2.putText(
                     frame,
-                    "[%.3f, %.3f, %.3f]" % (target_xyz[0], target_xyz[1], target_xyz[2]),
+                    "cf: [%.3f, %.3f, %.3f]" % (target_xyz[0], target_xyz[1], target_xyz[2]),
                     (round(center_x)+40, round(center_y)-50), cv2.FONT_HERSHEY_SIMPLEX,
                     fontScale=1.3, color=(0, 255, 0), thickness=4)
 
@@ -598,8 +607,8 @@ if __name__ == "__main__":
                     # we visualize the coordinate in Piper arm frame
                     frame = cv2.putText(
                         frame,
-                        "[%.3f, %.3f, %.3f]" % (target_xyz_in_robot_frame[0], target_xyz_in_robot_frame[1], target_xyz_in_robot_frame[2]),
-                        (round(center_x)+40, round(center_y)-20), cv2.FONT_HERSHEY_SIMPLEX,
+                        "rf: [%.3f, %.3f, %.3f]" % (target_xyz_in_robot_frame[0], target_xyz_in_robot_frame[1], target_xyz_in_robot_frame[2]),
+                        (round(center_x)+40, round(center_y)-10), cv2.FONT_HERSHEY_SIMPLEX,
                         fontScale=1.3, color=(0, 255, 0), thickness=4)
 
             frame = image_resize(frame, width=900, height=None)
