@@ -395,10 +395,12 @@ def camera_frame_to_robot_frame(xyz_in_camera, T_base_to_camera=None):
     if T_base_to_camera is not None:
         P_camera = np.array(xyz_in_camera)
 
-        T_base_to_camera = np.array([[ 0., 0., 1., 0.05      ],
-             [ 0.70710678,-0.70710678,0., 0.        ],
-             [-0.70710678, -0.70710678, 0. ,  0.65      ],
-             [ 0. ,   0.   ,  0.  ,   1.        ]])
+        T_camera_to_base = np.array([
+            [0.0,          0.70710678,  0.70710678,  0.05],
+            [1.0,          0.0,         0.0,         0.0],
+            [0.0,         -0.70710678,  0.70710678,  0.65],
+            [0.0,          0.0,         0.0,         1.0]
+        ])
         # Convert to homogeneous coordinates
         P_camera_homogeneous = np.append(P_camera, 1)  # [X, Y, Z, 1]
 
