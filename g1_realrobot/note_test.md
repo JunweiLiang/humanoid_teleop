@@ -205,8 +205,11 @@
                 # 确保numpy==1.26.4 , numpy==2.2会出错
 
         # 测试，识别上按钮，并且控制机器人动; 打印的电梯按钮面板，必须要用奥比中光，realsense D455的深度完全用不了。
-        # 同时显示其他检测到的button， 目标上楼的button "("会用蓝色框
+
+        # 同时显示其他检测到的button， 目标上楼的button "("会用蓝色框; 在浏览器里会显示识别到的3D位置
             ((g1) junweil@home-lab:~/projects/humanoid_teleop$ python g1_realrobot/run_btn_det_and_arm_ctr_sim.py ../elevator_project/elevator_det_models/combtn59v3.20241206_2326.pt avp_teleoperate/assets/g1/g1_body29_hand14.urdf --cam femto --target_btn "(" --use_tracking  --det_all
+
+                # 按q退出，按g会按当前识别到的目标按钮
 
             # 没识别到东西，调 --det_conf 0.1 --det_all to check all detection
                 # 新模型识别上下楼按钮更好：combtn59v3.20241206_2326.pt
@@ -218,6 +221,8 @@
                 ../elevator_project/elevator_det_models/panelv1.pt --target_btn elevator-panel
 
 
+        # 实机测试，我们先连上lt4和g1的D435
+            # 设置lt4，有线连接G1，无线连接学校网络，调整ip route
 
 
 ```
