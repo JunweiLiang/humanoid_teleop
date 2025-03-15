@@ -407,7 +407,7 @@ def camera_frame_to_robot_frame(xyz_in_camera, T_base_to_camera=None):
         ])
 
         # and 45 degree looking down (pitch=45 degree)
-        theta = np.radians(-45)  # Convert to radians
+        theta = np.radians(45)  # Convert to radians
         cos_theta = np.cos(theta)
         sin_theta = np.sin(theta)
         R_pitch = np.array([
