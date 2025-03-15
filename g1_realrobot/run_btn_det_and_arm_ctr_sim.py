@@ -416,7 +416,7 @@ def camera_frame_to_robot_frame(xyz_in_camera, T_base_to_camera=None):
             [-sin_theta, 0, cos_theta, 0],
             [0, 0, 0, 1]
         ])
-        T_base_to_camera = T_base_to_camera @ R_pitch
+        T_base_to_camera = R_pitch @ T_base_to_camera
 
         # Convert to homogeneous coordinates
         P_camera_homogeneous = np.append(P_camera, 1)  # [X, Y, Z, 1]
@@ -431,7 +431,7 @@ def camera_frame_to_robot_frame(xyz_in_camera, T_base_to_camera=None):
     else:
         # do the eye-to-hand manually
         # the G1 robot origin is at pelvis, z-axis up, x-axis forward, y-axis left side
-        # the camera is up 0.65 and forward 0.05 from the pelvis, which means [0.05, 0, 0.65]
+        # the camera is up 0.5 and forward 0.05 from the pelvis, which means [0.05, 0, 0.65]
         # and 45 degree looking down
 
         pelvis_to_camera_up = 0.5
