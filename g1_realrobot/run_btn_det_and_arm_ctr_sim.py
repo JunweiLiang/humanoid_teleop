@@ -595,6 +595,13 @@ if __name__ == "__main__":
                     robot_target = pin.SE3(pin.Quaternion(1, 0, 0, 0), np.array(target_xyz_in_robot_frame))
                     arm_ik.vis.viewer["L_ee_target"].set_transform(robot_target.homogeneous)
 
+                    # we visualize the coordinate in Piper arm frame
+                    frame = cv2.putText(
+                        frame,
+                        "[%.3f, %.3f, %.3f]" % (target_xyz_in_robot_frame[0], target_xyz_in_robot_frame[1], target_xyz_in_robot_frame[2]),
+                        (round(center_x)+40, round(center_y)-20), cv2.FONT_HERSHEY_SIMPLEX,
+                        fontScale=1.3, color=(0, 255, 0), thickness=4)
+
             frame = image_resize(frame, width=900, height=None)
             cv2.imshow("frame", frame)
 
