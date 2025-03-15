@@ -396,10 +396,10 @@ def camera_frame_to_robot_frame(xyz_in_camera, T_base_to_camera=None):
         P_camera = np.array(xyz_in_camera)
 
         T_camera_to_base = np.array([
-            [-0.70710678, -0.70710678,  0.0,         0.05],
-            [ 0.0,         0.0,        -1.0,         0.0],
-            [ 0.70710678, -0.70710678,  0.0,         0.65],
-            [ 0.0,         0.0,         0.0,         1.0]
+            [0.0,         -0.70710678,  0.70710678,  0.05],
+            [-1.0,         0.0,         0.0,         0.0],
+            [0.0,          0.70710678,  0.70710678,  0.65],
+            [0.0,          0.0,         0.0,         1.0]
         ])
         # Convert to homogeneous coordinates
         P_camera_homogeneous = np.append(P_camera, 1)  # [X, Y, Z, 1]
@@ -424,8 +424,8 @@ def camera_frame_to_robot_frame(xyz_in_camera, T_base_to_camera=None):
         z_in_arm_frame = -xyz_in_camera[1] + pelvis_to_camera_up
         # this axis mapping can use the rotation matrix to do so
         # [0  0  1]
-        # [-1  0  1]
-        # [0  -1  1]
+        # [-1  0  0]
+        # [0  -1  0]
 
         P_base = np.array([
             x_in_arm_frame,
