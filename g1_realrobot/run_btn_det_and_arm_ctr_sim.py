@@ -395,7 +395,7 @@ def camera_frame_to_robot_frame(xyz_in_camera, T_base_to_camera=None):
     if T_base_to_camera is not None:
         P_camera = np.array(xyz_in_camera)
 
-       T_camera_to_base = np.array([
+        T_camera_to_base = np.array([
             [0, -np.sqrt(2)/2,  np.sqrt(2)/2,  0.05],
             [-1, 0, 0, 0],
             [0, -np.sqrt(2)/2, -np.sqrt(2)/2, 0.65],
