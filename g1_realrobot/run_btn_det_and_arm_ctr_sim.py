@@ -446,27 +446,27 @@ def camera_frame_to_robot_frame(xyz_in_camera, T_base_to_camera=None):
     # Convert back to 3D coordinates
     P_base = P_base_homogeneous[:3]  # [X', Y', Z']
 
-        # do the eye-to-hand manually
-        # the G1 robot origin is at pelvis, z-axis up, x-axis forward, y-axis left side
-        # the camera is up 0.5 and forward 0.05 from the pelvis, which means [0.05, 0, 0.65]
-        # and 45 degree looking down
-        """
-        pelvis_to_camera_up = 0.5
+    # do the eye-to-hand manually
+    # the G1 robot origin is at pelvis, z-axis up, x-axis forward, y-axis left side
+    # the camera is up 0.5 and forward 0.05 from the pelvis, which means [0.05, 0, 0.65]
+    # and 45 degree looking down
+    """
+    pelvis_to_camera_up = 0.5
 
-        x_in_arm_frame = xyz_in_camera[2] + 0.05
-        y_in_arm_frame = -xyz_in_camera[0]
-        z_in_arm_frame = -xyz_in_camera[1] + pelvis_to_camera_up
-        # this axis mapping can use the rotation matrix to do so
-        # [0  0  1]
-        # [-1  0  0]
-        # [0  -1  0]
+    x_in_arm_frame = xyz_in_camera[2] + 0.05
+    y_in_arm_frame = -xyz_in_camera[0]
+    z_in_arm_frame = -xyz_in_camera[1] + pelvis_to_camera_up
+    # this axis mapping can use the rotation matrix to do so
+    # [0  0  1]
+    # [-1  0  0]
+    # [0  -1  0]
 
-        P_base = np.array([
-            x_in_arm_frame,
-            y_in_arm_frame,
-            z_in_arm_frame,
-        ])
-        """
+    P_base = np.array([
+        x_in_arm_frame,
+        y_in_arm_frame,
+        z_in_arm_frame,
+    ])
+    """
 
     return P_base
 
