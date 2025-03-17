@@ -429,12 +429,13 @@ def camera_frame_to_robot_frame(xyz_in_camera, T_base_to_camera=None):
             [-sin_theta, 0, cos_theta, 0],
             [0, 0, 0, 1]
         ])
-        T_base_to_camera = R_pitch @ T_base_to_camera
+        #T_base_to_camera = R_pitch @ T_base_to_camera
         """
-        array([[ 0.        , -0.67430239,  0.73845534,  0.37407396],
-               [-1.        ,  0.        ,  0.        ,  0.02      ],
-               [ 0.        , -0.73845534, -0.67430239,  0.33551255],
-               [ 0.        ,  0.        ,  0.        ,  1.        ]])
+        [[ 0.      -0.73846  0.6743   0.40294]
+         [-1.       0.       0.       0.02   ]
+         [ 0.      -0.6743  -0.73846  0.30023]
+         [ 0.       0.       0.       1.     ]]
+
         """
         print_once(T_base_to_camera)
 
