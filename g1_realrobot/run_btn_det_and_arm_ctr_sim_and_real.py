@@ -6,6 +6,7 @@ import argparse
 import time
 import datetime
 import numpy as np
+import pickle
 
 from ultralytics import YOLO
 
@@ -13,7 +14,7 @@ import threading  # run the arm control async
 
 from calibrate_intrinsics_depthcam import DepthCamera
 from calibrate_intrinsics_depthcam import image_resize
-from robot_arm_ik import G1_29_ArmIK
+from robot_arm_ik import  G1_29_ArmIK
 from robot_arm import G1_29_ArmController
 
 import meshcat.geometry as g
@@ -40,6 +41,10 @@ parser.add_argument("--det_all", action="store_true", help="do all detection res
 parser.add_argument("--keep_last", action="store_true", help="keep the detected location from before")
 parser.add_argument("--use_tracking", action="store_true")
 
+
+
+# about eye-to-hand
+parser.add_argument("--eye_to_hand_pose", default=None, help="a pickle file with 4x4 eye-to-hand calibration")
 parser.add_argument("--delta_x", default=0., type=float, help="adding more +x (meters) to the camera frame to arm frame conversion")
 parser.add_argument("--delta_y", default=0., type=float, help="adding more +y (meters) to the camera frame to arm frame conversion")
 parser.add_argument("--delta_z", default=0., type=float, help="adding more +z (meters) to the camera frame to arm frame conversion")
@@ -386,21 +391,77 @@ class DetDepthModel:
         return resized
 
 
-def camera_frame_to_robot_frame(xyz_in_camera):
-    # the G1 robot origin is at pelvis, z-axis up, x-axis forward, y-axis left side
-    # the camera is up 0.65 and forward 0.05 from the pelvis, which means [0.05, 0, 0.65]
+def camera_frame_to_robot_frame(xyz_in_camera, T_base_to_camera=None):
 
-    pelvis_to_camera_up = 0.5
+    P_camera = np.array(xyz_in_camera)
 
-    x_in_arm_frame = xyz_in_camera[2] + 0.05
-    y_in_arm_frame = -xyz_in_camera[0]
-    z_in_arm_frame = -xyz_in_camera[1] + pelvis_to_camera_up
+    if T_base_to_camera is None:
+        # do the eye-to-hand manually
+        # the G1 robot origin is at pelvis, z-axis up, x-axis forward, y-axis left side
+        # the camera is up 0.5 and forward 0.05 from the pelvis, 2cm to the left hand side, which means [0.05, 0.02, 0.65]
+        #       realsense D435i origin is at the left infrared imager (second cycle from the right when facing camera)
+        #       https://github.com/IntelRealSense/librealsense/issues/9784#issuecomment-923923701
+        # the measure error should be < 5cm
 
-    return [
-        x_in_arm_frame,
-        y_in_arm_frame,
-        z_in_arm_frame,
-    ]
+        T_base_to_camera = np.array([
+            [0,  0,  1,  0.05],
+            [-1, 0,  0,  0.02],
+            [0, -1,  0,  0.5],
+            [0,  0,  0,  1]
+        ])
+
+        # and 42.4 degree looking down (pitch=45 degree)
+        # see https://support.unitree.com/home/zh/G1_developer/about_G1
+
+        theta = np.radians(42.4)  # Convert to radians
+        cos_theta = np.cos(theta)
+        sin_theta = np.sin(theta)
+        R_pitch = np.array([
+            [cos_theta, 0, sin_theta, 0],
+            [0, 1, 0, 0],
+            [-sin_theta, 0, cos_theta, 0],
+            [0, 0, 0, 1]
+        ])
+        T_base_to_camera = R_pitch @ T_base_to_camera
+        """
+        array([[ 0.        , -0.67430239,  0.73845534,  0.37407396],
+               [-1.        ,  0.        ,  0.        ,  0.02      ],
+               [ 0.        , -0.73845534, -0.67430239,  0.33551255],
+               [ 0.        ,  0.        ,  0.        ,  1.        ]])
+        """
+
+    # Convert to homogeneous coordinates
+    P_camera_homogeneous = np.append(P_camera, 1)  # [X, Y, Z, 1]
+
+    # Transform to robot base frame
+    P_base_homogeneous = T_base_to_camera @ P_camera_homogeneous
+
+    # Convert back to 3D coordinates
+    P_base = P_base_homogeneous[:3]  # [X', Y', Z']
+
+        # do the eye-to-hand manually
+        # the G1 robot origin is at pelvis, z-axis up, x-axis forward, y-axis left side
+        # the camera is up 0.5 and forward 0.05 from the pelvis, which means [0.05, 0, 0.65]
+        # and 45 degree looking down
+        """
+        pelvis_to_camera_up = 0.5
+
+        x_in_arm_frame = xyz_in_camera[2] + 0.05
+        y_in_arm_frame = -xyz_in_camera[0]
+        z_in_arm_frame = -xyz_in_camera[1] + pelvis_to_camera_up
+        # this axis mapping can use the rotation matrix to do so
+        # [0  0  1]
+        # [-1  0  0]
+        # [0  -1  0]
+
+        P_base = np.array([
+            x_in_arm_frame,
+            y_in_arm_frame,
+            z_in_arm_frame,
+        ])
+        """
+
+    return P_base
 
 def interpolate_se3(start, end, alpha):
     # Interpolate translation linearly
@@ -413,17 +474,7 @@ def interpolate_se3(start, end, alpha):
 
     return pin.SE3(interp_quat.matrix(), interp_translation)
 
-
-# Function to control the robot arm asynchronously
-def move_robot_arm_sim_and_real(arm_ik, arm_ctr, target_xyz_in_robot_frame):
-    # need this to tell the main thread not to update meshcat with the sphere, otherwise socket is occupied
-    global stop_update_target_sphere
-    start_xyz = [0.25, 0.25, 0.1]
-    print("moving to ", target_xyz_in_robot_frame)
-    target_xyz = target_xyz_in_robot_frame
-    in_seconds = 2.0
-
-    # now we start to control the arm
+def move_arm_to_and_back(arm_ctr, start_xyz, target_xyz, in_seconds=2.0):
 
     time_gap = 0.01
     max_steps = int(in_seconds / time_gap)
@@ -444,11 +495,24 @@ def move_robot_arm_sim_and_real(arm_ik, arm_ctr, target_xyz_in_robot_frame):
         target_tmp = interpolate_se3(start, target, alpha)
 
         # both list of 14
-        sol_q, sol_tauff = arm_ik.solve_ik(target_tmp.homogeneous)
+        sol_q, sol_tauff = arm_ctr.solve_ik(target_tmp.homogeneous)
 
         arm_ctr.ctrl_dual_arm(sol_q, sol_tauff)
 
         time.sleep(time_gap)
+
+
+# Function to control the robot arm asynchronously
+def move_robot_arm(arm_ctr, target_xyz_in_robot_frame):
+    # need this to tell the main thread not to update meshcat with the sphere, otherwise socket is occupied
+    global stop_update_target_sphere
+    # assuming our robot ee is started at zero pose
+    start = [0.25, -0.15, 0.1] # for right wrist, it is in the y-negative side
+    print("moving to ", target_xyz_in_robot_frame)
+
+    # now we start to control the arm
+
+    move_arm_to_and_back(arm_ctr, start, target_xyz_in_robot_frame, in_seconds=2.0)
 
     stop_update_target_sphere = False
 
@@ -460,11 +524,15 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
+    eye_to_hand_pose = None
+    if args.eye_to_hand_pose is not None:
+        with open(args.eye_to_hand_pose, "rb") as f:
+            eye_to_hand_pose = pickle.load(f) # a 4x4
+        assert eye_to_hand_pose.shape == (4, 4)
+
     #urdf_path = args.urdf
     arm_ik = G1_29_ArmIK(urdf=args.urdf, visualization=True)
     arm_ik.vis.viewer["L_ee_target/sphere"].set_object(g.Sphere(0.05), g.MeshLambertMaterial(color=0xff0000))
-
-    arm_ctr = G1_29_ArmController()
 
     # the xyz overwrites for the button. Use when z is not accurate for example
     set_xyz = [args.set_x, args.set_y, args.set_z]
@@ -557,16 +625,23 @@ if __name__ == "__main__":
                 # we visualize the coordinate in Piper arm frame
                 frame = cv2.putText(
                     frame,
-                    "[%.3f, %.3f, %.3f]" % (target_xyz[0], target_xyz[1], target_xyz[2]),
+                    "cf: [%.3f, %.3f, %.3f]" % (target_xyz[0], target_xyz[1], target_xyz[2]),
                     (round(center_x)+40, round(center_y)-50), cv2.FONT_HERSHEY_SIMPLEX,
                     fontScale=1.3, color=(0, 255, 0), thickness=4)
 
                 # we visualize the target in the robot frame
                 if not stop_update_target_sphere:
-                    target_xyz_in_robot_frame = camera_frame_to_robot_frame(target_xyz)
+                    target_xyz_in_robot_frame = camera_frame_to_robot_frame(target_xyz, T_base_to_camera=eye_to_hand_pose)
                     #print(target_xyz_in_robot_frame)
                     robot_target = pin.SE3(pin.Quaternion(1, 0, 0, 0), np.array(target_xyz_in_robot_frame))
                     arm_ik.vis.viewer["L_ee_target"].set_transform(robot_target.homogeneous)
+
+                    # we visualize the coordinate in Piper arm frame
+                    frame = cv2.putText(
+                        frame,
+                        "rf: [%.3f, %.3f, %.3f]" % (target_xyz_in_robot_frame[0], target_xyz_in_robot_frame[1], target_xyz_in_robot_frame[2]),
+                        (round(center_x)+40, round(center_y)-10), cv2.FONT_HERSHEY_SIMPLEX,
+                        fontScale=1.3, color=(0, 255, 0), thickness=4)
 
             frame = image_resize(frame, width=900, height=None)
             cv2.imshow("frame", frame)
@@ -577,7 +652,7 @@ if __name__ == "__main__":
             elif pressedKey == ord('g'):
                 if target_xyz is not None:
 
-                    # Start the arm movement in a new thread (in both sim and real)
+                    # Start the arm movement in a new thread
                     # make sure the previous thread is finished
                     if robot_ctr_thread is None or not robot_ctr_thread.is_alive():
 
@@ -585,11 +660,10 @@ if __name__ == "__main__":
                         target_xyz_in_robot_frame_copy = target_xyz_in_robot_frame[:]
 
                         stop_update_target_sphere = True
-                        robot_ctr_thread = threading.Thread(target=move_robot_arm_sim_and_real, args=(arm_ik, arm_ctr, target_xyz_in_robot_frame_copy,))
+                        robot_ctr_thread = threading.Thread(target=move_robot_arm, args=(arm_ik, target_xyz_in_robot_frame_copy,))
                         robot_ctr_thread.start()
                     else:
-                        print("Arm in sim is not ready for next move! skipping..")
-
+                        print("Arm is not ready for next move! skipping..")
 
 
     #except Exception as e:

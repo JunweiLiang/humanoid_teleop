@@ -390,24 +390,36 @@ class DetDepthModel:
         return resized
 
 
+printed = False
+def print_once(string):
+    global printed
+    if not printed:
+        print(string)
+        printed = True
+
 def camera_frame_to_robot_frame(xyz_in_camera, T_base_to_camera=None):
 
-    if T_base_to_camera is not None:
-        P_camera = np.array(xyz_in_camera)
+    P_camera = np.array(xyz_in_camera)
 
+    if T_base_to_camera is None:
         # do the eye-to-hand manually
         # the G1 robot origin is at pelvis, z-axis up, x-axis forward, y-axis left side
-        # the camera is up 0.5 and forward 0.05 from the pelvis, which means [0.05, 0, 0.65]
+        # the camera is up 0.5 and forward 0.05 from the pelvis, 2cm to the left hand side, which means [0.05, 0.02, 0.65]
+        #       realsense D435i origin is at the left infrared imager (second cycle from the right when facing camera)
+        #       https://github.com/IntelRealSense/librealsense/issues/9784#issuecomment-923923701
+        # the measure error should be < 5cm
 
         T_base_to_camera = np.array([
             [0,  0,  1,  0.05],
-            [-1, 0,  0,  0],
+            [-1, 0,  0,  0.02],
             [0, -1,  0,  0.5],
             [0,  0,  0,  1]
         ])
 
-        # and 45 degree looking down (pitch=45 degree)
-        theta = np.radians(45)  # Convert to radians
+        # and 42.4 degree looking down (pitch=45 degree)
+        # see https://support.unitree.com/home/zh/G1_developer/about_G1
+
+        theta = np.radians(42.4)  # Convert to radians
         cos_theta = np.cos(theta)
         sin_theta = np.sin(theta)
         R_pitch = np.array([
@@ -417,23 +429,28 @@ def camera_frame_to_robot_frame(xyz_in_camera, T_base_to_camera=None):
             [0, 0, 0, 1]
         ])
         T_base_to_camera = R_pitch @ T_base_to_camera
+        """
+        array([[ 0.        , -0.67430239,  0.73845534,  0.37407396],
+               [-1.        ,  0.        ,  0.        ,  0.02      ],
+               [ 0.        , -0.73845534, -0.67430239,  0.33551255],
+               [ 0.        ,  0.        ,  0.        ,  1.        ]])
+        """
+        print_once(T_base_to_camera)
 
-        # Convert to homogeneous coordinates
-        P_camera_homogeneous = np.append(P_camera, 1)  # [X, Y, Z, 1]
+    # Convert to homogeneous coordinates
+    P_camera_homogeneous = np.append(P_camera, 1)  # [X, Y, Z, 1]
 
-        # Transform to robot base frame
-        P_base_homogeneous = T_base_to_camera @ P_camera_homogeneous
+    # Transform to robot base frame
+    P_base_homogeneous = T_base_to_camera @ P_camera_homogeneous
 
-        # Convert back to 3D coordinates
-        P_base = P_base_homogeneous[:3]  # [X', Y', Z']
+    # Convert back to 3D coordinates
+    P_base = P_base_homogeneous[:3]  # [X', Y', Z']
 
-
-    else:
         # do the eye-to-hand manually
         # the G1 robot origin is at pelvis, z-axis up, x-axis forward, y-axis left side
         # the camera is up 0.5 and forward 0.05 from the pelvis, which means [0.05, 0, 0.65]
         # and 45 degree looking down
-
+        """
         pelvis_to_camera_up = 0.5
 
         x_in_arm_frame = xyz_in_camera[2] + 0.05
@@ -449,6 +466,7 @@ def camera_frame_to_robot_frame(xyz_in_camera, T_base_to_camera=None):
             y_in_arm_frame,
             z_in_arm_frame,
         ])
+        """
 
     return P_base
 
