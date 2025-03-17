@@ -416,10 +416,11 @@ def camera_frame_to_robot_frame(xyz_in_camera, T_base_to_camera=None):
             [0,  0,  0,  1]
         ])
 
-        # and 42.4 degree looking down (pitch=45 degree)
+        # and 42.4 degree looking down (pitch=42.4 degree) # no this is not correct
+        # should be 90-42.4 = 47.6
         # see https://support.unitree.com/home/zh/G1_developer/about_G1
 
-        theta = np.radians(42.4)  # Convert to radians
+        theta = np.radians(47.6)  # Convert to radians
         cos_theta = np.cos(theta)
         sin_theta = np.sin(theta)
         R_pitch = np.array([
