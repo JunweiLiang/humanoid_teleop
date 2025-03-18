@@ -39,10 +39,10 @@ def compute_and_vis(origin_frame, target_frame, vis, robot):
     # visualize the frames you want
     red = 0xff0000
     green = 0x00FF00
-    vis.viewer["origin/sphere"].set_object(g.Sphere(0.05), g.MeshLambertMaterial(color=red))
-    vis.viewer["origin"].set_transform(origin_pose.homogeneous)
-    vis.viewer["target/sphere"].set_object(g.Sphere(0.05), g.MeshLambertMaterial(color=red))
-    vis.viewer["target"].set_transform(target_pose.homogeneous)
+    vis.viewer["%s/sphere" % origin_frame].set_object(g.Sphere(0.03), g.MeshLambertMaterial(color=red))
+    vis.viewer[origin_frame].set_transform(origin_pose.homogeneous)
+    vis.viewer["%s/sphere" % target_frame].set_object(g.Sphere(0.03), g.MeshLambertMaterial(color=red))
+    vis.viewer[target_frame].set_transform(target_pose.homogeneous)
 
     return T_origin_to_target
 
@@ -121,16 +121,32 @@ if __name__ == "__main__":
     origin_frame = "pelvis"
     target_frame = "d435_link"
 
+    """
+    Transformation from pelvis to d435_link:
+         [[ 0.67430239  0.          0.73845534  0.05366   ]
+         [ 0.          1.          0.          0.01753   ]
+         [-0.73845534  0.          0.67430239  0.47387   ]
+         [ 0.          0.          0.          1.        ]]
+
+    """
     T_o2t = compute_and_vis(origin_frame, target_frame, vis, robot)
 
     arm_frame = "right_wrist_yaw_joint"
     tip_frame = "R_index_tip"
+    """
+    Transformation from right_wrist_yaw_joint to R_index_tip:
+     [[ 2.22018339e-16  9.99391313e-01 -3.48855737e-02  2.48686587e-01]
+     [-1.00000000e+00  2.23989393e-16  5.02256656e-17  7.32847000e-03]
+     [-5.80145042e-17  3.48855737e-02  9.99391313e-01  2.97837118e-02]
+     [ 0.00000000e+00  0.00000000e+00  0.00000000e+00  1.00000000e+00]]
+
+    """
     T_arm2tip = compute_and_vis(arm_frame, tip_frame, vis, robot)
 
     # show the computed arm2tip is good
     frame_id = robot.model.getFrameId(tip_frame)
     # since some joint in the inspired hand are fixed
-    parent_joint_id = robot.model.frames[frame_id].parent  # Get the actual parent joint
+    parent_joint_id = robot.model.frames[frame_id].parentJoint  # Get the actual parent joint
     robot.model.addFrame(
         pin.Frame('R_ee',
                   #robot.model.getJointId('right_wrist_yaw_joint'),
@@ -141,9 +157,13 @@ if __name__ == "__main__":
     # 必须要更新这个，否则data.oMf没有这个新的frame
     robot.data = pin.Data(robot.model)
 
-    ee_frame_id = robot.model.getFrameId("R_ee")
-
     green = 0x00FF00
+    ee_frame_id = robot.model.getFrameId("R_ee")
+    ee_pose = robot.data.oMf[ee_frame_id]
+    vis.viewer["target/sphere"].set_object(g.Sphere(0.03), g.MeshLambertMaterial(color=green))
+    vis.viewer["target"].set_transform(ee_pose.homogeneous)
+
+
 
     # Enable the display of end effector target frames with short axis lengths and greater width.
     frame_viz_names = [
