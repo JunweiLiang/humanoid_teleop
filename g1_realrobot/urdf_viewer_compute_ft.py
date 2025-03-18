@@ -82,6 +82,8 @@ if __name__ == "__main__":
     vis.viewer["origin"].set_transform(origin_pose.homogeneous)
     vis.viewer["target/sphere"].set_object(g.Sphere(0.05), g.MeshLambertMaterial(color=red))
     vis.viewer["target"].set_transform(target_pose.homogeneous)
+    vis.viewer["ee/sphere"].set_object(g.Sphere(0.02), g.MeshLambertMaterial(color=red))
+    vis.viewer["ee"].set_transform(ee_pose.homogeneous)
 
     for frame_name in visualization_list:
         pose = robot.data.oMf[robot.model.getFrameId(frame_name)]
