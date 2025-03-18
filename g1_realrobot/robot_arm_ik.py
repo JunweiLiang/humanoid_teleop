@@ -136,13 +136,27 @@ class G1_29_ArmIK:
 
         self.R_hand_id = self.reduced_robot.model.getFrameId("R_ee")
 
+        """
         for i in range(self.reduced_robot.model.nframes):
             frame = self.reduced_robot.model.frames[i]
             frame_id = self.reduced_robot.model.getFrameId(frame.name)
             print(f"Frame ID: {frame_id}, Name: {frame.name}")
+        """
         #assert len(self.reduced_robot.model.frames) == len(self.reduced_robot.data.oMf), \
         #    f"Mismatch: {len(self.reduced_robot.model.frames)} frames vs. {len(self.reduced_robot.data.oMf)} transformations"
 
+        # Print all joints in the original robot model
+        print("All Joints in Original Robot:")
+        for idx, joint in enumerate(self.robot.model.names):
+            print(f"Joint ID {idx}: {joint}")
+
+        # Print joints in the reduced robot model
+        print("\nJoints in Reduced Robot:")
+        for idx, joint in enumerate(self.reduced_robot.model.names):
+            print(f"Joint ID {idx}: {joint}")
+
+        print(self.reduced_robot.model.nq)
+        sys.exit()
 
         # Creating Casadi models and data for symbolic computing
         self.cmodel = cpin.Model(self.reduced_robot.model)
@@ -153,7 +167,6 @@ class G1_29_ArmIK:
         self.cTf_l = casadi.SX.sym("tf_l", 4, 4)
         self.cTf_r = casadi.SX.sym("tf_r", 4, 4)
         cpin.framesForwardKinematics(self.cmodel, self.cdata, self.cq)
-
 
 
         self.smooth_filter = WeightedMovingFilter(np.array([0.4, 0.3, 0.2, 0.1]), 7)
@@ -251,8 +264,7 @@ class G1_29_ArmIK:
         self.current_q = np.zeros(self.reduced_robot.model.nq) # used to save the current q
 
         self.vis = None
-        print(self.reduced_robot.model.nq)
-        sys.exit()
+
 
         if self.visualization:
             # Initialize the Meshcat visualizer for visualization
