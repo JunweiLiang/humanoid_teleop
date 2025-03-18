@@ -650,6 +650,8 @@ if __name__ == "__main__":
                         # now this become the last ee pose
                         last_ee_pose = target_ee_pose
                     else:
+                        print(last_ee_pose)
+                        print(start_ee_pose)
                         print("Arm is not ready for next move! skipping..")
                 else:
                     print(robot_ctr_thread.is_alive())
