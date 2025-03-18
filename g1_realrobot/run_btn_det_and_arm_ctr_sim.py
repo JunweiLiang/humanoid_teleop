@@ -500,9 +500,9 @@ if __name__ == "__main__":
 
     # assuming our robot ee is started at zero pose
     # get this from (g1) junweil@home-lab:~/projects/humanoid_teleop$ python g1_realrobot/urdf_viewer_compute_ft.py avp_teleoperate/assets/g1/g1_body29_inspired_hand.urdf
-    start_ee_pose = np.array([[ 1.91593295e-04,  9.99393210e-01, -3.48306690e-02,  4.48461099e-01]
-                             [-9.99999980e-01,  1.93566882e-04,  5.32902719e-05, -1.41273801e-01]
-                             [ 5.99999999e-05,  3.48306581e-02,  9.99393227e-01,  1.25002439e-01]
+    start_ee_pose = np.array([[ 1.91593295e-04,  9.99393210e-01, -3.48306690e-02,  4.48461099e-01],
+                             [-9.99999980e-01,  1.93566882e-04,  5.32902719e-05, -1.41273801e-01],
+                             [ 5.99999999e-05,  3.48306581e-02,  9.99393227e-01,  1.25002439e-01],
                              [ 0.00000000e+00,  0.00000000e+00,  0.00000000e+00,  1.00000000e+00]])
 
     try:
