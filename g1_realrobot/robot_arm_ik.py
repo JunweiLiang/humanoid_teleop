@@ -292,7 +292,7 @@ class G1_29_ArmIK:
 
 
     def solve_ik_right_wrist(self, right_wrist, current_lr_arm_motor_q = None, current_lr_arm_motor_dq = None):
-        assert self.lock_left_wrist
+
         if current_lr_arm_motor_q is not None:
             self.init_data = current_lr_arm_motor_q
         self.opti.set_initial(self.var_q, self.init_data)
