@@ -38,7 +38,6 @@ if __name__ == "__main__":
     robot = pin.RobotWrapper.BuildFromURDF(args.urdf, os.path.dirname(args.urdf))
 
 
-
     # add a frame to the joint/link you want to compute transform for
     robot.model.addFrame(
         pin.Frame('R_ee',

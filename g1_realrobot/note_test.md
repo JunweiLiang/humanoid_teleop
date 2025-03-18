@@ -187,6 +187,19 @@
         # g1的原点在骨盆pelvis 关节，x往前，y往左手，z往上
         junweiliang@work_laptop:~/Desktop/projects/humanoid_teleop/avp_teleoperate/assets/g1$ python ../../../g1_realrobot/urdf_viewer.py g1_body29_hand14.urdf
 
+
+        # 查看d435到origin的pose
+
+            (g1) junweil@home-lab:~/projects/humanoid_teleop$ python g1_realrobot/urdf_viewer_compute_ft.py avp_teleoperate/assets/g1/g1_body29_hand14.urdf
+
+                T_origin_to_target
+            Transformation from pelvis to d435_link:
+             [[ 0.67430239  0.          0.73845534  0.05366   ]
+             [ 0.          1.          0.          0.01753   ]
+             [-0.73845534  0.          0.67430239  0.47387   ]
+             [ 0.          0.          0.          1.        ]]
+
+
     # 直接浏览器可视化，给定一个左手的目标位置，丝滑移动过去再回来
         # 自己的代码在: https://github.com/JunweiLiang/humanoid_teleop
 

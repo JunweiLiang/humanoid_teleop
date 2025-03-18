@@ -516,7 +516,7 @@ if __name__ == "__main__":
         assert eye_to_hand_pose.shape == (4, 4)
 
     #urdf_path = args.urdf
-    arm_ik = G1_29_ArmIK(urdf=args.urdf, visualization=True)
+    arm_ik = G1_29_ArmIK(urdf=args.urdf, visualization=True, lock_left_wrist=True)
     # visualize the target pose and the robot's actual pose in browser
     arm_ik.vis.viewer["R_ee_target/sphere"].set_object(g.Sphere(0.01), g.MeshLambertMaterial(color=0xff0000))
     arm_ik.vis.viewer["R_ee/sphere"].set_object(g.Sphere(0.01), g.MeshLambertMaterial(color=0x00FF00))
