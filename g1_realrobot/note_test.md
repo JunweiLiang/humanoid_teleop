@@ -183,6 +183,12 @@
         # 使用 pinocchio 和 CasADi 库加载 URDF 并进行逆运动学计算，求解出到达该位姿的关节电机角度值。 meshcat 库则用于调试时在 Web 端进行可视化显示。
             # 添加了双目相机，可以在AVP中看到机器人的视野; 连接到PC2，把双目相机视觉推流到一个server，然后在另一台有线连接的主机host开client，然后在AVP中，打开浏览器观看主机上的推流
 
+
+    # 直接浏览器可视化，给定一个左手的目标位置，丝滑移动过去再回来
+        # 自己的代码在: https://github.com/JunweiLiang/humanoid_teleop
+
+        (g1) junweil@home-lab:~/projects/humanoid_teleop/avp_teleoperate/teleop/robot_control$ python robot_arm_ik.py
+
     # 可视化URDF，可以看到原点在哪里, xyz轴在哪，IK会根据这个坐标系计算
         # g1的原点在骨盆pelvis 关节，x往前，y往左手，z往上
         junweiliang@work_laptop:~/Desktop/projects/humanoid_teleop/avp_teleoperate/assets/g1$ python ../../../g1_realrobot/urdf_viewer.py g1_body29_hand14.urdf
@@ -198,17 +204,25 @@
              [ 0.          1.          0.          0.01753   ]
              [-0.73845534  0.          0.67430239  0.47387   ]
              [ 0.          0.          0.          1.        ]]
+             # 上面是三爪的，没用
 
-            # 用因时手的URDF
-                #梓帆改的URDf，在食指上加了个红色正方体
+            # 用因时手的URDF 食指tip上有绿球
 
                 (g1) junweil@home-lab:~/projects/humanoid_teleop$ python g1_realrobot/urdf_viewer_compute_ft.py avp_teleoperate/assets/g1/g1_body29_inspired_hand.urdf
 
+                    Transformation from pelvis to d435_link:
+                     [[ 0.67430239  0.          0.73845534  0.05366   ]
+                     [ 0.          1.          0.          0.01753   ]
+                     [-0.73845534  0.          0.67430239  0.47387   ]
+                     [ 0.          0.          0.          1.        ]]
 
-    # 直接浏览器可视化，给定一个左手的目标位置，丝滑移动过去再回来
-        # 自己的代码在: https://github.com/JunweiLiang/humanoid_teleop
+                    Transformation from right_wrist_yaw_joint to R_index_tip:
+                     [[ 2.22018339e-16  9.99391313e-01 -3.48855737e-02  2.48686587e-01]
+                     [-1.00000000e+00  2.23989393e-16  5.02256656e-17  7.32847000e-03]
+                     [-5.80145042e-17  3.48855737e-02  9.99391313e-01  2.97837118e-02]
+                     [ 0.00000000e+00  0.00000000e+00  0.00000000e+00  1.00000000e+00]]
 
-        (g1) junweil@home-lab:~/projects/humanoid_teleop/avp_teleoperate/teleop/robot_control$ python robot_arm_ik.py
+
 
     # 使用真实realsense相机识别电梯按钮，然后控制虚拟G1左手到目标位置
 

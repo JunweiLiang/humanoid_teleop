@@ -42,10 +42,6 @@ parser.add_argument("--keep_last", action="store_true", help="keep the detected 
 parser.add_argument("--use_tracking", action="store_true")
 
 
-
-# about eye-to-hand
-parser.add_argument("--eye_to_hand_pose", default=None, help="a pickle file with 4x4 eye-to-hand calibration")
-
 """
 '<>' -> 'open'
 '><' -> 'close'
@@ -58,6 +54,45 @@ parser.add_argument("--eye_to_hand_pose", default=None, help="a pickle file with
 's'  -> 'star'
 '-'  -> '-'
 """
+"""
+    假设URDF准，直接算eye-to-hand
+        (g1) junweil@home-lab:~/projects/humanoid_teleop$ python g1_realrobot/urdf_viewer_compute_ft.py avp_teleoperate/assets/g1/g1_body29_inspired_hand.urdf
+
+                    Transformation from pelvis to d435_link:
+                     [[ 0.67430239  0.          0.73845534  0.05366   ]
+                     [ 0.          1.          0.          0.01753   ]
+                     [-0.73845534  0.          0.67430239  0.47387   ]
+                     [ 0.          0.          0.          1.        ]]
+
+                    Transformation from right_wrist_yaw_joint to R_index_tip:
+                     [[ 2.22018339e-16  9.99391313e-01 -3.48855737e-02  2.48686587e-01]
+                     [-1.00000000e+00  2.23989393e-16  5.02256656e-17  7.32847000e-03]
+                     [-5.80145042e-17  3.48855737e-02  9.99391313e-01  2.97837118e-02]
+                     [ 0.00000000e+00  0.00000000e+00  0.00000000e+00  1.00000000e+00]]
+"""
+# eye-to-base,
+T_base_to_camera = np.array([[ 0.67430239, 0.   , 0.73845534, 0.05366   ]
+                             [ 0. , 1. , 0. , 0.01753   ]
+                             [-0.73845534, 0. , 0.67430239, 0.47387   ]
+                             [ 0. , 0.  ,0.,   1.        ]])
+# realsense里x往右，y朝下，z朝前；robot frame，x朝前，y朝左，z朝上
+T_camera_to_camera = np.array([
+            [0.,  0.,  1,  0],
+            [-1., 0,  0,  0],
+            [0., -1.,  0,  0],
+            [0.,  0.,  0,  1]
+        ])
+T_base_to_camera = T_base_to_camera @ T_camera_to_camera
+
+# arm to ee
+# Transformation from right_wrist_yaw_joint to R_index_tip:
+# our ik assume fixing all others
+# this is used in robot_arm_ik.py
+T_arm_to_ee = np.array([[ 2.22018339e-16, 9.99391313e-01, -3.48855737e-02,  2.48686587e-01]
+                         [-1.00000000e+00,  2.23989393e-16,  5.02256656e-17,  7.32847000e-03]
+                         [-5.80145042e-17,  3.48855737e-02,  9.99391313e-01,  2.97837118e-02]
+                         [ 0.00000000e+00,  0.00000000e+00,  0.00000000e+00,  1.00000000e+00]])
+
 
 
 class DetDepthModel:
@@ -341,47 +376,9 @@ def print_once(string):
         print(string)
         printed = True
 
-def camera_frame_to_robot_frame(xyz_in_camera, T_base_to_camera=None):
-
+def camera_frame_to_robot_frame(xyz_in_camera):
+    # assuming the T_base_to_camera is given. See above
     P_camera = np.array(xyz_in_camera)
-
-    if T_base_to_camera is None:
-        # do the eye-to-hand manually
-        # the G1 robot origin is at pelvis, z-axis up, x-axis forward, y-axis left side
-        # the camera is up 0.5 and forward 0.05 from the pelvis, 2cm to the left hand side, which means [0.05, 0.02, 0.65]
-        #       realsense D435i origin is at the left infrared imager (second cycle from the right when facing camera)
-        #       https://github.com/IntelRealSense/librealsense/issues/9784#issuecomment-923923701
-        # the measure error should be < 5cm
-
-        T_base_to_camera = np.array([
-            [0,  0,  1,  0.05],
-            [-1, 0,  0,  0.02],
-            [0, -1,  0,  0.5],
-            [0,  0,  0,  1]
-        ])
-
-        # and 42.4 degree looking down (pitch=42.4 degree) # no this is not correct
-        # should be 90-42.4 = 47.6
-        # see https://support.unitree.com/home/zh/G1_developer/about_G1
-
-        theta = np.radians(47.6)  # Convert to radians
-        cos_theta = np.cos(theta)
-        sin_theta = np.sin(theta)
-        R_pitch = np.array([
-            [cos_theta, 0, sin_theta, 0],
-            [0, 1, 0, 0],
-            [-sin_theta, 0, cos_theta, 0],
-            [0, 0, 0, 1]
-        ])
-        T_base_to_camera = R_pitch @ T_base_to_camera
-        """
-        [[ 0.      -0.73846  0.6743   0.40294]
-         [-1.       0.       0.       0.02   ]
-         [ 0.      -0.6743  -0.73846  0.30023]
-         [ 0.       0.       0.       1.     ]]
-
-        """
-        print_once(T_base_to_camera)
 
     # Convert to homogeneous coordinates
     P_camera_homogeneous = np.append(P_camera, 1)  # [X, Y, Z, 1]
@@ -391,28 +388,6 @@ def camera_frame_to_robot_frame(xyz_in_camera, T_base_to_camera=None):
 
     # Convert back to 3D coordinates
     P_base = P_base_homogeneous[:3]  # [X', Y', Z']
-
-    # do the eye-to-hand manually
-    # the G1 robot origin is at pelvis, z-axis up, x-axis forward, y-axis left side
-    # the camera is up 0.5 and forward 0.05 from the pelvis, which means [0.05, 0, 0.65]
-    # and 45 degree looking down
-    """
-    pelvis_to_camera_up = 0.5
-
-    x_in_arm_frame = xyz_in_camera[2] + 0.05
-    y_in_arm_frame = -xyz_in_camera[0]
-    z_in_arm_frame = -xyz_in_camera[1] + pelvis_to_camera_up
-    # this axis mapping can use the rotation matrix to do so
-    # [0  0  1]
-    # [-1  0  0]
-    # [0  -1  0]
-
-    P_base = np.array([
-        x_in_arm_frame,
-        y_in_arm_frame,
-        z_in_arm_frame,
-    ])
-    """
 
     return P_base
 
@@ -505,18 +480,11 @@ def move_robot_arm_sim_and_real(arm_ik, arm_ctr, start_pose_pin_SE3, target_pose
 
 if __name__ == "__main__":
 
-
-
     args = parser.parse_args()
 
-    eye_to_hand_pose = None
-    if args.eye_to_hand_pose is not None:
-        with open(args.eye_to_hand_pose, "rb") as f:
-            eye_to_hand_pose = pickle.load(f) # a 4x4
-        assert eye_to_hand_pose.shape == (4, 4)
 
     #urdf_path = args.urdf
-    arm_ik = G1_29_ArmIK(urdf=args.urdf, visualization=True, lock_left_wrist=True)
+    arm_ik = G1_29_ArmIK(urdf=args.urdf, visualization=True)
     # visualize the target pose and the robot's actual pose in browser
     arm_ik.vis.viewer["R_ee_target/sphere"].set_object(g.Sphere(0.01), g.MeshLambertMaterial(color=0xff0000))
     arm_ik.vis.viewer["R_ee/sphere"].set_object(g.Sphere(0.01), g.MeshLambertMaterial(color=0x00FF00))

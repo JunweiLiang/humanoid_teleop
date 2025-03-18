@@ -48,8 +48,10 @@ class WeightedMovingFilter:
     def filtered_data(self):
         return self._filtered_data
 
+
+# 搭配因时灵巧手，左手锁住
 class G1_29_ArmIK:
-    def __init__(self, urdf, visualization=False, lock_left_wrist=False):
+    def __init__(self, urdf, visualization=False):
         np.set_printoptions(precision=5, suppress=True, linewidth=200)
         self.visualization = visualization # will use meshcat in browser to visualize
         self.robot = pin.RobotWrapper.BuildFromURDF(urdf, os.path.dirname(urdf))
@@ -71,58 +73,59 @@ class G1_29_ArmIK:
                                         "waist_roll_joint" ,
                                         "waist_pitch_joint" ,
 
-                                        "left_hand_thumb_0_joint" ,
-                                        "left_hand_thumb_1_joint" ,
-                                        "left_hand_thumb_2_joint" ,
-                                        "left_hand_middle_0_joint" ,
-                                        "left_hand_middle_1_joint" ,
-                                        "left_hand_index_0_joint" ,
-                                        "left_hand_index_1_joint" ,
+                                        # 左手关节（已更新）
+                                        "L_pinky_proximal_joint",
+                                        "L_pinky_intermediate_joint",
+                                        "L_ring_proximal_joint",
+                                        "L_ring_intermediate_joint",
+                                        "L_thumb_intermediate_joint",
+                                        "L_thumb_proximal_yaw_joint",
+                                        "L_thumb_proximal_pitch_joint",
+                                        "L_thumb_distal_joint",
+                                        "L_middle_proximal_joint",
+                                        "L_middle_intermediate_joint",
+                                        "L_index_proximal_joint",
+                                        "L_index_intermediate_joint",
 
-                                        "right_hand_thumb_0_joint" ,
-                                        "right_hand_thumb_1_joint" ,
-                                        "right_hand_thumb_2_joint" ,
-                                        "right_hand_index_0_joint" ,
-                                        "right_hand_index_1_joint" ,
-                                        "right_hand_middle_0_joint",
-                                        "right_hand_middle_1_joint"
+                                        # 右手关节（已更新）
+                                        "R_pinky_proximal_joint",
+                                        "R_pinky_intermediate_joint",
+                                        "R_ring_proximal_joint",
+                                        "R_ring_intermediate_joint",
+                                        "R_thumb_intermediate_joint",
+                                        "R_thumb_proximal_yaw_joint",
+                                        "R_thumb_proximal_pitch_joint",
+                                        "R_thumb_distal_joint",
+                                        "R_index_proximal_joint",
+                                        "R_index_intermediate_joint",
+                                        "R_middle_proximal_joint",
+                                        "R_middle_intermediate_joint"
                                     ]
-        self.lock_left_wrist = lock_left_wrist
-        if self.lock_left_wrist:
-            self.mixed_jointsToLockIDs += [
-                "left_shoulder_pitch_joint",
-                "left_shoulder_roll_joint",
-                "left_shoulder_yaw_joint",
-                "left_elbow_joint",
-                "left_wrist_pitch_joint",
-                "left_wrist_roll_joint",
-                "left_wrist_yaw_joint",
-            ]
+
         # https://docs.ros.org/en/kinetic/api/pinocchio/html/classpinocchio_1_1robot__wrapper_1_1RobotWrapper.html#aef341b27b4709b03c93d66c8c196bc0f
         # the above joint will be locked, at 0.0
         self.reduced_robot = self.robot.buildReducedRobot(
             list_of_joints_to_lock=self.mixed_jointsToLockIDs,
             reference_configuration=np.array([0.0] * self.robot.model.nq),
         )
+        """
+        用URDF计算出来
+            (g1) junweil@home-lab:~/projects/humanoid_teleop$ python g1_realrobot/urdf_viewer_compute_ft.py avp_teleoperate/assets/g1/g1_body29_inspired_hand.urdf
+        """
+        # arm to ee
+        # Transformation from right_wrist_yaw_joint to R_index_tip:
+        # our ik assume fixing all others
+        # this is used in robot_arm_ik.py
+        T_arm_to_ee = np.array([[ 2.22018339e-16, 9.99391313e-01, -3.48855737e-02,  2.48686587e-01]
+                                 [-1.00000000e+00,  2.23989393e-16,  5.02256656e-17,  7.32847000e-03]
+                                 [-5.80145042e-17,  3.48855737e-02,  9.99391313e-01,  2.97837118e-02]
+                                 [ 0.00000000e+00,  0.00000000e+00,  0.00000000e+00,  1.00000000e+00]])
 
-        if not self.lock_left_wrist:
-            self.reduced_robot.model.addFrame(
-                # pin.Frame(name, parentJoint, placement, frameType)
-                pin.Frame('L_ee',
-                          self.reduced_robot.model.getJointId('left_wrist_yaw_joint'),
-                          # relative to the parant joint,
-                          pin.SE3(np.eye(3), # so no rotation. 3x3 rotation matrix
-                                  np.array([0.05,0,0]).T), # 5cm along the x-axis from parent
-                          pin.FrameType.OP_FRAME) # This defines the type of the frame. OP_FRAME stands for Operational Frame, which is typically used for end-effectors or other points of interest.
-            )
-            # Get the hand joint ID and define the error function
-            self.L_hand_id = self.reduced_robot.model.getFrameId("L_ee")
 
         self.reduced_robot.model.addFrame(
             pin.Frame('R_ee',
                       self.reduced_robot.model.getJointId('right_wrist_yaw_joint'),
-                      pin.SE3(np.eye(3),
-                              np.array([0.1, 0.01, 0]).T), # on the palm
+                      T_arm_to_ee,
                       pin.FrameType.OP_FRAME)
         )
 
@@ -151,40 +154,41 @@ class G1_29_ArmIK:
         cpin.framesForwardKinematics(self.cmodel, self.cdata, self.cq)
 
 
-        if self.lock_left_wrist:
-            self.smooth_filter = WeightedMovingFilter(np.array([0.4, 0.3, 0.2, 0.1]), 7)
-            self.translational_error = casadi.Function(
-                "translational_error",
-                [self.cq, self.cTf_r],
-                [
-                    casadi.vertcat(
 
-                        self.cdata.oMf[self.R_hand_id].translation - self.cTf_r[:3,3]
-                    )
-                ],
-            )
-            self.rotational_error = casadi.Function(
-                "rotational_error",
-                [self.cq, self.cTf_r],
-                [
-                    casadi.vertcat(
+        self.smooth_filter = WeightedMovingFilter(np.array([0.4, 0.3, 0.2, 0.1]), 7)
+        self.translational_error = casadi.Function(
+            "translational_error",
+            [self.cq, self.cTf_r],
+            [
+                casadi.vertcat(
 
-                        cpin.log3(self.cdata.oMf[self.R_hand_id].rotation @ self.cTf_r[:3,:3].T)
-                    )
-                ],
-            )
-            # Defining the optimization problem
-            self.opti = casadi.Opti()
-            self.var_q = self.opti.variable(self.reduced_robot.model.nq)
-            self.var_q_last = self.opti.parameter(self.reduced_robot.model.nq)   # for smooth
-            self.param_tf_r = self.opti.parameter(4, 4)
-            self.translational_cost = casadi.sumsqr(self.translational_error(self.var_q, self.param_tf_r))
-            self.rotation_cost = casadi.sumsqr(self.rotational_error(self.var_q, self.param_tf_r))
-            self.regularization_cost = casadi.sumsqr(self.var_q)
-            self.smooth_cost = casadi.sumsqr(self.var_q - self.var_q_last)
+                    self.cdata.oMf[self.R_hand_id].translation - self.cTf_r[:3,3]
+                )
+            ],
+        )
+        self.rotational_error = casadi.Function(
+            "rotational_error",
+            [self.cq, self.cTf_r],
+            [
+                casadi.vertcat(
 
-        else:
+                    cpin.log3(self.cdata.oMf[self.R_hand_id].rotation @ self.cTf_r[:3,:3].T)
+                )
+            ],
+        )
+        # Defining the optimization problem
+        self.opti = casadi.Opti()
+        self.var_q = self.opti.variable(self.reduced_robot.model.nq)
+        self.var_q_last = self.opti.parameter(self.reduced_robot.model.nq)   # for smooth
+        self.param_tf_r = self.opti.parameter(4, 4)
+        self.translational_cost = casadi.sumsqr(self.translational_error(self.var_q, self.param_tf_r))
+        self.rotation_cost = casadi.sumsqr(self.rotational_error(self.var_q, self.param_tf_r))
+        self.regularization_cost = casadi.sumsqr(self.var_q)
+        self.smooth_cost = casadi.sumsqr(self.var_q - self.var_q_last)
 
+
+        # 双arm的情况
+        """
             self.smooth_filter = WeightedMovingFilter(np.array([0.4, 0.3, 0.2, 0.1]), 14)
 
             self.translational_error = casadi.Function(
@@ -218,6 +222,7 @@ class G1_29_ArmIK:
             self.rotation_cost = casadi.sumsqr(self.rotational_error(self.var_q, self.param_tf_l, self.param_tf_r))
             self.regularization_cost = casadi.sumsqr(self.var_q)
             self.smooth_cost = casadi.sumsqr(self.var_q - self.var_q_last)
+        """
 
         # Setting optimization constraints and goals
         self.opti.subject_to(self.opti.bounded(
@@ -284,44 +289,6 @@ class G1_29_ArmIK:
                     )
                 )
 
-    # this is for given left_wrist ee pose, and set both wrist moving.
-    def solve_ik(self, left_wrist, current_lr_arm_motor_q = None, current_lr_arm_motor_dq = None):
-        assert not self.lock_left_wrist
-        if current_lr_arm_motor_q is not None:
-            self.init_data = current_lr_arm_motor_q
-        self.opti.set_initial(self.var_q, self.init_data)
-
-        # need to set both wrist
-        R_target = pin.SE3(pin.Quaternion(1, 0, 0, 0), np.array([0.25, -0.25, 0.1]))
-        right_wrist = R_target.homogeneous
-        self.opti.set_value(self.param_tf_l, left_wrist)
-        self.opti.set_value(self.param_tf_r, right_wrist)
-        self.opti.set_value(self.var_q_last, self.init_data) # for smooth
-
-
-        sol = self.opti.solve()
-        # sol = self.opti.solve_limited()
-
-        sol_q = self.opti.value(self.var_q)
-        self.smooth_filter.add_data(sol_q)
-        sol_q = self.smooth_filter.filtered_data
-
-        if current_lr_arm_motor_dq is not None:
-            v = current_lr_arm_motor_dq * 0.0
-        else:
-            v = (sol_q - self.init_data) * 0.0
-
-        self.init_data = sol_q
-
-        # Calculate Feedforward Torques
-        # Uses Recursive Newton-Euler Algorithm (RNEA) to compute the inverse dynamics.
-        sol_tauff = pin.rnea(self.reduced_robot.model, self.reduced_robot.data, sol_q, v, np.zeros(self.reduced_robot.model.nv))
-
-        self.current_q = sol_q
-        if self.visualization:
-            self.vis.display(sol_q)  # for visualization, set the robot's joints
-
-        return sol_q, sol_tauff
 
     def solve_ik_right_wrist(self, right_wrist, current_lr_arm_motor_q = None, current_lr_arm_motor_dq = None):
         assert self.lock_left_wrist
