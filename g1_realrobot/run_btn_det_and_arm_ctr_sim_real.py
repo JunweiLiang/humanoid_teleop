@@ -421,7 +421,7 @@ def move_robot_arm_sim_and_real(arm_ik, arm_ctr, start_pose_pin_SE3, target_pose
     # visualize the target pose in browser
     arm_ik.vis.viewer["R_ee_target"].set_transform(target_pose.homogeneous)
 
-    in_seconds = 2.0
+    in_seconds = 1.0
 
     # now we start to control the arm
 
@@ -494,7 +494,7 @@ if __name__ == "__main__":
 
     arm_ctr = G1_29_ArmController(args.network_name)
     # the total time required for arms velocity to gradually increase to its maximum value
-    arm_ctr.speed_gradual_max(t=5.0)
+    arm_ctr.speed_gradual_max(t=2.0)
 
     # 把右手放初始位置，其他不管
     arm_ctr.ctrl_right_arm_go_home()
