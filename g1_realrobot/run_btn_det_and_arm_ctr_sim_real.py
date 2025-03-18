@@ -495,6 +495,8 @@ if __name__ == "__main__":
     arm_ctr = G1_29_ArmController(args.network_name)
     # the total time required for arms velocity to gradually increase to its maximum value
     arm_ctr.speed_gradual_max(t=5.0)
+    arm_ctr.ctrl_right_arm_go_home()
+    sys.exit()
 
     target_ee_pose = None
     last_ee_pose = None
