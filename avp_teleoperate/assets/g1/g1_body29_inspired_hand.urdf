@@ -1224,31 +1224,9 @@
 
   <joint name="L_index_tip_joint" type="fixed">
     <parent link="L_index_intermediate"/>
-    <child link="L_index_tip_cube"/>
     <origin rpy="0 0 0" xyz="-0.005 -0.04 -0.004"/>
   </joint>
-<link name="L_index_tip_cube">
-  <inertial>
-    <origin xyz="0 0 0" rpy="0 0 0"/>
-    <mass value="0.001"/>
-    <inertia ixx="0.000001" ixy="0" ixz="0" iyy="0.000001" iyz="0" izz="0.000001"/>
-  </inertial>
-  <visual>
-    <origin xyz="0 0 0" rpy="0 0 0"/>
-    <geometry>
-      <box size="0.01 0.01 0.01"/>
-    </geometry>
-    <material name="Red">
-      <color rgba="0.8 0 0 1"/>
-    </material>
-  </visual>
-  <collision>
-    <origin xyz="0 0 0" rpy="0 0 0"/>
-    <geometry>
-      <box size="0.01 0.01 0.01"/>
-    </geometry>
-  </collision>
-</link>
+
 
   <link name="L_middle_proximal">
     <inertial>
@@ -1636,31 +1614,9 @@
 
   <joint name="R_index_tip_joint" type="fixed">
     <parent link="R_index_intermediate"/>
-    <child link="R_index_tip_cube"/>
     <origin rpy="0 0 0" xyz="-0.005 0.04 -0.004"/>
   </joint>
-<link name="R_index_tip_cube">
-  <inertial>
-    <origin xyz="0 0 0" rpy="0 0 0"/>
-    <mass value="0.001"/>
-    <inertia ixx="0.000001" ixy="0" ixz="0" iyy="0.000001" iyz="0" izz="0.000001"/>
-  </inertial>
-  <visual>
-    <origin xyz="0 0 0" rpy="0 0 0"/>
-    <geometry>
-      <box size="0.01 0.01 0.01"/>
-    </geometry>
-    <material name="Red">
-      <color rgba="0.8 0 0 1"/>
-    </material>
-  </visual>
-  <collision>
-    <origin xyz="0 0 0" rpy="0 0 0"/>
-    <geometry>
-      <box size="0.01 0.01 0.01"/>
-    </geometry>
-  </collision>
-</link>
+
   <link name="R_middle_proximal">
     <inertial>
       <origin xyz="0.001297 0.011934 -0.0060001" rpy="0 0 0"/>

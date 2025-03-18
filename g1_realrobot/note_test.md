@@ -199,6 +199,11 @@
              [-0.73845534  0.          0.67430239  0.47387   ]
              [ 0.          0.          0.          1.        ]]
 
+            # 用因时手的URDF
+                #梓帆改的URDf，在食指上加了个红色正方体
+
+                (g1) junweil@home-lab:~/projects/humanoid_teleop$ python g1_realrobot/urdf_viewer_compute_ft.py avp_teleoperate/assets/g1/g1_body29_inspired_hand.urdf
+
 
     # 直接浏览器可视化，给定一个左手的目标位置，丝滑移动过去再回来
         # 自己的代码在: https://github.com/JunweiLiang/humanoid_teleop
