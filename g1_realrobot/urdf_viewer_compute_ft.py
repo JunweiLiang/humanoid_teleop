@@ -41,7 +41,8 @@ if __name__ == "__main__":
     # add a frame to the joint/link you want to compute transform for
     robot.model.addFrame(
         pin.Frame('R_ee',
-                  robot.model.getJointId('R_index_tip_joint'),
+                  #robot.model.getJointId('right_wrist_yaw_joint'),
+                  robot.model.getFrameId("R_index_tip"),
                   pin.SE3(np.eye(3),
                           np.array([0.1, 0.0, 0.]).T), # on the palm
                   pin.FrameType.OP_FRAME)
