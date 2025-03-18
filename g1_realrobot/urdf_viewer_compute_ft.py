@@ -39,6 +39,7 @@ if __name__ == "__main__":
 
 
     # add a frame to the joint/link you want to compute transform for
+    """
     robot.model.addFrame(
         pin.Frame('R_ee',
                   #robot.model.getJointId('right_wrist_yaw_joint'),
@@ -47,6 +48,7 @@ if __name__ == "__main__":
                           np.array([0.1, 0.0, 0.]).T), # on the palm
                   pin.FrameType.OP_FRAME)
     )
+    """
 
     for i in range(robot.model.nframes):
         frame = robot.model.frames[i]
