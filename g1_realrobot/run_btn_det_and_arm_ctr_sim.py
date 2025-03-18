@@ -19,6 +19,7 @@ from robot_arm_ik import  G1_29_ArmIK
 import meshcat.geometry as g
 import pinocchio as pin
 import time
+from scipy.spatial.transform import Rotation as R
 from pinocchio import casadi as cpin
 from pinocchio.robot_wrapper import RobotWrapper
 from pinocchio.visualize import MeshcatVisualizer
@@ -44,13 +45,6 @@ parser.add_argument("--use_tracking", action="store_true")
 
 # about eye-to-hand
 parser.add_argument("--eye_to_hand_pose", default=None, help="a pickle file with 4x4 eye-to-hand calibration")
-parser.add_argument("--delta_x", default=0., type=float, help="adding more +x (meters) to the camera frame to arm frame conversion")
-parser.add_argument("--delta_y", default=0., type=float, help="adding more +y (meters) to the camera frame to arm frame conversion")
-parser.add_argument("--delta_z", default=0., type=float, help="adding more +z (meters) to the camera frame to arm frame conversion")
-parser.add_argument("--set_x", default=-100., type=float, help="setting this to be non -100 will overwrite any computation")
-parser.add_argument("--set_y", default=-100., type=float, help="setting this to be non -100 will overwrite any computation")
-parser.add_argument("--set_z", default=-100., type=float, help="setting this to be non -100 will overwrite any computation")
-
 
 """
 '<>' -> 'open'
@@ -68,10 +62,9 @@ parser.add_argument("--set_z", default=-100., type=float, help="setting this to 
 
 class DetDepthModel:
     def __init__(self, det_model_path, camera_type="d435", is_realsense=True,
-            det_conf=0.3, xyz_delta=(0., 0., 0.),
+            det_conf=0.3,
             det_all=False, det_target_class="(",
-            use_tracking=False,
-            set_xyz=None):
+            use_tracking=False):
         # initialize the detection model and the depth camera
 
         # initialize the object detection model
@@ -81,7 +74,6 @@ class DetDepthModel:
         self.det_conf = det_conf
         self.det_all = det_all
         self.det_target_class=det_target_class
-        self.set_xyz = set_xyz
         self.use_tracking = use_tracking
 
 
@@ -91,8 +83,7 @@ class DetDepthModel:
         # for FPS computation
         self.frame_count = 0
         self.start_time = time.time()
-        assert len(xyz_delta) == 3
-        self.xyz_delta = xyz_delta
+
 
     def run_od_and_return_frame(self, visualize_box=True, visualize_depth=False):
         # get one frame from stream and run object detection
@@ -222,16 +213,7 @@ class DetDepthModel:
                         cv2.FONT_HERSHEY_PLAIN, font_size,
                         bbox_color, text_thickness)
 
-                # we visualize the coordinate in Piper arm frame
-                # visualize in the outer loop
-                """
-                piper_point = self.camera_frame_to_arm_frame(point_3d)
-                frame_cv2 = cv2.putText(
-                    frame_cv2,
-                    "[%d, %d, %d]mm" % (piper_point[0], piper_point[1], piper_point[2]),
-                    (round(center_x)+40, round(center_y)-50), cv2.FONT_HERSHEY_SIMPLEX,
-                    fontScale=1.3, color=(0, 255, 0), thickness=4)
-                """
+
 
         return frame_cv2, det_results
 
@@ -303,16 +285,7 @@ class DetDepthModel:
                             cv2.FONT_HERSHEY_PLAIN, font_size,
                             bbox_color, text_thickness)
 
-                    # we visualize the coordinate in Piper arm frame
-                    # visualize in the outer loop
-                    """
-                    piper_point = self.camera_frame_to_arm_frame(point_3d)
-                    frame_cv2 = cv2.putText(
-                        frame_cv2,
-                        "[%d, %d, %d] mm" % (piper_point[0], piper_point[1], piper_point[2]),
-                        (round(center_x)+40, round(center_y)-50), cv2.FONT_HERSHEY_SIMPLEX,
-                        fontScale=1.3, color=(0, 255, 0), thickness=4)
-                    """
+
 
         return frame_cv2, det_results
     # ----- the rest are helper functions
@@ -327,35 +300,6 @@ class DetDepthModel:
                 break
         return target_id
 
-    def camera_frame_to_arm_frame(self, xyz_in_camera):
-        # https://www.orbbec.com/documentation/femto-bolt-coordinate-systems
-        # in femoto bolt, the aligned frames are on the RGB camera
-        # for gemini 336l: https://www.orbbec.com/docs/g330-coordinate-systems/
-        #   the origin is on the right camera on gemini 336l
-        # the xyz are in meters
-        # this is the transform from zero positioned arm's camera to the arm base frame
-        # the end effector offset is [0.05, 0, 0.2]
-        initial_transform = [0.02, 0, 0.25]
-        # the end effector zero position at the begining
-        # default it should be all zeros
-        xyz_zero_pos = [0., 0., 0.]
-        x_in_arm_frame = xyz_in_camera[2] + initial_transform[0] + xyz_zero_pos[0] + self.xyz_delta[0]
-        y_in_arm_frame = -xyz_in_camera[0] + initial_transform[1] + xyz_zero_pos[1] + self.xyz_delta[1]
-        z_in_arm_frame = -xyz_in_camera[1] + initial_transform[2] + xyz_zero_pos[2] + self.xyz_delta[2]
-        if self.set_xyz is not None:
-            # overwrite if set
-            # sometimes the depth is just not right
-            if self.set_xyz[0] != -100.:
-                x_in_arm_frame = self.set_xyz[0]
-            if self.set_xyz[1] != -100.:
-                y_in_arm_frame = self.set_xyz[1]
-            if self.set_xyz[2] != -100.:
-                z_in_arm_frame = self.set_xyz[2]
-        return [
-            x_in_arm_frame,
-            y_in_arm_frame,
-            z_in_arm_frame,
-        ]
 
 
     def image_resize(self, image, width = None, height = None, inter = cv2.INTER_AREA):
@@ -429,7 +373,7 @@ def camera_frame_to_robot_frame(xyz_in_camera, T_base_to_camera=None):
             [-sin_theta, 0, cos_theta, 0],
             [0, 0, 0, 1]
         ])
-        #T_base_to_camera = R_pitch @ T_base_to_camera
+        T_base_to_camera = R_pitch @ T_base_to_camera
         """
         [[ 0.      -0.73846  0.6743   0.40294]
          [-1.       0.       0.       0.02   ]
@@ -483,46 +427,80 @@ def interpolate_se3(start, end, alpha):
 
     return pin.SE3(interp_quat.matrix(), interp_translation)
 
-def move_arm_to_and_back(arm_ctr, start_xyz, target_xyz, in_seconds=2.0):
+
+
+# Function to control the robot arm asynchronously
+def move_robot_arm_sim_and_real(arm_ik, arm_ctr, start_pose_pin_SE3, target_pose_pin_SE3):
+
+    # need this to tell main thread not to accept new command
+    global has_reach_ee_pose
+    has_reach_ee_pose = False
+
+
+    start_pose = start_pose_pin_SE3
+    print("moving to ", target_pose_pin_SE3)
+    target_pose = target_pose_pin_SE3
+
+    # visualize the target pose in browser
+    arm_ik.vis.viewer["R_ee_target"].set_transform(target_pose.homogeneous)
+
+    in_seconds = 2.0
+
+    # now we start to control the arm
 
     time_gap = 0.01
     max_steps = int(in_seconds / time_gap)
 
-    start = pin.SE3(pin.Quaternion(1, 0, 0, 0), np.array(start_xyz))
-    target = pin.SE3(pin.Quaternion(1, 0, 0, 0), np.array(target_xyz))
-
     for step in range(max_steps):
         # Normalize step to [0, 1] range for interpolation
-        alpha = ((step + 1) % max_steps) / max_steps
-         # Move forward for first half, backward for second half
-        if alpha <= 0.5:
-            alpha *= 2  # Scale alpha to [0, 1] for first phase
-        else:
-            alpha = 2 * (1 - alpha)  # Reverse alpha for the second phase
+        alpha = (step + 1) / max_steps  # Progress forward only
 
         # Interpolate left end-effector smoothly
-        target_tmp = interpolate_se3(start, target, alpha)
+        target_tmp = interpolate_se3(start_pose, target_pose, alpha)
 
         # both list of 14
-        sol_q, sol_tauff = arm_ctr.solve_ik(target_tmp.homogeneous)
+        sol_q, sol_tauff = arm_ik.solve_ik_right_wrist(target_tmp.homogeneous)
+
+        #arm_ctr.ctrl_dual_arm(sol_q, sol_tauff)
 
         time.sleep(time_gap)
 
+    # need to check the final position of the arm and see whether it has reach target pose
 
-# Function to control the robot arm asynchronously
-def move_robot_arm(arm_ctr, target_xyz_in_robot_frame):
-    # need this to tell the main thread not to update meshcat with the sphere, otherwise socket is occupied
-    global stop_update_target_sphere
-    # assuming our robot ee is started at zero pose
-    start = [0.25, -0.15, 0.1] # for right wrist, it is in the y-negative side
-    print("moving to ", target_xyz_in_robot_frame)
 
-    # now we start to control the arm
+    # Update kinematics to get the latest pose (update joint position and frame position)
+    pin.framesForwardKinematics(arm_ik.reduced_robot.model,
+                                arm_ik.reduced_robot.data,
+                                sol_q) # use the last q solution to get the final pose
 
-    move_arm_to_and_back(arm_ctr, start, target_xyz_in_robot_frame, in_seconds=2.0)
+    ## Update the data object to reflect the new frames
+    # 必须要更新这个，否则data.oMf没有这个新的frame
+    #  self.reduced_robot.data = pin.Data(self.reduced_robot.model)
+    assert len(arm_ik.reduced_robot.model.frames) == len(arm_ik.reduced_robot.data.oMf)
 
-    stop_update_target_sphere = False
+    final_pose = arm_ik.reduced_robot.data.oMf[arm_ik.R_hand_id]
+    arm_ik.vis.viewer["R_ee"].set_transform(final_pose.homogeneous) # visualize the green ball as the current final pose
 
+
+    # Compare position
+    position_error = np.linalg.norm(final_pose.translation - target_pose.translation)
+
+    # Compare orientation (convert to quaternions and compute difference)
+    final_quat = R.from_matrix(final_pose.rotation).as_quat()
+    target_quat = R.from_matrix(target_pose.rotation).as_quat()
+    orientation_error = 1 - np.dot(final_quat, target_quat) ** 2  # Quaternion difference
+
+    print(f"Position error: %.6f, Orientation error: %.6f" % (position_error, orientation_error))
+
+    # in meters
+    position_tol = 1e-2 # <1 cm error
+    orientation_tol = 5e-3 #
+    if position_error <= position_tol and orientation_error <= orientation_tol:
+        print("✅ Target pose reached successfully!")
+    else:
+        print("❌ Target pose NOT reached!")
+
+    has_reach_ee_pose = True
 
 
 if __name__ == "__main__":
@@ -539,23 +517,25 @@ if __name__ == "__main__":
 
     #urdf_path = args.urdf
     arm_ik = G1_29_ArmIK(urdf=args.urdf, visualization=True)
-    arm_ik.vis.viewer["L_ee_target/sphere"].set_object(g.Sphere(0.05), g.MeshLambertMaterial(color=0xff0000))
-
-    # the xyz overwrites for the button. Use when z is not accurate for example
-    set_xyz = [args.set_x, args.set_y, args.set_z]
+    # visualize the target pose and the robot's actual pose in browser
+    arm_ik.vis.viewer["R_ee_target/sphere"].set_object(g.Sphere(0.01), g.MeshLambertMaterial(color=0xff0000))
+    arm_ik.vis.viewer["R_ee/sphere"].set_object(g.Sphere(0.01), g.MeshLambertMaterial(color=0x00FF00))
 
     #arm_ctr = ArmControl(urdf=urdf_path, ee_link_name=args.ee_link_name)
 
-    #zero_j6_degrees = [0, 0, 0, 0, 0, 0]
 
-    #piper_ctr = PiperControl(print_msg=False, zero_pos=zero_j6_degrees)
-
-    # 先零位，使能机械臂
-    #piper_ctr.to_zero(speed=80)
-
+    # the current targeted ee pose
+    global has_reach_ee_pose
+    target_ee_pose = None
+    last_ee_pose = None
+    has_reach_ee_pose = True  # all cmd should not work when this is false
     # Initialize threading objects
     robot_ctr_thread = None
-    #lock = threading.Lock()
+
+    # assuming our robot ee is started at zero pose
+    start_xyz = [0.25, -0.15, 0.1] # for right wrist, it is in the y-negative side
+    # we should actually get this from URDF computation
+    start_ee_pose = pin.SE3(pin.Quaternion(1, 0, 0, 0), np.array(start_xyz))
 
     try:
 
@@ -565,9 +545,7 @@ if __name__ == "__main__":
             is_realsense=args.is_realsense,
             det_target_class=args.target_btn_class,
             det_all=args.det_all,
-            set_xyz=set_xyz,
-            use_tracking=args.use_tracking,
-            xyz_delta=(args.delta_x, args.delta_y, args.delta_z))
+            use_tracking=args.use_trackings)
 
 
         target_xyz_is_init = False
@@ -592,6 +570,7 @@ if __name__ == "__main__":
             if not args.keep_last:
                 target_xyz = None # initialize the target every frame
                 target_xyz_det = None
+                robot_target = None
 
             det_results = sorted(det_results, key=lambda x:x[4], reverse=True)
             for bbox, point_3d, class_id, class_name, conf in det_results:
@@ -604,7 +583,6 @@ if __name__ == "__main__":
                     target_xyz = target_xyz_in_camera_frame
                     # now we convert the button coordinates in camera frame
                     # to the arm world frame, so we can use it to compute ik
-                    #target_xyz = depth_det_camera_model.camera_frame_to_arm_frame(target_xyz_in_camera_frame)
                     target_xyz_det = (bbox, class_name, conf)
                     break
 
@@ -632,23 +610,25 @@ if __name__ == "__main__":
                 # we visualize the coordinate in Piper arm frame
                 frame = cv2.putText(
                     frame,
-                    "cf: [%.3f, %.3f, %.3f]" % (target_xyz[0], target_xyz[1], target_xyz[2]),
+                    "cf: [%.3f, %.3f, %.3f]" % tuple(target_xyz),
                     (round(center_x)+40, round(center_y)-50), cv2.FONT_HERSHEY_SIMPLEX,
                     fontScale=1.3, color=(0, 255, 0), thickness=4)
 
-                # we visualize the target in the robot frame
-                if not stop_update_target_sphere:
-                    target_xyz_in_robot_frame = camera_frame_to_robot_frame(target_xyz, T_base_to_camera=eye_to_hand_pose)
-                    #print(target_xyz_in_robot_frame)
-                    robot_target = pin.SE3(pin.Quaternion(1, 0, 0, 0), np.array(target_xyz_in_robot_frame))
-                    arm_ik.vis.viewer["L_ee_target"].set_transform(robot_target.homogeneous)
+                # we compute the point in robot frame
+                target_xyz_in_robot_frame = camera_frame_to_robot_frame(target_xyz, T_base_to_camera=eye_to_hand_pose)
+                frame = cv2.putText(
+                    frame,
+                    "rf: [%.3f, %.3f, %.3f]" % tuple(target_xyz_in_robot_frame),
+                    (round(center_x)+40, round(center_y)-10), cv2.FONT_HERSHEY_SIMPLEX,
+                    fontScale=1.3, color=(0, 255, 0), thickness=4)
 
-                    # we visualize the coordinate in Piper arm frame
-                    frame = cv2.putText(
-                        frame,
-                        "rf: [%.3f, %.3f, %.3f]" % (target_xyz_in_robot_frame[0], target_xyz_in_robot_frame[1], target_xyz_in_robot_frame[2]),
-                        (round(center_x)+40, round(center_y)-10), cv2.FONT_HERSHEY_SIMPLEX,
-                        fontScale=1.3, color=(0, 255, 0), thickness=4)
+                robot_target = pin.SE3(pin.Quaternion(1, 0, 0, 0), np.array(target_xyz_in_robot_frame))
+
+                # we visualize the target in the robot frame in the meshcat as well
+                if not stop_update_target_sphere:
+
+                    arm_ik.vis.viewer["R_ee_target"].set_transform(robot_target.homogeneous)
+
 
             frame = image_resize(frame, width=900, height=None)
             cv2.imshow("frame", frame)
