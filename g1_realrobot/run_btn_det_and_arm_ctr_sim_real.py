@@ -435,8 +435,8 @@ def move_robot_arm_sim_and_real(arm_ik, arm_ctr, start_pose_pin_SE3, target_pose
         # Interpolate left end-effector smoothly
         target_tmp = interpolate_se3(start_pose, target_pose, alpha)
 
-        current_lr_arm_q  = arm_ctr.get_current_dual_arm_q()
-        current_lr_arm_dq = arm_ctr.get_current_dual_arm_dq()
+        current_lr_arm_q  = arm_ctr.get_current_right_arm_q()
+        current_lr_arm_dq = arm_ctr.get_current_right_arm_dq()
         # both list of 7
         sol_q, sol_tauff = arm_ik.solve_ik_right_wrist(target_tmp.homogeneous, current_lr_arm_q, current_lr_arm_dq)
 

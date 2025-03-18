@@ -110,6 +110,7 @@ class G1_29_ArmController:
                 else:
                     self.msg.motor_cmd[id].kp = self.kp_high
                     self.msg.motor_cmd[id].kd = self.kd_high
+            # set the default q for all joint to be current q
             self.msg.motor_cmd[id].q  = self.all_motor_q[id]
         print("Lock OK!\n")
 
@@ -133,7 +134,8 @@ class G1_29_ArmController:
             time.sleep(0.002)
 
     def clip_arm_q_target(self, target_q, velocity_limit):
-        current_q = self.get_current_dual_arm_q()
+        #current_q = self.get_current_dual_arm_q()
+        current_q = self.get_current_right_arm_q()
         delta = target_q - current_q
         motion_scale = np.max(np.abs(delta)) / (velocity_limit * self.control_dt)
         cliped_arm_q_target = current_q + delta / max(motion_scale, 1.0)
@@ -186,10 +188,18 @@ class G1_29_ArmController:
     def get_current_dual_arm_q(self):
         '''Return current state q of the left and right arm motors.'''
         return np.array([self.lowstate_buffer.GetData().motor_state[id].q for id in G1_29_JointArmIndex])
+
+    def get_current_right_arm_q(self):
+        '''Return current state q of the left and right arm motors.'''
+        return np.array([self.lowstate_buffer.GetData().motor_state[id].q for id in G1_29_JointRightArmIndex])
     
     def get_current_dual_arm_dq(self):
         '''Return current state dq of the left and right arm motors.'''
         return np.array([self.lowstate_buffer.GetData().motor_state[id].dq for id in G1_29_JointArmIndex])
+
+    def get_current_right_arm_dq(self):
+        '''Return current state dq of the left and right arm motors.'''
+        return np.array([self.lowstate_buffer.GetData().motor_state[id].dq for id in G1_29_JointRightArmIndex])
     
     def ctrl_dual_arm_go_home(self):
         '''Move both the left and right arms of the robot to their home position by setting the target joint angles (q) and torques (tau) to zero.'''
