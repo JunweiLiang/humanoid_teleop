@@ -40,6 +40,16 @@ if __name__ == "__main__":
 
     ee_frame_id = robot.model.getFrameId("R_ee")
 
+    # using meshcat visualizer to show origin, and the ee pose
+    vis = MeshcatVisualizer(robot.model, robot.collision_model, robot.visual_model)
+    vis.initViewer(open=True)
+    vis.loadViewerModel("pinocchio")
+
+    vis.display(pin.neutral(robot.model))
+
+    # this will show the ee axis
+    vis.displayFrames(True, frame_ids=[ee_frame_id], axis_length = 0.15, axis_width = 5)
+
     # now, compute the transform between some target frame
     # in red balls
     origin_frame = "pelvis"
@@ -78,15 +88,7 @@ if __name__ == "__main__":
         vis.viewer["%s/sphere" % frame_name].set_object(g.Sphere(0.02), g.MeshLambertMaterial(color=green))
         vis.viewer[frame_name].set_transform(pose.homogeneous)
 
-    # using meshcat visualizer to show origin, and the ee pose
-    vis = MeshcatVisualizer(robot.model, robot.collision_model, robot.visual_model)
-    vis.initViewer(open=True)
-    vis.loadViewerModel("pinocchio")
 
-    vis.display(pin.neutral(robot.model))
-
-    # this will show the ee axis
-    vis.displayFrames(True, frame_ids=[ee_frame_id], axis_length = 0.15, axis_width = 5)
 
     while True:
         time.sleep(1)
