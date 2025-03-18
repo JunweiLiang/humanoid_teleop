@@ -112,6 +112,8 @@ class G1_29_ArmController:
             # set the default q for all joint to be current q
             self.msg.motor_cmd[id].q  = self.all_motor_q[id]
         print("Lock OK!\n")
+
+        # 必须设置这个, 否则控制不了
         # ID: 29 # see bottom page here: https://support.unitree.com/home/zh/G1_developer/sport_services_interface
         self.msg.motor_cmd[G1_29_JointIndex.kNotUsedJoint0].q =  1 # 1:Enable arm_sdk, 0:Disable arm_sdk
 
