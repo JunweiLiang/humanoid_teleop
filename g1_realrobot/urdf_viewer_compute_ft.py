@@ -15,6 +15,23 @@ import meshcat.geometry as mg
 parser = argparse.ArgumentParser()
 parser.add_argument("urdf")
 
+def compute_transformation(origin_pose, target_pose):
+    """
+    Compute the 4x4 transformation matrices from origin to target and target to origin.
+
+    Parameters:
+        origin_pose (pin.SE3): Pose of the origin frame in world coordinates.
+        target_pose (pin.SE3): Pose of the target frame in world coordinates.
+
+    Returns:
+        T_origin_to_target (np.ndarray): 4x4 transformation matrix from origin to target.
+        T_target_to_origin (np.ndarray): 4x4 transformation matrix from target to origin.
+    """
+    T_origin_to_target = origin_pose.inverse() * target_pose
+    T_target_to_origin = T_origin_to_target.inverse()
+
+    return T_origin_to_target.homogeneous, T_target_to_origin.homogeneous
+
 if __name__ == "__main__":
     args = parser.parse_args()
 
@@ -77,6 +94,11 @@ if __name__ == "__main__":
     origin_pose = robot.data.oMf[origin_frame_id]
     target_pose = robot.data.oMf[target_frame_id]
     ee_pose = robot.data.oMf[ee_frame_id]
+
+    T_origin_to_target, T_target_to_origin = compute_transformation(origin_pose, target_pose)
+
+    print("Transformation from origin to target:\n", T_origin_to_target)
+    print("Transformation from target to origin:\n", T_target_to_origin)
 
     # visualize the frames you want
     red = 0xff0000
