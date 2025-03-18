@@ -251,6 +251,8 @@ class G1_29_ArmIK:
         self.current_q = np.zeros(self.reduced_robot.model.nq) # used to save the current q
 
         self.vis = None
+        print(self.reduced_robot.model.nq)
+        sys.exit()
 
         if self.visualization:
             # Initialize the Meshcat visualizer for visualization
