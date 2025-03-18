@@ -261,6 +261,13 @@
 
         # 实机测试，我们先连上lt4和g1的D435
             # 设置lt4，有线连接G1，无线连接学校网络，调整ip route
+                # 设置lt4有线 :https://support.unitree.com/home/zh/G1_developer/quick_development
+                    g1-wired-222, manual IPv4, 192.168.123.222, netmask 255.255.255.0
+                    # 测试，ping 192.168.123.161 (PC1)
+                    # 查看网络名字: enp58s0
+                    $ ifconfig
+                        enp58s0: flags=4163<UP,BROADCAST,RUNNING,MULTICAST>  mtu 1500
+                        inet 192.168.123.222
 
             # 高层控制,可以不用调试模式。 文档: https://support.unitree.com/home/zh/G1_developer/sport_services_interface
 

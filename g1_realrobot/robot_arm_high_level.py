@@ -39,7 +39,7 @@ class DataBuffer:
             self.data = data
 
 class G1_29_ArmController:
-    def __init__(self):
+    def __init__(self, network_name):
         print("Initialize G1_29_ArmController...")
         #self.q_target = np.zeros(14)
         #self.tauff_target = np.zeros(14)
@@ -63,7 +63,8 @@ class G1_29_ArmController:
         self._gradual_time = None
 
         # initialize lowcmd publisher and lowstate subscriber
-        ChannelFactoryInitialize(0)
+        # 提供网卡interface名称
+        ChannelFactoryInitialize(0, network_name)
         self.lowcmd_publisher = ChannelPublisher(kTopicLowCommand, LowCmd_)
         self.lowcmd_publisher.Init()
         self.lowstate_subscriber = ChannelSubscriber(kTopicLowState, LowState_)

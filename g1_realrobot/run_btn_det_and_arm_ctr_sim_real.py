@@ -30,7 +30,7 @@ parser = argparse.ArgumentParser()
 
 parser.add_argument("det_model", default="combtn59.pt")
 parser.add_argument("urdf")
-
+parser.add_argument("network_name", help="network name that connects 192.168.123.*")
 #
 parser.add_argument("--is_realsense", action="store_true", help="if not then orbbec")
 parser.add_argument("--camera_type", default="d455")
@@ -492,7 +492,7 @@ if __name__ == "__main__":
     arm_ik.vis.viewer["R_ee_target/sphere"].set_object(g.Sphere(0.01), g.MeshLambertMaterial(color=0xff0000))
     arm_ik.vis.viewer["R_ee/sphere"].set_object(g.Sphere(0.01), g.MeshLambertMaterial(color=0x00FF00))
 
-    arm_ctr = G1_29_ArmController()
+    arm_ctr = G1_29_ArmController(args.network_name)
     # the total time required for arms velocity to gradually increase to its maximum value
     arm_ctr.speed_gradual_max(t=5.0)
 
