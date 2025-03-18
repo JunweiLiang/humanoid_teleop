@@ -62,7 +62,7 @@ def compute_transformation(origin_pose, target_pose):
     T_target_to_origin = T_origin_to_target.inverse()
 
     #return T_origin_to_target.homogeneous, T_target_to_origin.homogeneous
-    return T_origin_to_target # SE3
+    return T_origin_to_target, T_target_to_origin # SE3
 
 if __name__ == "__main__":
     args = parser.parse_args()
