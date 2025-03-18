@@ -1,6 +1,12 @@
 # coding=utf-8
 # given urdf, print all the joint. compute transform between one link to origin
 # also visualize
+"""
+    给定G1+因时灵巧手，
+    计算T_D435 -> robot base
+    右手食指到右手腕的SE3 transform
+
+"""
 
 import argparse
 import os
@@ -14,6 +20,31 @@ import meshcat.geometry as mg
 
 parser = argparse.ArgumentParser()
 parser.add_argument("urdf")
+
+def compute_and_vis(origin_frame, target_frame, vis, robot):
+    origin_frame_id = robot.model.getFrameId(origin_frame)
+    target_frame_id = robot.model.getFrameId(target_frame)
+    origin_pose = robot.data.oMf[origin_frame_id]
+    target_pose = robot.data.oMf[target_frame_id]
+
+
+    T_origin_to_target, T_target_to_origin = compute_transformation(origin_pose, target_pose)
+
+    print("Transformation from %s to %s:\n" % (origin_frame, target_frame), T_origin_to_target.homogeneous)
+    print("Transformation from %s to %s:\n" % (target_frame, origin_frame), T_target_to_origin.homogeneous)
+    # given xyz in the target frame (camera frame), compute xyz in the origin frame
+    # P_camera = np.array([x, y, z, 1])  # Homogeneous coordinates in the camera frame
+    # P_origin = T_origin_to_camera @ P_camera  # Transform to the origin frame
+
+    # visualize the frames you want
+    red = 0xff0000
+    green = 0x00FF00
+    vis.viewer["origin/sphere"].set_object(g.Sphere(0.05), g.MeshLambertMaterial(color=red))
+    vis.viewer["origin"].set_transform(origin_pose.homogeneous)
+    vis.viewer["target/sphere"].set_object(g.Sphere(0.05), g.MeshLambertMaterial(color=red))
+    vis.viewer["target"].set_transform(target_pose.homogeneous)
+
+    return T_origin_to_target
 
 def compute_transformation(origin_pose, target_pose):
     """
@@ -30,7 +61,8 @@ def compute_transformation(origin_pose, target_pose):
     T_origin_to_target = origin_pose.inverse() * target_pose
     T_target_to_origin = T_origin_to_target.inverse()
 
-    return T_origin_to_target.homogeneous, T_target_to_origin.homogeneous
+    #return T_origin_to_target.homogeneous, T_target_to_origin.homogeneous
+    return T_origin_to_target # SE3
 
 if __name__ == "__main__":
     args = parser.parse_args()
@@ -40,8 +72,10 @@ if __name__ == "__main__":
 
     # add a frame to the joint/link you want to compute transform for
 
+    """
     frame_id = robot.model.getFrameId("R_index_tip")
     parent_joint_id = robot.model.frames[frame_id].parent  # Get the actual parent joint
+
 
     robot.model.addFrame(
         pin.Frame('R_ee',
@@ -51,6 +85,11 @@ if __name__ == "__main__":
                           np.array([0.1, 0.0, 0.]).T), # on the palm
                   pin.FrameType.OP_FRAME)
     )
+    # 必须要更新这个，否则data.oMf没有这个新的frame
+    robot.data = pin.Data(robot.model)
+
+    ee_frame_id = robot.model.getFrameId("R_ee")
+    """
 
 
     for i in range(robot.model.nframes):
@@ -58,10 +97,6 @@ if __name__ == "__main__":
         frame_id = robot.model.getFrameId(frame.name)
         print(f"Frame ID: {frame_id}, Name: {frame.name}")
 
-    # 必须要更新这个，否则data.oMf没有这个新的frame
-    robot.data = pin.Data(robot.model)
-
-    ee_frame_id = robot.model.getFrameId("R_ee")
 
     # using meshcat visualizer to show origin, and the ee pose
     vis = MeshcatVisualizer(robot.model, robot.collision_model, robot.visual_model)
@@ -70,19 +105,7 @@ if __name__ == "__main__":
 
     vis.display(pin.neutral(robot.model))
 
-    # this will show the ee axis
-    #vis.displayFrames(True, frame_ids=[ee_frame_id], axis_length = 0.15, axis_width = 5)
 
-    # now, compute the transform between some target frame
-    # in red balls
-    origin_frame = "pelvis"
-    target_frame = "d435_link"
-
-    # in green balls
-    visualization_list = [
-        "d435_joint",
-        "R_ee"
-    ]
     # forward kinematics
     # Update kinematics to get the latest pose (update joint position and frame position)
     pin.framesForwardKinematics(robot.model,
@@ -94,38 +117,38 @@ if __name__ == "__main__":
     #  self.reduced_robot.data = pin.Data(self.reduced_robot.model)
     assert len(robot.model.frames) == len(robot.data.oMf)
 
-    origin_frame_id = robot.model.getFrameId(origin_frame)
-    target_frame_id = robot.model.getFrameId(target_frame)
-    origin_pose = robot.data.oMf[origin_frame_id]
-    target_pose = robot.data.oMf[target_frame_id]
-    ee_pose = robot.data.oMf[ee_frame_id]
+    # now, compute the transform between some target frame
+    origin_frame = "pelvis"
+    target_frame = "d435_link"
 
-    T_origin_to_target, T_target_to_origin = compute_transformation(origin_pose, target_pose)
+    T_o2t = compute_and_vis(origin_frame, target_frame, vis, robot)
 
-    print("Transformation from %s to %s:\n" % (origin_frame, target_frame), T_origin_to_target)
-    print("Transformation from %s to %s:\n" % (target_frame, origin_frame), T_target_to_origin)
-    # given xyz in the target frame (camera frame), compute xyz in the origin frame
-    # P_camera = np.array([x, y, z, 1])  # Homogeneous coordinates in the camera frame
-    # P_origin = T_origin_to_camera @ P_camera  # Transform to the origin frame
+    arm_frame = "right_wrist_yaw_joint"
+    tip_frame = "R_index_tip"
+    T_arm2tip = compute_and_vis(arm_frame, tip_frame, vis, robot)
 
-    # visualize the frames you want
-    red = 0xff0000
+    # show the computed arm2tip is good
+    frame_id = robot.model.getFrameId(tip_frame)
+    # since some joint in the inspired hand are fixed
+    parent_joint_id = robot.model.frames[frame_id].parent  # Get the actual parent joint
+    robot.model.addFrame(
+        pin.Frame('R_ee',
+                  #robot.model.getJointId('right_wrist_yaw_joint'),
+                  parent_joint_id,
+                  T_arm2tip,
+                  pin.FrameType.OP_FRAME)
+    )
+    # 必须要更新这个，否则data.oMf没有这个新的frame
+    robot.data = pin.Data(robot.model)
+
+    ee_frame_id = robot.model.getFrameId("R_ee")
+
     green = 0x00FF00
-    vis.viewer["origin/sphere"].set_object(g.Sphere(0.05), g.MeshLambertMaterial(color=red))
-    vis.viewer["origin"].set_transform(origin_pose.homogeneous)
-    vis.viewer["target/sphere"].set_object(g.Sphere(0.05), g.MeshLambertMaterial(color=red))
-    vis.viewer["target"].set_transform(target_pose.homogeneous)
-    vis.viewer["ee/sphere"].set_object(g.Sphere(0.02), g.MeshLambertMaterial(color=red))
-    vis.viewer["ee"].set_transform(ee_pose.homogeneous)
-
-
-    for frame_name in visualization_list:
-        pose = robot.data.oMf[robot.model.getFrameId(frame_name)]
-        vis.viewer["%s/sphere" % frame_name].set_object(g.Sphere(0.02), g.MeshLambertMaterial(color=green))
-        vis.viewer[frame_name].set_transform(pose.homogeneous)
 
     # Enable the display of end effector target frames with short axis lengths and greater width.
-    frame_viz_names = [origin_frame, target_frame, "R_ee"] + visualization_list
+    frame_viz_names = [
+        origin_frame, target_frame,
+        "R_ee"]
     FRAME_AXIS_POSITIONS = (
         np.array([[0, 0, 0], [1, 0, 0],
                   [0, 0, 0], [0, 1, 0],
