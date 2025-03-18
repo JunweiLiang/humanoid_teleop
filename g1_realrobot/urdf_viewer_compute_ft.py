@@ -161,7 +161,7 @@ if __name__ == "__main__":
     green = 0x00FF00
     ee_frame_id = robot.model.getFrameId("R_ee")
     ee_pose = robot.data.oMf[ee_frame_id]
-    print("ee_pose: %s", ee_pose.homogeneous)
+    print("ee_pose: %s" % ee_pose.homogeneous)
     vis.viewer["R_ee/sphere"].set_object(g.Sphere(0.03), g.MeshLambertMaterial(color=green))
     vis.viewer["R_ee"].set_transform(ee_pose.homogeneous)
 

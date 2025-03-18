@@ -7,6 +7,7 @@ import time
 import datetime
 import numpy as np
 import pickle
+import copy
 
 from ultralytics import YOLO
 
@@ -475,7 +476,6 @@ def move_robot_arm_sim_and_real(arm_ik, arm_ctr, start_pose_pin_SE3, target_pose
     else:
         print("❌ Target pose NOT reached!")
 
-    has_reach_ee_pose = True
 
 
 if __name__ == "__main__":
@@ -490,20 +490,20 @@ if __name__ == "__main__":
     arm_ik.vis.viewer["R_ee/sphere"].set_object(g.Sphere(0.01), g.MeshLambertMaterial(color=0x00FF00))
 
     #arm_ctr = ArmControl(urdf=urdf_path, ee_link_name=args.ee_link_name)
+    arm_ctr = None
 
 
-    # the current targeted ee pose
-    global has_reach_ee_pose
     target_ee_pose = None
     last_ee_pose = None
-    has_reach_ee_pose = True  # all cmd should not work when this is false
     # Initialize threading objects
     robot_ctr_thread = None
 
     # assuming our robot ee is started at zero pose
-    start_xyz = [0.25, -0.15, 0.1] # for right wrist, it is in the y-negative side
-    # we should actually get this from URDF computation
-    start_ee_pose = pin.SE3(pin.Quaternion(1, 0, 0, 0), np.array(start_xyz))
+    # get this from (g1) junweil@home-lab:~/projects/humanoid_teleop$ python g1_realrobot/urdf_viewer_compute_ft.py avp_teleoperate/assets/g1/g1_body29_inspired_hand.urdf
+    start_ee_pose = np.array([[ 1.91593295e-04,  9.99393210e-01, -3.48306690e-02,  4.48461099e-01]
+                             [-9.99999980e-01,  1.93566882e-04,  5.32902719e-05, -1.41273801e-01]
+                             [ 5.99999999e-05,  3.48306581e-02,  9.99393227e-01,  1.25002439e-01]
+                             [ 0.00000000e+00,  0.00000000e+00,  0.00000000e+00,  1.00000000e+00]])
 
     try:
 
@@ -516,13 +516,14 @@ if __name__ == "__main__":
             use_tracking=args.use_trackings)
 
 
-        target_xyz_is_init = False
+        target_det_is_init = False
 
         global stop_update_target_sphere
         stop_update_target_sphere = False # when arm is moving ,this should not be updated and meshcat might fail
 
         while True:
             # get one frame and run the detection
+            # visualize all detections
             frame, det_results = depth_det_camera_model.run_od_and_return_frame(
                 visualize_box=True, visualize_depth=False)
 
@@ -530,36 +531,30 @@ if __name__ == "__main__":
             if frame is None:
                 continue
 
-            if not target_xyz_is_init:
-                target_xyz = None
-                target_xyz_det = None
-                target_xyz_is_init = True
+            if not target_det_is_init:
+                target_det = None
+                target_det_is_init = True
 
             if not args.keep_last:
-                target_xyz = None # initialize the target every frame
-                target_xyz_det = None
+                target_det = None # initialize the target every frame
                 robot_target = None
 
             det_results = sorted(det_results, key=lambda x:x[4], reverse=True)
             for bbox, point_3d, class_id, class_name, conf in det_results:
-
                 # save the button_up results
                 if class_name == args.target_btn_class:
                     target_xyz_in_camera_frame_in_mm = point_3d
                     # mm to meters
                     target_xyz_in_camera_frame = [o*0.001 for o in point_3d]
-                    target_xyz = target_xyz_in_camera_frame
-                    # now we convert the button coordinates in camera frame
-                    # to the arm world frame, so we can use it to compute ik
-                    target_xyz_det = (bbox, class_name, conf)
+                    target_det = (target_xyz_in_camera_frame, bbox, class_name, conf)
                     break
 
-            # visualize the target_xyz_in_camera frame again if Not None
-            if target_xyz is not None:
+            # so we have detected a target button, visualize it
+            if target_det is not None:
                 bbox_thickness = 4
                 text_thickness = 2
                 font_size = 2
-                bbox, class_name, conf = target_xyz_det
+                target_xyz, bbox, class_name, conf = target_det
                 center_x = float((bbox[0] + bbox[2])/2.)
                 center_y = float((bbox[1] + bbox[3])/2.)
                 bbox = [int(x) for x in bbox]
@@ -583,7 +578,7 @@ if __name__ == "__main__":
                     fontScale=1.3, color=(0, 255, 0), thickness=4)
 
                 # we compute the point in robot frame
-                target_xyz_in_robot_frame = camera_frame_to_robot_frame(target_xyz, T_base_to_camera=eye_to_hand_pose)
+                target_xyz_in_robot_frame = camera_frame_to_robot_frame(target_xyz)
                 frame = cv2.putText(
                     frame,
                     "rf: [%.3f, %.3f, %.3f]" % tuple(target_xyz_in_robot_frame),
@@ -604,21 +599,50 @@ if __name__ == "__main__":
             pressedKey = cv2.waitKey(1) & 0xFF
             if pressedKey == ord('q'):
                 break
-            elif pressedKey == ord('g'):
-                if target_xyz is not None:
+            elif pressedKey == ord('g'): # now we command the arm to go to current ee_target pose
+                if target_det is not None:
 
                     # Start the arm movement in a new thread
                     # make sure the previous thread is finished
                     if robot_ctr_thread is None or not robot_ctr_thread.is_alive():
 
+                        if last_ee_pose is None:
+                            last_ee_pose = start_ee_pose
+
                         # Make a copy of target_xyz to pass to the thread
-                        target_xyz_in_robot_frame_copy = target_xyz_in_robot_frame[:]
+                        robot_target_copy = copy.deepcopy(robot_target)
+                        last_ee_pose_copy = copy.deepcopy(last_ee_pose)
 
                         stop_update_target_sphere = True
-                        robot_ctr_thread = threading.Thread(target=move_robot_arm, args=(arm_ik, target_xyz_in_robot_frame_copy,))
+                        robot_ctr_thread = threading.Thread(
+                            target=move_robot_arm_sim_and_real,
+                            args=(arm_ik, arm_ctr, last_ee_pose_copy, robot_target_copy))
                         robot_ctr_thread.start()
+                        # now this become the last ee pose
+                        last_ee_pose = target_ee_pose
                     else:
                         print("Arm is not ready for next move! skipping..")
+
+            elif pressedKey == ord('h'):
+                # go back to zero position
+                # move the arm back to start pose
+                # make sure the previous thread is finished
+                if robot_ctr_thread is None or not robot_ctr_thread.is_alive():
+                    if last_ee_pose is not None and last_ee_pose != start_ee_pose:
+
+                        # position, orientation_quaterion
+                        robot_target = start_ee_pose
+
+                        # Make a copy of target_xyz to pass to the thread
+                        robot_target_copy = copy.deepcopy(robot_target)
+                        last_ee_pose_copy = copy.deepcopy(last_ee_pose)
+
+                        robot_ctr_thread = threading.Thread(target=move_robot_arm_sim_and_real,
+                                args=(arm_ik, arm_ctr, last_ee_pose, target_ee_pose))
+                        robot_ctr_thread.start()
+
+                        # now this become the last ee pose
+                        last_ee_pose = target_ee_pose
 
 
     #except Exception as e:
