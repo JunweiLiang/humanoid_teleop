@@ -1222,8 +1222,22 @@
   </joint>
 
 
+  <link name="L_index_tip">
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <sphere radius="0.005"/>
+      </geometry>
+      <material name="green">
+        <color rgba="0 1 0 1" />
+      </material>
+    </visual>
+  </link>
   <joint name="L_index_tip_joint" type="fixed">
     <parent link="L_index_intermediate"/>
+    <child link="L_index_tip"/>
     <origin rpy="0 0 0" xyz="-0.005 -0.04 -0.004"/>
   </joint>
 
@@ -1612,8 +1626,22 @@
     <mimic joint="R_index_proximal_joint" multiplier="1" offset="0"/>
   </joint>
 
+  <link name="R_index_tip">
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <sphere radius="0.005"/>
+      </geometry>
+      <material name="green">
+        <color rgba="0 1 0 1" />
+      </material>
+    </visual>
+  </link>
   <joint name="R_index_tip_joint" type="fixed">
     <parent link="R_index_intermediate"/>
+    <child link="R_index_tip"/>
     <origin rpy="0 0 0" xyz="-0.005 0.04 -0.004"/>
   </joint>
 
