@@ -136,10 +136,10 @@ class G1_29_ArmIK:
 
         self.R_hand_id = self.reduced_robot.model.getFrameId("R_ee")
 
-        #for i in range(self.reduced_robot.model.nframes):
-        #    frame = self.reduced_robot.model.frames[i]
-        #    frame_id = self.reduced_robot.model.getFrameId(frame.name)
-        #    print(f"Frame ID: {frame_id}, Name: {frame.name}")
+        for i in range(self.reduced_robot.model.nframes):
+            frame = self.reduced_robot.model.frames[i]
+            frame_id = self.reduced_robot.model.getFrameId(frame.name)
+            print(f"Frame ID: {frame_id}, Name: {frame.name}")
         #assert len(self.reduced_robot.model.frames) == len(self.reduced_robot.data.oMf), \
         #    f"Mismatch: {len(self.reduced_robot.model.frames)} frames vs. {len(self.reduced_robot.data.oMf)} transformations"
 
