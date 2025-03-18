@@ -141,7 +141,7 @@ if __name__ == "__main__":
      [ 0.00000000e+00  0.00000000e+00  0.00000000e+00  1.00000000e+00]]
 
     """
-    T_arm2tip = compute_and_vis(arm_frame, tip_frame, vis, robot)
+    T_arm2tip = compute_and_vis(tip_frame, arm_frame, vis, robot)
 
     # show the computed arm2tip is good
     frame_id = robot.model.getFrameId(tip_frame)
@@ -167,7 +167,6 @@ if __name__ == "__main__":
     ee_pose = robot.data.oMf[ee_frame_id]
     vis.viewer["R_ee/sphere"].set_object(g.Sphere(0.03), g.MeshLambertMaterial(color=green))
     vis.viewer["R_ee"].set_transform(ee_pose.homogeneous)
-
 
 
     # Enable the display of end effector target frames with short axis lengths and greater width.
