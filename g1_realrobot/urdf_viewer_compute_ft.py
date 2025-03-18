@@ -26,7 +26,7 @@ if __name__ == "__main__":
         pin.Frame('R_ee',
                   robot.model.getJointId('right_wrist_yaw_joint'),
                   pin.SE3(np.eye(3),
-                          np.array([0., 0.0, 0.]).T), # on the palm
+                          np.array([0.1, 0.0, 0.]).T), # on the palm
                   pin.FrameType.OP_FRAME)
     )
 
@@ -48,7 +48,7 @@ if __name__ == "__main__":
     vis.display(pin.neutral(robot.model))
 
     # this will show the ee axis
-    vis.displayFrames(True, frame_ids=[ee_frame_id], axis_length = 0.15, axis_width = 5)
+    #vis.displayFrames(True, frame_ids=[ee_frame_id], axis_length = 0.15, axis_width = 5)
 
     # now, compute the transform between some target frame
     # in red balls
