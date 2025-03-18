@@ -587,7 +587,7 @@ if __name__ == "__main__":
                     fontScale=1.3, color=(0, 255, 0), thickness=4)
 
                 # 要机器人手指ee朝着给定点的方向。ee x-axis朝右，y-axis朝前，z-axis朝上
-                # 所以要ee对着给定点的话，ee的y-axis要变成robot base的x-axis,
+                # 所以要ee对着给定点的话，ee的y-axis要变成robot base的x-axis, ee的x-axis的反方向是robot base的y-axis
                 robot_target_rotation = np.array([[0, 1., 0.],
                                                 [-1.,0.,0.],
                                                 [0.,0.,1.]])
@@ -649,6 +649,10 @@ if __name__ == "__main__":
 
                         # now this become the last ee pose
                         last_ee_pose = target_ee_pose
+                    else:
+                        print("Arm is not ready for next move! skipping..")
+                else:
+                    print(robot_ctr_thread.is_alive())
 
 
     #except Exception as e:
