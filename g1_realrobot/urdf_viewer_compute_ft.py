@@ -156,12 +156,17 @@ if __name__ == "__main__":
     )
     # 必须要更新这个，否则data.oMf没有这个新的frame
     robot.data = pin.Data(robot.model)
+    # forward kinematics
+    # Update kinematics to get the latest pose (update joint position and frame position)
+    pin.framesForwardKinematics(robot.model,
+                                robot.data,
+                                np.zeros(robot.model.nq)) # use the zero pose
 
     green = 0x00FF00
     ee_frame_id = robot.model.getFrameId("R_ee")
     ee_pose = robot.data.oMf[ee_frame_id]
-    vis.viewer["target/sphere"].set_object(g.Sphere(0.03), g.MeshLambertMaterial(color=green))
-    vis.viewer["target"].set_transform(ee_pose.homogeneous)
+    vis.viewer["R_ee/sphere"].set_object(g.Sphere(0.03), g.MeshLambertMaterial(color=green))
+    vis.viewer["R_ee"].set_transform(ee_pose.homogeneous)
 
 
 
