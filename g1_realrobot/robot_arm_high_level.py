@@ -8,7 +8,9 @@ from unitree_sdk2py.idl.unitree_hg.msg.dds_ import LowCmd_, LowState_           
 from unitree_sdk2py.idl.default import unitree_hg_msg_dds__LowCmd_
 from unitree_sdk2py.utils.crc import CRC
 
-kTopicLowCommand = "rt/lowcmd"
+#kTopicLowCommand = "rt/lowcmd"
+# 高层运动控制
+kTopicLowCommand = "rt/arm_sdk"
 kTopicLowState = "rt/lowstate"
 G1_29_Num_Motors = 35
  
@@ -39,8 +41,11 @@ class DataBuffer:
 class G1_29_ArmController:
     def __init__(self):
         print("Initialize G1_29_ArmController...")
-        self.q_target = np.zeros(14)
-        self.tauff_target = np.zeros(14)
+        #self.q_target = np.zeros(14)
+        #self.tauff_target = np.zeros(14)
+        # right arm only
+        self.q_target = np.zeros(7)
+        self.tauff_target = np.zeros(7)
 
         self.kp_high = 300.0
         self.kd_high = 3.0
@@ -85,6 +90,8 @@ class G1_29_ArmController:
         print(f"Current two arms motor state q:\n{self.get_current_dual_arm_q()}\n")
         print("Lock all joints except two arms...\n")
 
+        # ID:29
+        self.msg.motor_cmd[G1_29_JointIndex.kNotUsedJoint1].q =  1 # 1:Enable arm_sdk, 0:Disable arm_sdk
         arm_indices = set(member.value for member in G1_29_JointArmIndex)
         for id in G1_29_JointIndex:
             self.msg.motor_cmd[id].mode = 1
@@ -141,7 +148,8 @@ class G1_29_ArmController:
 
             cliped_arm_q_target = self.clip_arm_q_target(arm_q_target, velocity_limit = self.arm_velocity_limit)
 
-            for idx, id in enumerate(G1_29_JointArmIndex):
+            #for idx, id in enumerate(G1_29_JointArmIndex):
+            for idx, id in enumerate(G1_29_JointRightArmIndex):
                 self.msg.motor_cmd[id].q = cliped_arm_q_target[idx]
                 self.msg.motor_cmd[id].dq = 0
                 self.msg.motor_cmd[id].tau = arm_tauff_target[idx]      
@@ -243,6 +251,17 @@ class G1_29_JointArmIndex(IntEnum):
     kLeftWristRoll = 19
     kLeftWristPitch = 20
     kLeftWristyaw = 21
+
+    # Right arm
+    kRightShoulderPitch = 22
+    kRightShoulderRoll = 23
+    kRightShoulderYaw = 24
+    kRightElbow = 25
+    kRightWristRoll = 26
+    kRightWristPitch = 27
+    kRightWristYaw = 28
+
+class G1_29_JointRightArmIndex(IntEnum):
 
     # Right arm
     kRightShoulderPitch = 22

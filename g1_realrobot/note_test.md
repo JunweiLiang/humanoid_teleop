@@ -245,22 +245,34 @@
         # 测试，识别上按钮，并且控制机器人动; 打印的电梯按钮面板，必须要用奥比中光，realsense D455的深度完全用不了。
 
         # 同时显示其他检测到的button， 目标上楼的button "("会用蓝色框; 在浏览器里会显示识别到的3D位置
-            ((g1) junweil@home-lab:~/projects/humanoid_teleop$ python g1_realrobot/run_btn_det_and_arm_ctr_sim.py ../elevator_project/elevator_det_models/combtn59v3.20241206_2326.pt avp_teleoperate/assets/g1/g1_body29_hand14.urdf --cam femto --target_btn "(" --use_tracking  --det_all
+            (g1) junweil@precognition-laptop4:~/projects/humanoid_teleop$ python g1_realrobot/run_btn_det_and_arm_ctr_sim.py elevator_det_models/combtn59v3.20241206_2326.pt avp_teleoperate/assets/g1/g1_body29_inspired_hand.urdf --cam d435 --is_realsense --target_btn "(" --use_tracking  --det_all
 
-                # 按q退出，按g会按当前识别到的目标按钮
+                # 按q退出，按g会按当前识别到的目标按钮, h 回到原位
 
-            # 没识别到东西，调 --det_conf 0.1 --det_all to check all detection
-                # 新模型识别上下楼按钮更好：combtn59v3.20241206_2326.pt
-            # (上，)下, <>开门
+                # 没识别到东西，调 --det_conf 0.1 --det_all to check all detection
+                    # 新模型识别上下楼按钮更好：combtn59v3.20241206_2326.pt
+                # (上，)下, <>开门
 
-            # --use_tracking to make the box more smooth
+                # --use_tracking to make the box more smooth
 
-            # 电梯面板检测模型
-                ../elevator_project/elevator_det_models/panelv1.pt --target_btn elevator-panel
+                # 电梯面板检测模型
+                    ../elevator_project/elevator_det_models/panelv1.pt --target_btn elevator-panel
 
 
         # 实机测试，我们先连上lt4和g1的D435
             # 设置lt4，有线连接G1，无线连接学校网络，调整ip route
+
+            # 高层控制,可以不用调试模式。 文档: https://support.unitree.com/home/zh/G1_developer/sport_services_interface
+
+              零位，平举，再回来： https://github.com/JunweiLiang/humanoid_teleop/blob/main/unitree_sdk2_python/example/g1/high_level/g1_arm7_sdk_dds_example.py
+                DDS topic 用rt/arm_sdk
+
+            # 底层控制，必须进入调试模式，走不了的。
+                DDS topic 用rt/lowcmd
+                    https://github.com/JunweiLiang/humanoid_teleop/blob/main/unitree_sdk2_python/example/g1/low_level/g1_low_level_example.py
+                    https://github.com/JunweiLiang/humanoid_teleop/blob/main/g1_realrobot/robot_arm.py
+
+
 
 
 ```
