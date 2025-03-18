@@ -91,8 +91,8 @@ class G1_29_ArmController:
         print(f"Current two arms motor state q:\n{self.get_current_dual_arm_q()}\n")
         print("Lock all joints except two arms...\n")
 
-        # ID:29
-        self.msg.motor_cmd[G1_29_JointIndex.kNotUsedJoint1].q =  1 # 1:Enable arm_sdk, 0:Disable arm_sdk
+        # ID: 29 # see bottom page here: https://support.unitree.com/home/zh/G1_developer/sport_services_interface
+        self.msg.motor_cmd[G1_29_JointIndex.kNotUsedJoint0].q =  1 # 1:Enable arm_sdk, 0:Disable arm_sdk
         arm_indices = set(member.value for member in G1_29_JointArmIndex)
         for id in G1_29_JointIndex:
             self.msg.motor_cmd[id].mode = 1
