@@ -514,7 +514,7 @@ if __name__ == "__main__":
             is_realsense=args.is_realsense,
             det_target_class=args.target_btn_class,
             det_all=args.det_all,
-            use_tracking=args.use_trackings)
+            use_tracking=args.use_tracking)
 
 
         target_det_is_init = False
