@@ -71,8 +71,10 @@ if __name__ == "__main__":
     #  self.reduced_robot.data = pin.Data(self.reduced_robot.model)
     assert len(robot.model.frames) == len(robot.data.oMf)
 
-    origin_pose = robot.data.oMf[robot.model.getFrameId(origin_frame)]
-    target_pose = robot.data.oMf[robot.model.getFrameId(target_frame)]
+    origin_frame_id = robot.model.getFrameId(origin_frame)
+    target_frame_id = robot.model.getFrameId(target_frame)
+    origin_pose = robot.data.oMf[origin_frame_id]
+    target_pose = robot.data.oMf[target_frame_id]
     ee_pose = robot.data.oMf[ee_frame_id]
 
     # visualize the frames you want
@@ -84,6 +86,7 @@ if __name__ == "__main__":
     vis.viewer["target"].set_transform(target_pose.homogeneous)
     vis.viewer["ee/sphere"].set_object(g.Sphere(0.02), g.MeshLambertMaterial(color=red))
     vis.viewer["ee"].set_transform(ee_pose.homogeneous)
+    vis.displayFrames(True, frame_ids=[ee_frame_id, origin_frame_id, target_frame_id], axis_length = 0.15, axis_width = 5)
 
     for frame_name in visualization_list:
         pose = robot.data.oMf[robot.model.getFrameId(frame_name)]
