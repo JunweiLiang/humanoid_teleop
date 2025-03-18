@@ -73,6 +73,15 @@ class G1_29_ArmIK:
                                         "waist_roll_joint" ,
                                         "waist_pitch_joint" ,
 
+                                        # fix left arm
+                                        "left_shoulder_pitch_joint",
+                                        "left_shoulder_roll_joint",
+                                        "left_shoulder_yaw_joint",
+                                        "left_elbow_joint",
+                                        "left_wrist_pitch_joint",
+                                        "left_wrist_roll_joint",
+                                        "left_wrist_yaw_joint",
+
                                         # 左手关节（已更新）
                                         "L_pinky_proximal_joint",
                                         "L_pinky_intermediate_joint",
@@ -136,12 +145,12 @@ class G1_29_ArmIK:
 
         self.R_hand_id = self.reduced_robot.model.getFrameId("R_ee")
 
-        """
+        """ debugging printouts
         for i in range(self.reduced_robot.model.nframes):
             frame = self.reduced_robot.model.frames[i]
             frame_id = self.reduced_robot.model.getFrameId(frame.name)
             print(f"Frame ID: {frame_id}, Name: {frame.name}")
-        """
+
         #assert len(self.reduced_robot.model.frames) == len(self.reduced_robot.data.oMf), \
         #    f"Mismatch: {len(self.reduced_robot.model.frames)} frames vs. {len(self.reduced_robot.data.oMf)} transformations"
 
@@ -157,6 +166,7 @@ class G1_29_ArmIK:
 
         print(self.reduced_robot.model.nq)
         sys.exit()
+        """
 
         # Creating Casadi models and data for symbolic computing
         self.cmodel = cpin.Model(self.reduced_robot.model)
