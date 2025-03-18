@@ -586,7 +586,12 @@ if __name__ == "__main__":
                     (round(center_x)+40, round(center_y)-10), cv2.FONT_HERSHEY_SIMPLEX,
                     fontScale=1.3, color=(0, 255, 0), thickness=4)
 
-                robot_target = pin.SE3(pin.Quaternion(1, 0, 0, 0), np.array(target_xyz_in_robot_frame))
+                # 要机器人手指ee朝着给定点的方向。ee x-axis朝右，y-axis朝前，z-axis朝上
+                # 所以要ee对着给定点的话，ee的y-axis要变成robot base的x-axis,
+                robot_target_rotation = np.array([[0, 1., 0.],
+                                                [-1.,0.,0.],
+                                                [0.,0.,1.]])
+                robot_target = pin.SE3(robot_target_rotation, np.array(target_xyz_in_robot_frame))
 
                 # we visualize the target in the robot frame in the meshcat as well
                 if not stop_update_target_sphere:
