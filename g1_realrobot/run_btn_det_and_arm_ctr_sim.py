@@ -538,7 +538,7 @@ if __name__ == "__main__":
 
             if not args.keep_last:
                 target_det = None # initialize the target every frame
-                robot_target = None
+                target_ee_pose = None
 
             det_results = sorted(det_results, key=lambda x:x[4], reverse=True)
             for bbox, point_3d, class_id, class_name, conf in det_results:
@@ -591,12 +591,12 @@ if __name__ == "__main__":
                 robot_target_rotation = np.array([[0, 1., 0.],
                                                 [-1.,0.,0.],
                                                 [0.,0.,1.]])
-                robot_target = pin.SE3(robot_target_rotation, np.array(target_xyz_in_robot_frame))
+                target_ee_pose = pin.SE3(robot_target_rotation, np.array(target_xyz_in_robot_frame))
 
                 # we visualize the target in the robot frame in the meshcat as well
                 if not stop_update_target_sphere:
 
-                    arm_ik.vis.viewer["R_ee_target"].set_transform(robot_target.homogeneous)
+                    arm_ik.vis.viewer["R_ee_target"].set_transform(target_ee_pose.homogeneous)
 
 
             frame = image_resize(frame, width=900, height=None)
@@ -616,13 +616,13 @@ if __name__ == "__main__":
                             last_ee_pose = start_ee_pose
 
                         # Make a copy of target_xyz to pass to the thread
-                        robot_target_copy = copy.deepcopy(robot_target)
+                        target_ee_pose_copy = copy.deepcopy(target_ee_pose)
                         last_ee_pose_copy = copy.deepcopy(last_ee_pose)
 
                         stop_update_target_sphere = True
                         robot_ctr_thread = threading.Thread(
                             target=move_robot_arm_sim_and_real,
-                            args=(arm_ik, arm_ctr, last_ee_pose_copy, robot_target_copy))
+                            args=(arm_ik, arm_ctr, last_ee_pose_copy, target_ee_pose_copy))
                         robot_ctr_thread.start()
                         # now this become the last ee pose
                         last_ee_pose = target_ee_pose
@@ -637,21 +637,19 @@ if __name__ == "__main__":
                     if last_ee_pose is not None and last_ee_pose != start_ee_pose:
 
                         # position, orientation_quaterion
-                        robot_target = start_ee_pose
+                        target_ee_pose = start_ee_pose
 
                         # Make a copy of target_xyz to pass to the thread
-                        robot_target_copy = copy.deepcopy(robot_target)
+                        target_ee_pose_copy = copy.deepcopy(target_ee_pose)
                         last_ee_pose_copy = copy.deepcopy(last_ee_pose)
 
                         robot_ctr_thread = threading.Thread(target=move_robot_arm_sim_and_real,
-                                args=(arm_ik, arm_ctr, last_ee_pose, target_ee_pose))
+                                args=(arm_ik, arm_ctr, last_ee_pose_copy, target_ee_pose_copy))
                         robot_ctr_thread.start()
 
                         # now this become the last ee pose
                         last_ee_pose = target_ee_pose
                     else:
-                        print(last_ee_pose)
-                        print(start_ee_pose)
                         print("Arm is not ready for next move! skipping..")
                 else:
                     print(robot_ctr_thread.is_alive())
