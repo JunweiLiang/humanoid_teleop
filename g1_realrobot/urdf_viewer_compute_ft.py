@@ -97,8 +97,11 @@ if __name__ == "__main__":
 
     T_origin_to_target, T_target_to_origin = compute_transformation(origin_pose, target_pose)
 
-    print("Transformation from origin to target:\n", T_origin_to_target)
-    print("Transformation from target to origin:\n", T_target_to_origin)
+    print("Transformation from %s to %s:\n" % (origin_frame, target_frame), T_origin_to_target)
+    print("Transformation from %s to %s:\n" % (target_frame, origin_frame), T_target_to_origin)
+    # given xyz in the target frame (camera frame), compute xyz in the origin frame
+    # P_camera = np.array([x, y, z, 1])  # Homogeneous coordinates in the camera frame
+    # P_origin = T_origin_to_camera @ P_camera  # Transform to the origin frame
 
     # visualize the frames you want
     red = 0xff0000
