@@ -421,11 +421,11 @@ def move_robot_arm_sim_and_real(arm_ik, arm_ctr, start_pose_pin_SE3, target_pose
     # visualize the target pose in browser
     arm_ik.vis.viewer["R_ee_target"].set_transform(target_pose.homogeneous)
 
-    in_seconds = 0.5
+    in_seconds = 0.2
 
     # now we start to control the arm
 
-    time_gap = 0.01
+    time_gap = 0.005
     max_steps = int(in_seconds / time_gap)
 
     for step in range(max_steps):
