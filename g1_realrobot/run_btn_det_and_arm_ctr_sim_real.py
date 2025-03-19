@@ -519,7 +519,7 @@ if __name__ == "__main__":
 
     arm_ctr = G1_29_ArmController(args.network_name)
     # the total time required for arms velocity to gradually increase to its maximum value
-    arm_ctr.speed_gradual_max(t=1.0)
+    #arm_ctr.speed_gradual_max(t=1.0)
 
     # 把右手放初始位置，其他不管
     #arm_ctr.ctrl_right_arm_go_home()
