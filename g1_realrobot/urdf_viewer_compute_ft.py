@@ -137,6 +137,10 @@ if __name__ == "__main__":
         frame = robot.model.frames[i]
         frame_id = robot.model.getFrameId(frame.name)
         print(f"Frame ID: {frame_id}, Name: {frame.name}")
+
+    # Assuming robot.model is already loaded
+    for i, joint in enumerate(robot.model.joints):
+        print(f"Joint {i}: {joint.name}")
     print("model.nq: %s" % robot.model.nq)
 
     # using meshcat visualizer to show origin, and the ee pose
