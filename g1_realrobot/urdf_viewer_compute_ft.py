@@ -140,7 +140,8 @@ if __name__ == "__main__":
 
     # Assuming robot.model is already loaded
     for i, joint in enumerate(robot.model.joints):
-        print(f"Joint {i}: {joint.name}")
+        joint_name = robot.model.names[i]  # Get the name from the names list
+        print(f"Joint {i}: {joint_name}, nq: {joint.nq}, nv: {joint.nv}")
     print("model.nq: %s" % robot.model.nq)
 
     # using meshcat visualizer to show origin, and the ee pose
