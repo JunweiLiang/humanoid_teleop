@@ -220,17 +220,17 @@ class G1_29_ArmController:
     def ctrl_right_arm_go_down(self):
         '''Move both the left and right arms of the robot to their home position by setting the target joint angles (q) and torques (tau) to zero.'''
         print("[G1_29_ArmController] ctrl_right_arm_go_down start...")
+        down_target = np.zeros(7)
+        # G1_29_JointIndex.kRightElbow
+        down_target[3] = 1.57
+        # G1_29_JointIndex.kRightShoulderRoll
+        down_target[1] = -0.4
         with self.ctrl_lock:
-            q = np.zeros(7)
-            # G1_29_JointIndex.kRightElbow
-            q[3] = 1.57
-            # G1_29_JointIndex.kRightShoulderRoll
-            q[1] = -0.4
-            self.q_target = q
+            self.q_target = down_target
         tolerance = 0.05  # Tolerance threshold for joint angles to determine "close to zero", can be adjusted based on your motor's precision requirements
         while True:
             current_q = self.get_current_right_arm_q()
-            if np.all(np.abs(current_q) < tolerance):
+            if np.all(np.abs(current_q - down_target) < tolerance):
                 print("[G1_29_ArmController] both arms have reached the home position.")
                 break
             time.sleep(0.05)
