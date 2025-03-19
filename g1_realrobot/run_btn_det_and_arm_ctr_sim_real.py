@@ -505,7 +505,7 @@ if __name__ == "__main__":
     # Initialize threading objects
     robot_ctr_thread = None
 
-    # 如果想初始姿态，手下垂，即right_elbow_joint == 1.57 ，right shoulder_pitch == -0.4
+    # 如果想初始姿态，手下垂，即right_elbow_joint == 1.57 ，right shoulder_roll == -0.4 (外摆一点否则手碰腿)
 
     # assuming our robot ee is started at zero pose
     # get this from (g1) junweil@home-lab:~/projects/humanoid_teleop$ python g1_realrobot/urdf_viewer_compute_ft.py avp_teleoperate/assets/g1/g1_body29_inspired_hand.urdf

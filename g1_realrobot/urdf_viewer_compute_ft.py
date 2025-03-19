@@ -64,6 +64,46 @@ def compute_transformation(origin_pose, target_pose):
     #return T_origin_to_target.homogeneous, T_target_to_origin.homogeneous
     return T_origin_to_target, T_target_to_origin # SE3
 
+class G1_29_JointIndex(IntEnum):
+    # Left leg
+    kLeftHipPitch = 0
+    kLeftHipRoll = 1
+    kLeftHipYaw = 2
+    kLeftKnee = 3
+    kLeftAnklePitch = 4
+    kLeftAnkleRoll = 5
+
+    # Right leg
+    kRightHipPitch = 6
+    kRightHipRoll = 7
+    kRightHipYaw = 8
+    kRightKnee = 9
+    kRightAnklePitch = 10
+    kRightAnkleRoll = 11
+
+    kWaistYaw = 12
+    kWaistRoll = 13
+    kWaistPitch = 14
+
+    # Left arm
+    kLeftShoulderPitch = 15
+    kLeftShoulderRoll = 16
+    kLeftShoulderYaw = 17
+    kLeftElbow = 18
+    kLeftWristRoll = 19
+    kLeftWristPitch = 20
+    kLeftWristyaw = 21
+
+    # Right arm
+    kRightShoulderPitch = 22
+    kRightShoulderRoll = 23
+    kRightShoulderYaw = 24
+    kRightElbow = 25
+    kRightWristRoll = 26
+    kRightWristPitch = 27
+    kRightWristYaw = 28
+    # 29 DoF
+
 if __name__ == "__main__":
     args = parser.parse_args()
 
@@ -106,11 +146,11 @@ if __name__ == "__main__":
     vis.display(pin.neutral(robot.model))
 
     start_pose = np.zeros(robot.model.nq) # use the zero pose
-    sys.exit()
 
-    # 如果想初始姿态，手下垂，即right_elbow_joint == 1.57 ，right shoulder_pitch == -0.4
+    # 如果想初始姿态，手下垂，即right_elbow_joint == 1.57 ，right shoulder_roll == -0.4 (外摆一点否则手碰腿)
     arm_down_pose = start_pose
-
+    arm_down_pose[G1_29_JointIndex.kRightElbow] = 1.57
+    arm_down_pose[G1_29_JointIndex.kRightShoulderRoll] = -0.4
 
     start_pose = arm_down_pose
 
