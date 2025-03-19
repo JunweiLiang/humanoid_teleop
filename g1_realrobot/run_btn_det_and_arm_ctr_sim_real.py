@@ -486,25 +486,13 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
 
+    # -----------   定义右手初始姿态
     #urdf_path = args.urdf
-    arm_ik = G1_29_ArmIK(urdf=args.urdf, visualization=True)
-    # visualize the target pose and the robot's actual pose in browser
-    arm_ik.vis.viewer["R_ee_target/sphere"].set_object(g.Sphere(0.01), g.MeshLambertMaterial(color=0xff0000))
-    arm_ik.vis.viewer["R_ee/sphere"].set_object(g.Sphere(0.01), g.MeshLambertMaterial(color=0x00FF00))
-
-    arm_ctr = G1_29_ArmController(args.network_name)
-    # the total time required for arms velocity to gradually increase to its maximum value
-    arm_ctr.speed_gradual_max(t=2.0)
-
-    # 把右手放初始位置，其他不管
-    #arm_ctr.ctrl_right_arm_go_home()
-    arm_ctr.ctrl_right_arm_go_down()
-    #sys.exit()
-
-    target_ee_pose = None
-    last_ee_pose = None
-    # Initialize threading objects
-    robot_ctr_thread = None
+    down_target = np.zeros(7)
+    # G1_29_JointIndex.kRightElbow
+    down_target[3] = 1.57
+    # G1_29_JointIndex.kRightShoulderRoll
+    down_target[1] = -0.4
 
     # 如果想初始姿态，手下垂，即right_elbow_joint == 1.57 ，right shoulder_roll == -0.4 (外摆一点否则手碰腿)
 
@@ -521,6 +509,27 @@ if __name__ == "__main__":
                      [ 3.89473605e-01, -9.20453084e-01,  3.28090022e-02, -2.78446472e-01],
                      [ 0.00000000e+00,  0.00000000e+00,  0.00000000e+00,  1.00000000e+00]])
     start_ee_pose = pin.SE3(start_ee_pose[:3, :3], start_ee_pose[:3, 3])
+
+    # -------------------------
+
+    arm_ik = G1_29_ArmIK(urdf=args.urdf, visualization=True, start_q=down_target)
+    # visualize the target pose and the robot's actual pose in browser
+    arm_ik.vis.viewer["R_ee_target/sphere"].set_object(g.Sphere(0.01), g.MeshLambertMaterial(color=0xff0000))
+    arm_ik.vis.viewer["R_ee/sphere"].set_object(g.Sphere(0.01), g.MeshLambertMaterial(color=0x00FF00))
+
+    arm_ctr = G1_29_ArmController(args.network_name)
+    # the total time required for arms velocity to gradually increase to its maximum value
+    arm_ctr.speed_gradual_max(t=1.0)
+
+    # 把右手放初始位置，其他不管
+    #arm_ctr.ctrl_right_arm_go_home()
+    arm_ctr.ctrl_right_arm_go_down()
+    #sys.exit()
+
+    target_ee_pose = None
+    last_ee_pose = None
+    # Initialize threading objects
+    robot_ctr_thread = None
 
     try:
 

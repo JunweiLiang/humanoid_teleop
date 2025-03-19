@@ -51,7 +51,7 @@ class WeightedMovingFilter:
 
 # 搭配因时灵巧手，左手锁住
 class G1_29_ArmIK:
-    def __init__(self, urdf, visualization=False):
+    def __init__(self, urdf, start_q=None, visualization=False):
         np.set_printoptions(precision=5, suppress=True, linewidth=200)
         self.visualization = visualization # will use meshcat in browser to visualize
         self.robot = pin.RobotWrapper.BuildFromURDF(urdf, os.path.dirname(urdf))
@@ -284,7 +284,10 @@ class G1_29_ArmIK:
             # this will show right_hand_thumb axiss
             #self.vis.displayFrames(True, frame_ids=[101, 102], axis_length = 0.15, axis_width = 5)
             self.vis.displayFrames(True, frame_ids=[self.R_hand_id], axis_length = 0.15, axis_width = 5)
-            self.vis.display(pin.neutral(self.reduced_robot.model))
+            if start_q is None:
+                self.vis.display(pin.neutral(self.reduced_robot.model))
+            else:
+                self.vis.display(start_q)
 
             # Enable the display of end effector target frames with short axis lengths and greater width.
             frame_viz_names = ['L_ee_target', 'R_ee_target']
