@@ -160,7 +160,7 @@ if __name__ == "__main__":
     # Update kinematics to get the latest pose (update joint position and frame position)
     pin.framesForwardKinematics(robot.model,
                                 robot.data,
-                                np.zeros(robot.model.nq))
+                                start_pose)
 
     vis.display(start_pose)
 
@@ -209,7 +209,7 @@ if __name__ == "__main__":
 
     pin.framesForwardKinematics(robot.model,
                                 robot.data,
-                                np.zeros(robot.model.nq)) # use the zero pose
+                                start_pose)
 
     green = 0x00FF00
     ee_frame_id = robot.model.getFrameId("R_ee")
