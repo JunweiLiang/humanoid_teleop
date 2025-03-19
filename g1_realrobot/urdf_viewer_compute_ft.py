@@ -64,6 +64,7 @@ def compute_transformation(origin_pose, target_pose):
     #return T_origin_to_target.homogeneous, T_target_to_origin.homogeneous
     return T_origin_to_target, T_target_to_origin # SE3
 
+from enum import IntEnum
 class G1_29_JointIndex(IntEnum):
     # Left leg
     kLeftHipPitch = 0
