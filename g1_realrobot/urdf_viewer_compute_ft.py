@@ -143,7 +143,7 @@ if __name__ == "__main__":
         joint_name = robot.model.names[i]  # Get the name from the names list
         print(f"Joint {i}: {joint_name}, nq: {joint.nq}, nv: {joint.nv}")
 
-    # 因时手的g1，joint 0 是universe。right_elbow_joint id=38, right shoulder roll=36
+    # 因时手的g1，joint 0 是universe。right_elbow_joint id=38-1, right shoulder roll=36-1
     print("model.nq: %s" % robot.model.nq)
 
     # using meshcat visualizer to show origin, and the ee pose
@@ -159,8 +159,8 @@ if __name__ == "__main__":
     arm_down_pose = start_pose
     #arm_down_pose[G1_29_JointIndex.kRightElbow] = 1.57
     #arm_down_pose[G1_29_JointIndex.kRightShoulderRoll] = -0.4
-    arm_down_pose[38] = 1.57
-    arm_down_pose[36] = -0.4
+    arm_down_pose[37] = 1.57
+    arm_down_pose[35] = -0.4
 
     start_pose = arm_down_pose
 
