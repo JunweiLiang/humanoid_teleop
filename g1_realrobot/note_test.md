@@ -260,16 +260,7 @@
 
 
         # 实机测试，我们先连上lt4和g1的D435
-            # 设置lt4，有线连接G1，无线连接学校网络，调整ip route
-                # 设置lt4有线 :https://support.unitree.com/home/zh/G1_developer/quick_development
-                    g1-wired-222, manual IPv4, 192.168.123.222, netmask 255.255.255.0
-                    # 测试，ping 192.168.123.161 (PC1)
-                    # 查看网络名字: enp58s0
-                    $ ifconfig
-                        enp58s0: flags=4163<UP,BROADCAST,RUNNING,MULTICAST>  mtu 1500
-                        inet 192.168.123.222
-
-            # 高层控制,可以不用调试模式。 文档: https://support.unitree.com/home/zh/G1_developer/sport_services_interface
+             # 高层控制,可以不用调试模式。 文档: https://support.unitree.com/home/zh/G1_developer/sport_services_interface
 
               零位，平举，再回来： https://github.com/JunweiLiang/humanoid_teleop/blob/main/unitree_sdk2_python/example/g1/high_level/g1_arm7_sdk_dds_example.py
                 DDS topic 用rt/arm_sdk
@@ -279,6 +270,19 @@
                     https://github.com/JunweiLiang/humanoid_teleop/blob/main/unitree_sdk2_python/example/g1/low_level/g1_low_level_example.py
                     https://github.com/JunweiLiang/humanoid_teleop/blob/main/g1_realrobot/robot_arm.py
 
+            # 设置lt4，有线连接G1，无线连接学校网络，调整ip route
+                # 设置lt4有线 :https://support.unitree.com/home/zh/G1_developer/quick_development
+                    g1-wired-222, manual IPv4, 192.168.123.222, netmask 255.255.255.0
+                    # 测试，ping 192.168.123.161 (PC1)
+                    # 查看网络名字: enp58s0
+                    $ ifconfig
+                        enp58s0: flags=4163<UP,BROADCAST,RUNNING,MULTICAST>  mtu 1500
+                        inet 192.168.123.222
+
+            #跑电梯按钮检测同时可以动
+                # 开机，L1 + A阻尼，L1 + 上进入锁定站立，然后R1+X进入走路模式。然后就可以用程序同时控制手了
+
+                (g1) junweil@precognition-laptop4:~/projects/humanoid_teleop$ python g1_realrobot/run_btn_det_and_arm_ctr_sim_real.py elevator_det_models/combtn59v3.20241206_2326.pt avp_teleoperate/assets/g1/g1_body29_inspired_hand.urdf enp58s0 --cam d435 --is_realsense --target_btn "(" --use_tracking  --det_all
 
 
 

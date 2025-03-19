@@ -96,7 +96,7 @@ if __name__ == "__main__":
         frame = robot.model.frames[i]
         frame_id = robot.model.getFrameId(frame.name)
         print(f"Frame ID: {frame_id}, Name: {frame.name}")
-
+    print("model.nq: %s" % robot.model.nq)
 
     # using meshcat visualizer to show origin, and the ee pose
     vis = MeshcatVisualizer(robot.model, robot.collision_model, robot.visual_model)
@@ -105,12 +105,23 @@ if __name__ == "__main__":
 
     vis.display(pin.neutral(robot.model))
 
+    start_pose = np.zeros(robot.model.nq) # use the zero pose
+    sys.exit()
+
+    # 如果想初始姿态，手下垂，即right_elbow_joint == 1.57 ，right shoulder_pitch == -0.4
+    arm_down_pose = start_pose
+
+
+    start_pose = arm_down_pose
+
 
     # forward kinematics
     # Update kinematics to get the latest pose (update joint position and frame position)
     pin.framesForwardKinematics(robot.model,
                                 robot.data,
-                                np.zeros(robot.model.nq)) # use the zero pose
+                                np.zeros(robot.model.nq))
+
+    vis.display(start_pose)
 
     ## Update the data object to reflect the new frames
     # 必须要更新这个，否则data.oMf没有这个新的frame
@@ -154,6 +165,7 @@ if __name__ == "__main__":
     robot.data = pin.Data(robot.model)
     # forward kinematics
     # Update kinematics to get the latest pose (update joint position and frame position)
+
     pin.framesForwardKinematics(robot.model,
                                 robot.data,
                                 np.zeros(robot.model.nq)) # use the zero pose
