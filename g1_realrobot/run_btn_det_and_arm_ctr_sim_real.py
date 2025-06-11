@@ -421,6 +421,7 @@ def move_robot_arm_sim_and_real(arm_ik, arm_ctr, start_pose_pin_SE3, target_pose
     # visualize the target pose in browser
     arm_ik.vis.viewer["R_ee_target"].set_transform(target_pose.homogeneous)
 
+    # 修改下面的参数可以加快实机动作，但是计算量会增大，如果算力不够机器人会卡
     in_seconds = 0.1
 
     # now we start to control the arm
@@ -494,7 +495,6 @@ if __name__ == "__main__":
     # G1_29_JointIndex.kRightShoulderRoll
     down_target[1] = -0.4
 
-    # 如果想初始姿态，手下垂，即right_elbow_joint == 1.57 ，right shoulder_roll == -0.4 (外摆一点否则手碰腿)
 
     # assuming our robot ee is started at zero pose
     # get this from (g1) junweil@home-lab:~/projects/humanoid_teleop$ python g1_realrobot/urdf_viewer_compute_ft.py avp_teleoperate/assets/g1/g1_body29_inspired_hand.urdf
@@ -519,11 +519,11 @@ if __name__ == "__main__":
 
     arm_ctr = G1_29_ArmController(args.network_name)
     # the total time required for arms velocity to gradually increase to its maximum value
-    #arm_ctr.speed_gradual_max(t=1.0)
+    #arm_ctr.speed_gradual_max(t=1.0) # 这个好像没什么用
 
     # 把右手放初始位置，其他不管
     #arm_ctr.ctrl_right_arm_go_home()
-    arm_ctr.ctrl_right_arm_go_down()
+    arm_ctr.ctrl_right_arm_go_down()  # start_ee_pose是给visualization meshcat的，机器人控制这里，直接设置特定关节电机 right_elbow_joint == 1.57 ，right shoulder_roll == -0.4
     #sys.exit()
 
     target_ee_pose = None
