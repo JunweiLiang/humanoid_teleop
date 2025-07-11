@@ -29,6 +29,7 @@ class LocoClient(Client):
         self._RegistApi(ROBOT_API_ID_LOCO_SET_STAND_HEIGHT, 0)
         self._RegistApi(ROBOT_API_ID_LOCO_SET_VELOCITY, 0)
         self._RegistApi(ROBOT_API_ID_LOCO_SET_ARM_TASK, 0)
+        self._RegistApi(ROBOT_API_ID_LOCO_SET_SPEED_MODE, 0)
 
     # 7101
     def SetFsmId(self, fsm_id: int):
@@ -72,20 +73,40 @@ class LocoClient(Client):
         code, data = self._Call(ROBOT_API_ID_LOCO_SET_ARM_TASK, parameter)
         return code
 
+    # 7107 added by junwei
+    # 官方回复：0，1，2，3，填入这四个速度档位即可，没有精确的速度值, 这个地方没有做速度闭环控制
+    def SetSpeedMode(self, speed_mode: int):
+        p = {}
+        p["data"] = speed_mode
+        parameter = json.dumps(p)
+        code, data = self._Call(ROBOT_API_ID_LOCO_SET_SPEED_MODE, parameter)
+        return code
+
     def Damp(self):
         self.SetFsmId(1)
     
     def Start(self):
-        self.SetFsmId(200)
+        #self.SetFsmId(200)
+        self.SetFsmId(500) # https://github.com/unitreerobotics/unitree_sdk2/blob/main/include/unitree/robot/g1/loco/g1_loco_client.hpp#L186
 
-    def Squat(self):
-        self.SetFsmId(2)
+
+    def Squat2StandUp(self):
+        self.SetFsmId(706)
+
+    def Lie2StandUp(self):
+        self.SetFsmId(702)
 
     def Sit(self):
         self.SetFsmId(3)
 
-    def StandUp(self):
-        self.SetFsmId(4)
+    def StandUp2Squat(self):
+        self.SetFsmId(706)
+
+    # by junwei: [06/23/2025]设置走跑运控，参考这个文档：https://support.unitree.com/home/zh/G1_developer/sport_services_interface
+    def SetRunWalkMode(self):
+        self.SetFsmId(801)
+    def SetNormalWalkMode(self):
+        self.SetFsmId(500)
 
     def ZeroTorque(self):
         self.SetFsmId(0)

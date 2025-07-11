@@ -176,12 +176,19 @@ class Dex3_1_Controller:
                 # Read left and right q_state from shared arrays
                 state_data = np.concatenate((np.array(left_hand_state_array[:]), np.array(right_hand_state_array[:])))
 
-                if not np.all(left_hand_mat == 0.0): # if hand data has been initialized.
+                if not np.all(right_hand_mat == 0.0) and not np.all(left_hand_mat[4] == np.array([-1.13, 0.3, 0.15])): # if hand data has been initialized.
                     ref_left_value = left_hand_mat[unitree_tip_indices]
                     ref_right_value = right_hand_mat[unitree_tip_indices]
+                    
                     ref_left_value[0] = ref_left_value[0] * 1.15
                     ref_left_value[1] = ref_left_value[1] * 1.05
                     ref_left_value[2] = ref_left_value[2] * 0.95
+                    
+                    # 左手固定
+                    # ref_left_value[0] = 0
+                    # ref_left_value[1] = 0
+                    # ref_left_value[2] = 0
+                    
                     ref_right_value[0] = ref_right_value[0] * 1.15
                     ref_right_value[1] = ref_right_value[1] * 1.05
                     ref_right_value[2] = ref_right_value[2] * 0.95
@@ -229,102 +236,123 @@ kTopicGripperCommand = "rt/unitree_actuator/cmd"
 kTopicGripperState = "rt/unitree_actuator/state"
 
 class Gripper_Controller:
-    def __init__(self, left_hand_array, right_hand_array, dual_gripper_data_lock = None, dual_gripper_state_out = None, dual_gripper_action_out = None, 
-                       filter = True, fps = 200.0, Unit_Test = False):
+    def __init__(self, left_hand_array, right_hand_array, dual_gripper_data_lock=None, dual_gripper_state_out=None, dual_gripper_action_out=None, 
+                       filter=True, fps=200.0, Unit_Test=False):
         """
-        [note] A *_array type parameter requires using a multiprocessing Array, because it needs to be passed to the internal child process
+        初始化夹爪控制器 Gripper_Controller。
 
-        left_hand_array: [input] Left hand skeleton data (required from XR device) to control_thread
-
-        right_hand_array: [input] Right hand skeleton data (required from XR device) to control_thread
-
-        dual_gripper_data_lock: Data synchronization lock for dual_gripper_state_array and dual_gripper_action_array
-
-        dual_gripper_state: [output] Return left(1), right(1) gripper motor state
-
-        dual_gripper_action: [output] Return left(1), right(1) gripper motor action
-
-        fps: Control frequency
-
-        Unit_Test: Whether to enable unit testing
+        参数说明：
+        left_hand_array:         [输入] 左手骨骼数据数组 (25x3)，通过 multiprocessing.Array 传入；
+        right_hand_array:        [输入] 右手骨骼数据数组 (25x3)，通过 multiprocessing.Array 传入；
+        dual_gripper_data_lock:  [同步] 数据写入时的共享锁；
+        dual_gripper_state_out:  [输出] 输出的夹爪电机状态值（左、右）；
+        dual_gripper_action_out: [输出] 输出的夹爪目标动作值（左、右）；
+        filter:                  [可选] 是否对输出动作使用加权滑动滤波（默认启用）；
+        fps:                     [可选] 控制频率（默认 200Hz) ;
+        Unit_Test:               [可选] 是否启用单元测试（不使用 DDS 时开启）。
         """
 
-        print("Initialize Gripper_Controller...")
+        print("初始化 Gripper_Controller...")
 
         self.fps = fps
         self.Unit_Test = Unit_Test
+
+        # 如果启用了滤波器，则初始化加权滑动滤波器（默认系数）
         if filter:
             self.smooth_filter = WeightedMovingFilter(np.array([0.5, 0.3, 0.2]), Gripper_Num_Motors)
         else:
             self.smooth_filter = None
 
+        # 单元测试模式初始化 DDS 通道（仅测试时启用）
         if self.Unit_Test:
             ChannelFactoryInitialize(0)
- 
-        # initialize handcmd publisher and handstate subscriber
+
+        # 初始化夹爪命令发布通道
         self.GripperCmb_publisher = ChannelPublisher(kTopicGripperCommand, MotorCmds_)
         self.GripperCmb_publisher.Init()
 
+        # 初始化夹爪状态订阅通道
         self.GripperState_subscriber = ChannelSubscriber(kTopicGripperState, MotorStates_)
         self.GripperState_subscriber.Init()
 
+        # 初始化内部夹爪状态列表（用于接收 DDS 状态）
         self.dual_gripper_state = [0.0] * len(Gripper_JointIndex)
 
-        # initialize subscribe thread
+        # 启动夹爪状态订阅线程
         self.subscribe_state_thread = threading.Thread(target=self._subscribe_gripper_state)
         self.subscribe_state_thread.daemon = True
         self.subscribe_state_thread.start()
 
-        while True:
-            if any(state != 0.0 for state in self.dual_gripper_state):
-                break
-            time.sleep(0.01)
-            print("[Gripper_Controller] Waiting to subscribe dds...")
+        # 阻塞等待 DDS 成功订阅夹爪状态
+        # while True:
+        #     if any(state != 0.0 for state in self.dual_gripper_state):
+        #         break
+        #     time.sleep(0.01)
+        #     print("[Gripper_Controller] 正在等待 DDS 夹爪状态订阅...")
 
-        self.gripper_control_thread = threading.Thread(target=self.control_thread, args=(left_hand_array, right_hand_array, self.dual_gripper_state,
-                                                                                         dual_gripper_data_lock, dual_gripper_state_out, dual_gripper_action_out))
+        # 启动控制线程（实时从 XR 设备读取骨骼数据控制夹爪）
+        self.gripper_control_thread = threading.Thread(target=self.control_thread, args=(
+            left_hand_array, right_hand_array, self.dual_gripper_state,
+            dual_gripper_data_lock, dual_gripper_state_out, dual_gripper_action_out
+        ))
         self.gripper_control_thread.daemon = True
         self.gripper_control_thread.start()
 
-        print("Initialize Gripper_Controller OK!\n")
+        print("Gripper_Controller 初始化完成！\n")
 
     def _subscribe_gripper_state(self):
+        """ 订阅夹爪电机状态线程（从 DDS 读取并保存到 self.dual_gripper_state) """
         while True:
-            gripper_msg  = self.GripperState_subscriber.Read()
+            gripper_msg = self.GripperState_subscriber.Read()
             if gripper_msg is not None:
                 for idx, id in enumerate(Gripper_JointIndex):
-                    self.dual_gripper_state[idx] = gripper_msg.states[id].q
-            time.sleep(0.002)
+                    self.dual_gripper_state[idx] = gripper_msg.states[id].q  # 读取电机角度 q 值
+            time.sleep(0.002)  # 稍微延迟避免过度占用 CPU
     
     def ctrl_dual_gripper(self, gripper_q_target):
-        """set current left, right gripper motor state target q"""
-        for idx, id in enumerate(Gripper_JointIndex):
-            self.gripper_msg.cmds[id].q = gripper_q_target[idx]
+        """
+        向 DDS 发布当前夹爪电机的目标角度指令
 
-        self.GripperCmb_publisher.Write(self.gripper_msg)
-        # print("gripper ctrl publish ok.")
-    
-    def control_thread(self, left_hand_array, right_hand_array, dual_gripper_state_in, dual_hand_data_lock = None, 
-                             dual_gripper_state_out = None, dual_gripper_action_out = None):
+        参数：
+        gripper_q_target: 包含两个元素的数组，表示左右夹爪的目标位置
+        """
+        for idx, id in enumerate(Gripper_JointIndex):
+            self.gripper_msg.cmds[id].q = gripper_q_target[idx]  # 设置目标角度
+
+        self.GripperCmb_publisher.Write(self.gripper_msg)  # 发布控制消息
+
+    def control_thread(self, left_hand_array, right_hand_array, dual_gripper_state_in,
+                             dual_hand_data_lock=None, dual_gripper_state_out=None, dual_gripper_action_out=None):
+        """
+        控制线程函数，实时读取手势数据并计算控制指令发送到夹爪。
+
+        参数：
+        left_hand_array, right_hand_array:   输入, 25x3 骨骼点坐标数组（由 XR 设备提供）
+        dual_gripper_state_in:               输入, 夹爪当前状态
+        dual_hand_data_lock:                 输出状态使用的锁（用于写入共享变量）
+        dual_gripper_state_out:              输出夹爪当前状态（外部使用）
+        dual_gripper_action_out:             输出夹爪目标动作值（外部使用）
+        """
+
         self.running = True
 
-        DELTA_GRIPPER_CMD = 0.18         # The motor rotates 5.4 radians, the clamping jaw slide open 9 cm, so 0.6 rad <==> 1 cm, 0.18 rad <==> 3 mm
-        THUMB_INDEX_DISTANCE_MIN = 0.05  # Assuming a minimum Euclidean distance is 5 cm between thumb and index.
-        THUMB_INDEX_DISTANCE_MAX = 0.07  # Assuming a maximum Euclidean distance is 9 cm between thumb and index.
-        LEFT_MAPPED_MIN  = 0.0           # The minimum initial motor position when the gripper closes at startup.
-        RIGHT_MAPPED_MIN = 0.0           # The minimum initial motor position when the gripper closes at startup.
-        # The maximum initial motor position when the gripper closes before calibration (with the rail stroke calculated as 0.6 cm/rad * 9 rad = 5.4 cm).
-        LEFT_MAPPED_MAX = LEFT_MAPPED_MIN + 5.40 
-        RIGHT_MAPPED_MAX = RIGHT_MAPPED_MIN + 5.40
+        # 控制参数设置
+        DELTA_GRIPPER_CMD = 0.18         # 控制速度限制，每次最大只能移动 0.18 rad（相当于夹爪开合 3mm）
+        THUMB_INDEX_DISTANCE_MIN = 0.05  # XR 检测到的拇指与食指最近距离（5cm）
+        THUMB_INDEX_DISTANCE_MAX = 0.07  # XR 检测到的拇指与食指最远距离（7cm）
+        LEFT_MAPPED_MIN  = 0.0           # 左夹爪起始闭合角度
+        RIGHT_MAPPED_MIN = 0.0           # 右夹爪起始闭合角度
+        LEFT_MAPPED_MAX  = LEFT_MAPPED_MIN + 7.0   # 左夹爪最大张开角度（7.0cm）
+        RIGHT_MAPPED_MAX = RIGHT_MAPPED_MIN + 7.0  # 右夹爪最大张开角度（7.0cm）
+
+        # 初始目标动作值为中间位置
         left_target_action  = (LEFT_MAPPED_MAX - LEFT_MAPPED_MIN) / 2.0
         right_target_action = (RIGHT_MAPPED_MAX - RIGHT_MAPPED_MIN) / 2.0
 
-        dq = 0.0
-        tau = 0.0
-        kp = 5.00
-        kd = 0.05
-        # initialize gripper cmd msg
-        self.gripper_msg  = MotorCmds_()
+        # 初始化 DDS 控制消息结构
+        dq, tau = 0.0, 0.0
+        kp, kd = 5.00, 0.05
+        self.gripper_msg = MotorCmds_()
         self.gripper_msg.cmds = [unitree_go_msg_dds__MotorCmd_() for _ in range(len(Gripper_JointIndex))]
         for id in Gripper_JointIndex:
             self.gripper_msg.cmds[id].dq  = dq
@@ -335,59 +363,63 @@ class Gripper_Controller:
         try:
             while self.running:
                 start_time = time.time()
-                # get dual hand skeletal point state from XR device
+
+                # 读取 XR 设备的手部数据（25 个关键点 × 3D 坐标）
                 left_hand_mat  = np.array(left_hand_array[:]).reshape(25, 3).copy()
                 right_hand_mat = np.array(right_hand_array[:]).reshape(25, 3).copy()
 
-                if not np.all(left_hand_mat == 0.0): # if hand data has been initialized.
+                # 如果手部数据已初始化（非全 0）
+                if not np.all(right_hand_mat == 0.0) and not np.all(left_hand_mat[4] == np.array([-1.13, 0.3, 0.15])):
+                    # 计算左右手拇指与食指之间的距离
                     left_euclidean_distance  = np.linalg.norm(left_hand_mat[unitree_gripper_indices[1]] - left_hand_mat[unitree_gripper_indices[0]])
                     right_euclidean_distance = np.linalg.norm(right_hand_mat[unitree_gripper_indices[1]] - right_hand_mat[unitree_gripper_indices[0]])
-                    # Linear mapping from [0, THUMB_INDEX_DISTANCE_MAX] to gripper action range
+
+                    # 将欧氏距离映射为夹爪开合范围
                     left_target_action  = np.interp(left_euclidean_distance, [THUMB_INDEX_DISTANCE_MIN, THUMB_INDEX_DISTANCE_MAX], [LEFT_MAPPED_MIN, LEFT_MAPPED_MAX])
                     right_target_action = np.interp(right_euclidean_distance, [THUMB_INDEX_DISTANCE_MIN, THUMB_INDEX_DISTANCE_MAX], [RIGHT_MAPPED_MIN, RIGHT_MAPPED_MAX])
-                # else: # TEST WITHOUT XR DEVICE
-                #     current_time = time.time()
-                #     period = 2.5
-                #     import math
-                #     left_euclidean_distance = THUMB_INDEX_DISTANCE_MAX * (math.sin(2 * math.pi * current_time / period) + 1) / 2
-                #     right_euclidean_distance = THUMB_INDEX_DISTANCE_MAX * (math.sin(2 * math.pi * current_time / period) + 1) / 2
-                #     left_target_action = np.interp(left_euclidean_distance, [THUMB_INDEX_DISTANCE_MIN, THUMB_INDEX_DISTANCE_MAX], [LEFT_MAPPED_MIN, LEFT_MAPPED_MAX])
-                #     right_target_action = np.interp(right_euclidean_distance, [THUMB_INDEX_DISTANCE_MIN, THUMB_INDEX_DISTANCE_MAX], [RIGHT_MAPPED_MIN, RIGHT_MAPPED_MAX])
 
-                # get current dual gripper motor state
-                dual_gripper_state = np.array(dual_gripper_state_in[:])
+                    
+                # 当前夹爪状态（从 DDS 订阅来的状态）
+                #dual_gripper_state = np.array(dual_gripper_state_in[:])
 
-                # clip dual gripper action to avoid overflow
-                left_actual_action  = np.clip(left_target_action,  dual_gripper_state[1] - DELTA_GRIPPER_CMD, dual_gripper_state[1] + DELTA_GRIPPER_CMD) 
-                right_actual_action = np.clip(right_target_action, dual_gripper_state[0] - DELTA_GRIPPER_CMD, dual_gripper_state[0] + DELTA_GRIPPER_CMD)
+                # 对目标动作做限制，避免一次跳变太大
+                #left_actual_action  = np.clip(left_target_action,  dual_gripper_state[1] - DELTA_GRIPPER_CMD, dual_gripper_state[1] + DELTA_GRIPPER_CMD)
+                #right_actual_action = np.clip(right_target_action, dual_gripper_state[0] - DELTA_GRIPPER_CMD, dual_gripper_state[0] + DELTA_GRIPPER_CMD)
 
-                dual_gripper_action = np.array([right_actual_action, left_actual_action])
-
+                # 目标动作数组：顺序是 [左, 右]
+                dual_gripper_action = np.array([left_target_action, right_target_action])
+                
+                
+                # 如果启用了滤波器，则平滑输出
                 if self.smooth_filter:
                     self.smooth_filter.add_data(dual_gripper_action)
                     dual_gripper_action = self.smooth_filter.filtered_data
-
+                
+                
+                # 如果有输出数组，则写入当前状态与动作（用于外部显示或记录）
                 if dual_gripper_state_out and dual_gripper_action_out:
                     with dual_hand_data_lock:
-                        dual_gripper_state_out[:] = dual_gripper_state - np.array([RIGHT_MAPPED_MIN, LEFT_MAPPED_MIN])
+                        # dual_gripper_state_out[:] = dual_gripper_state - np.array([RIGHT_MAPPED_MIN, LEFT_MAPPED_MIN])
                         dual_gripper_action_out[:] = dual_gripper_action - np.array([RIGHT_MAPPED_MIN, LEFT_MAPPED_MIN])
-                
-                # print(f"LEFT: euclidean:{left_euclidean_distance:.4f} \tstate:{dual_gripper_state_out[1]:.4f}\
-                #       \ttarget_action:{right_target_action - RIGHT_MAPPED_MIN:.4f} \tactual_action:{dual_gripper_action_out[1]:.4f}")
-                # print(f"RIGHT:euclidean:{right_euclidean_distance:.4f} \tstate:{dual_gripper_state_out[0]:.4f}\
-                #       \ttarget_action:{left_target_action - LEFT_MAPPED_MIN:.4f} \tactual_action:{dual_gripper_action_out[0]:.4f}")
 
+                # 发送控制指令到 DDS
                 self.ctrl_dual_gripper(dual_gripper_action)
+                # print('dual_gripper_action', dual_gripper_action)
+                
+                # 控制频率控制：保持目标 fps
                 current_time = time.time()
                 time_elapsed = current_time - start_time
                 sleep_time = max(0, (1 / self.fps) - time_elapsed)
                 time.sleep(sleep_time)
-        finally:
-            print("Gripper_Controller has been closed.")
 
+        finally:
+            print("Gripper_Controller 控制线程已关闭。")
+
+# 定义夹爪的电机索引（用于读取状态或发送控制）
 class Gripper_JointIndex(IntEnum):
-    kLeftGripper = 0
-    kRightGripper = 1
+    kLeftGripper = 0   # 左夹爪电机索引
+    kRightGripper = 1  # 右夹爪电机索引
+
 
 
 if __name__ == "__main__":

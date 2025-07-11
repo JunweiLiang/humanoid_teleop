@@ -1,5 +1,19 @@
 # note on getting teleop G1 to work
 
+### 附加仓库
+1. sdk 修改了走跑运控，来自: `https://github.com/JunweiLiang/unitree_sdk2_python`
+2. avp_teleop 来自凯伦修改: `https://github.com/JunweiLiang/avp_teleoperate`
+```
+    https://github.com/Lab317-Kelun/avp_teleoperate/blob/master/README_zh-CN.md
+我把代码上传了 Readme里的坑我重点说明了一下 由于遥操需要本地电脑生成证书 在传到AVP 所以用新的电脑都需要重新配置一下 大致跟着步骤走一遍就好了
+~/avp_teleoperate/teleop/robot_control 路径下的 robot_arm.py 是对接homie的
+robot_arm_no_homie.py是可以直接控制双臂的 当前默认是对接homie的 稍微注意下这里就可以区分开
+
+Step2 运行下面两条命令来显式使能 UDP 多播和添加路由表
+sudo ifconfig eno2 multicast
+sudo route add -net 224.0.0.0 netmask 240.0.0.0 dev eno2
+这里是LCM每次开机前都要配置 文昊这里都了解的
+```
 
 ### Use H2O
 
