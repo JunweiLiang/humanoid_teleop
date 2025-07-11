@@ -14,6 +14,7 @@ sudo ifconfig eno2 multicast
 sudo route add -net 224.0.0.0 netmask 240.0.0.0 dev eno2
 这里是LCM每次开机前都要配置 文昊这里都了解的
 ```
+3. 控制G1手，视觉识别电梯按钮，按按钮，IK解算, 末端用arm_sdk控制到达指定位姿, [这里](./g1_realrobot/note_test.md)
 
 ### Use H2O
 
