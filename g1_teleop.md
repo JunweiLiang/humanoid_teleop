@@ -16,7 +16,30 @@ sudo route add -net 224.0.0.0 netmask 240.0.0.0 dev eno2
 ```
 3. 控制G1手，视觉识别电梯按钮，按按钮，IK解算, 末端用arm_sdk控制到达指定位姿, [这里](./g1_realrobot/note_test.md)
 
-### Use H2O
+### Motion Retargetting
+
+0. 代码方法、预处理数据列表
+```
+    # 方法
+        大部份都基于PHC:
+        H2O也是基于PHC:
+        HOVER 基于H2O:
+    # data
+        # 主要来自于
+            https://github.com/JunweiLiang/humanoid_amp
+
+        https://huggingface.co/datasets/fleaven/Retargeted_AMASS_for_robotics
+            # 下载
+                export HF_ENDPOINT=https://hf-mirror.com
+                $ pip install huggingface_hub[hf_transfer]
+                $ huggingface-cli download fleaven/Retargeted_AMASS_for_robotics --repo-type dataset --local-dir ./Retargeted_AMASS_for_robotics_data
+
+        https://huggingface.co/datasets/ember-lab-berkeley/AMASS_Retargeted_for_G1
+
+        https://huggingface.co/datasets/lvhaidong/LAFAN1_Retargeting_Dataset
+
+
+```
 
 1. Download and visualize AMASS
 ```
@@ -35,6 +58,18 @@ sudo route add -net 224.0.0.0 netmask 240.0.0.0 dev eno2
 
         # on machine10
         (base) junweil@home-lab:/mnt/nvme1/junweil/embodied_ai$ scp -r amass/ junweil@m10.precognition.team:/mnt/ssd1/junweil
+
+    # motion data (*.tar.bz2) in office machine
+        (base) junweil@office-precognition:/mnt/ssd1/junweil/embodied_ai/amass$
+
+        # 解压缩
+        for file in *.tar.bz2; do
+            tar -xvjf "$file"
+        done
+
+    # SMPL data
+        (base) junweil@office-precognition:/mnt/ssd1/junweil/embodied_ai$ unzip SMPL_python_v.1.1.0.zip
+
 ```
 
 2. Retarget AMASS for G1
