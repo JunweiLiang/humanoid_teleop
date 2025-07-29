@@ -156,6 +156,19 @@ exts."isaacsim.asset.browser".folders = [
                         # 按宇树的人说，把pickplace_cylinder_g1_29dof_dex3_joint_env_cfg.py
                             # 注释掉3个ObsTerm，速度就涨回来到20Hz了
 
+                        # 查明原因了，是CPU太弱了，把 CPU设置到更高频率，hz提升了
+                            # office 提升到 10.7 Hz, average loop time 94ms
+
+                            $ sudo apt install cpufrequtils
+                            (base) junweil@office-precognition:~$ cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_available_governors
+                                conservative ondemand userspace powersave performance schedutil
+
+                            $ cat /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor
+                            # 原本是ondemand，改成performance
+                                 echo performance | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor
+
+                            # 对laptop4好像没用
+
                     # 12核心48GB RAM 3090，m12, 8.7Hz, average loop time 114 ms [占用4GB显存, 575/cuda12.9]
 
                     # laptop5, 5090笔记本 24核心64GB RAM, 570/cuda12.8
@@ -234,6 +247,7 @@ exts."isaacsim.asset.browser".folders = [
                 # 然后要用Meta Horizon APP配置
             # Quest 3 连接 iphone热点成功，无线路由也ok，但是学校网络就是不行，用Horizon APP连也不行
 
+            # [07/29/2025] Meta Quest 3 连接学校wifi HKUST(GZ)  需要选择PEAP, M**v2, 然后选择use system certificate, 域名输入nce.hkust-gz.edu.cn, identity输入用户名，匿名框留空，然后输入密码，即可。学校徐智宏教的
 
         # 开始！
             # office 台式机，连接Dabaicai_4g wifi (本机器192.168.0.227)， 然后开启仿真
@@ -304,8 +318,75 @@ exts."isaacsim.asset.browser".folders = [
                         --xr-mode=hand --ee=dex3 可以用手控制机器人手指动, controller还不行
                         --motion 会报错 send request error，还没用起来
 
+
             # 仿真中 录制手势动作，然后replay，mechat中？
+
+                # 尝试因时灵巧手, 录制手势
+
+                    # 开启因时手仿真
+                        (unitree_sim_env) junweil@precognition-laptop4:~/projects/xr_teleoperate/unitree_sim_isaaclab$ python sim_main.py --device cpu  --enable_cameras  --task  Isaac-PickPlace-RedBlock-G129-Inspire-Joint    --enable_inspire_dds --robot_type g129
+
+                    # 开启遥操作
+                        (tv) junweil@precognition-laptop4:~/projects/xr_teleoperate/teleop$ python teleop_hand_and_arm.py --xr-mode=hand --arm=G1_29 --ee=inspire1 --sim --record
+
+                    # quest 3 戴起来，连接对应wifi，打开浏览器到https://192.168.0.219:8012?ws=wss://192.168.0.219:8012
+                        # 放下控制器，用手势识别。先终端按r，机器人手应该就会飘起来
+                        # 点击VR或者Pass through
+                        # 终端按s开始录制手势，s再结束
+                        # 尝试了两次，得到json data:
+                            (tv) junweil@precognition-laptop4:~/projects/xr_teleoperate/teleop$ ls ./utils/data/
+                                episode_0001  episode_0002
+                            # 几秒时间就150MB数据，包含RGB和depth. 我们手势只需要data.json (只有RGB数据，60 fps的jpg三个角度的都存下来)
+                                junweiliang@work_laptop:~/Downloads$ scp junweil@lt4.precognition.team:/home/junweil/projects/xr_teleoperate/teleop/utils/data/episode_0001/data.json g1_welcome_data.json
+
+                                junweiliang@work_laptop:~/Downloads$ scp junweil@lt4.precognition.team:/home/junweil/projects/xr_teleoperate/teleop/utils/data/episode_0002/data.json g1_geishou_data.json
+
+                            # json格式
+                                a["info"]
+                                len(a["data"]) -> 952 个数据，60 fps
+                                    dict_keys(['idx', 'colors', 'depths', 'states', 'actions', 'tactiles', 'audios', 'sim_state'])
+                                    "idx": 0 -> 951
+                                    "colors" -> 3个jpg文件名 'colors/000001_color_0.jpg'
+
+                                    a["data"][1]["states"]是当前时间下机器人的状态，actions是sol_q解出来的这时候发送的命令 (给定当下机器人状态，获取遥操作手ee位姿，ik解算)
+                                    >>> a["data"][1]["actions"].keys()
+                                        dict_keys(['left_arm', 'right_arm', 'left_ee', 'right_ee', 'body']
+                                        # 7自由度手臂
+                                        >>> a["data"][1]["actions"]["left_arm"]["qpos"]
+                                        [-0.8431334523569074, 0.3125219682813758, -0.3504520738550948, 1.1770103578690738, 0.7314618342210563, -0.25334802959393105, 1.2331182185156233]
+                                        # 因时的手是6自由度
+                                        >>> a["data"][1]["actions"]["left_ee"]["qpos"]
+                                        [0.9392543494333019, 0.9665400978589515, 0.9799967298529748, 0.8853130570344678, 0.5909996522300536, 0.7740214705733652]
+
+                                    # 数据没有timestamp的，data frequency在teleop_hand_and_arm.py中设定默认60 fps，这应该是最大值
+                # replay!!
+
+                    # 基础知识
+                        # 左右手各7自由度，电机角度以弧度为单位，可以正负
+                            kPi = 3.141592654   # 180度
+                            kPi_2 = 1.57079632  # 90 度
+                        # tau 力矩，q 目标角度， dq 角速度，kp位置刚度， kd速度刚度（受到外界力矩，产生的位移/速度）
+
+                    # 本地查看URDF
+
+                        # 宇树3指版本
+                            # 单手7个主动自由度，所以叫hand14
+
+                            junweiliang@work_laptop:~/Desktop/github_projects/xr_teleoperate/assets/g1$ python ~/Desktop/github_projects/humanoid_teleop/g1_realrobot/urdf_viewer.py g1_body29_hand14.urdf
+
+                            # humanoid_teleop repo下也有assets/g1/
+
+                            junweiliang@work_laptop:~/Desktop/github_projects/humanoid_teleop/assets/g1$ python ~/Desktop/github_projects/humanoid_teleop/g1_realrobot/urdf_viewer.py g1_body29_hand14.urdf
+
+                        # 宇树加因时灵巧手
+                            # 单手URDF里，12个自由度，4个手指每个2个所以8个，剩4个自由度在拇指
+                                # 实机单手只有6自由度，每个手指一个，拇指2个
+                                    junweiliang@work_laptop:~/Desktop/github_projects/humanoid_teleop/assets/g1$ python ~/Desktop/github_projects/humanoid_teleop/g1_realrobot/urdf_viewer.py g1_body29_inspired_hand.urdf
+
+
             # 实机中replay一下看看
+                # 需要用到 arm_sdk topic。下肢应该只能用主运控. 向 rt/arm_sdk 话题发送 LowCmd 类型的消息
+                # 对于电机的底层控制算法，唯一需要的控制目标就是输出力矩。对于机器人，我们通常需要给关节设定位置、速度和力矩，就需要对关节电机进行混合控制。
 
             # 实机中跑遥操作, 改controller控制？
 ```
