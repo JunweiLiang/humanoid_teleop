@@ -85,6 +85,40 @@ class G1_29_Vis_Episode:
             #"R_middle_proximal_joint",
             "R_middle_intermediate_joint"
         ]
+        self.mixed_jointsToLockIDs = [
+                                        "left_hip_pitch_joint" ,
+                                        "left_hip_roll_joint" ,
+                                        "left_hip_yaw_joint" ,
+                                        "left_knee_joint" ,
+                                        "left_ankle_pitch_joint" ,
+                                        "left_ankle_roll_joint" ,
+                                        "right_hip_pitch_joint" ,
+                                        "right_hip_roll_joint" ,
+                                        "right_hip_yaw_joint" ,
+                                        "right_knee_joint" ,
+                                        "right_ankle_pitch_joint" ,
+                                        "right_ankle_roll_joint" ,
+                                        "waist_yaw_joint" ,
+                                        "waist_roll_joint" ,
+                                        "waist_pitch_joint" ,
+
+                                        # 用的宇树三指手的URDF，每个7自由度，全部锁了
+                                        "left_hand_thumb_0_joint" ,
+                                        "left_hand_thumb_1_joint" ,
+                                        "left_hand_thumb_2_joint" ,
+                                        "left_hand_middle_0_joint" ,
+                                        "left_hand_middle_1_joint" ,
+                                        "left_hand_index_0_joint" ,
+                                        "left_hand_index_1_joint" ,
+
+                                        "right_hand_thumb_0_joint" ,
+                                        "right_hand_thumb_1_joint" ,
+                                        "right_hand_thumb_2_joint" ,
+                                        "right_hand_index_0_joint" ,
+                                        "right_hand_index_1_joint" ,
+                                        "right_hand_middle_0_joint",
+                                        "right_hand_middle_1_joint"
+                                    ]
 
         # https://docs.ros.org/en/kinetic/api/pinocchio/html/classpinocchio_1_1robot__wrapper_1_1RobotWrapper.html#aef341b27b4709b03c93d66c8c196bc0f
         # the above joint will be locked, at 0.0
@@ -94,6 +128,7 @@ class G1_29_Vis_Episode:
         )
 
         #debugging printouts
+        print("reduced_robot.model.nframes")
         for i in range(self.reduced_robot.model.nframes):
             frame = self.reduced_robot.model.frames[i]
             frame_id = self.reduced_robot.model.getFrameId(frame.name)
@@ -112,7 +147,7 @@ class G1_29_Vis_Episode:
         for idx, joint in enumerate(self.reduced_robot.model.names):
             print(f"Joint ID {idx}: {joint}")
 
-        print("reduced_robot.mode.nq:%s" % self.reduced_robot.model.nq)
+        print("reduced_robot.model.nq:%s" % self.reduced_robot.model.nq)
         sys.exit()
 
 

@@ -433,6 +433,13 @@ exts."isaacsim.asset.browser".folders = [
                                 junweiliang@work_laptop:~/Desktop/github_projects/humanoid_teleop/assets/g1$ python ~/Desktop/github_projects/humanoid_teleop/g1_realrobot/urdf_viewer.py g1_body29_inspired_hand.urdf
 
                         # replay!
+                            # 安装环境, office
+                                $ conda create -n g1 python=3.10 pinocchio=3.1.0 numpy=1.26.4 -c conda-forge
+                                $ pip install meshcat
+                                $ pip install casadi
+
+                            # replay
+                                (g1) junweil@office-precognition:~/projects/humanoid_teleop$ python g1_realrobot/visualize_arm_episodes.py ~/Downloads/g1_geishou_data.json assets/g1/g1_body29_inspired_hand.urdf --fps 60
 
             # 实机中replay一下看看
                 # 需要用到 arm_sdk topic。下肢应该只能用主运控. 向 rt/arm_sdk 话题发送 LowCmd 类型的消息
