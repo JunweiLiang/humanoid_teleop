@@ -272,6 +272,24 @@ def get_char_nonblocking():
             return None
     return None
 
+def show_current_q(vis_model, step_data):
+    #step_data = episode["data"][current_step]["actions"]
+    left_arm_pos = step_data["left_arm"]["qpos"]
+    right_arm_pos = step_data["right_arm"]["qpos"]
+    left_ee_pos = np.array(step_data["left_ee"]["qpos"])
+    left_ee_pos = left_ee_pos[left_inspire_api_to_urdf_index]
+    right_ee_pos = np.array(step_data["right_ee"]["qpos"])
+    right_ee_pos = right_ee_pos[right_inspire_api_to_urdf_index]
+
+    target_q = np.zeros((26, ), dtype=np.float32)
+    target_q[:7] = left_arm_pos
+    target_q[7:13] = left_ee_pos
+    target_q[13:20] = right_arm_pos
+    target_q[20:] = right_ee_pos
+
+    vis_model.vis.display(target_q, step_data)
+
+
 if __name__ == "__main__":
     args = parser.parse_args()
 
@@ -308,11 +326,19 @@ if __name__ == "__main__":
                     if paused and not plus_pressed_handled:
                         current_step = min(num_data_step - 1, current_step + 10)
                         print(f"\nStepped forward to step {current_step}")
+
+                        step_data = episode["data"][current_step]["actions"]
+                        show_current_q(vis_model, step_data)
+
                         plus_pressed_handled = True
                 elif char == '-':
                     if paused and not minus_pressed_handled:
                         current_step = max(0, current_step - 10)
                         print(f"\nStepped back to step {current_step}")
+
+                        step_data = episode["data"][current_step]["actions"]
+                        show_current_q(vis_model, step_data)
+
                         minus_pressed_handled = True
                 # Handle Ctrl+C (ASCII 3) or Ctrl+D (ASCII 4) to exit cleanly
                 elif ord(char) == 3 or ord(char) == 4:
@@ -335,20 +361,7 @@ if __name__ == "__main__":
                 sys.stdout.flush() # Ensure it's written immediately
 
                 step_data = episode["data"][current_step]["actions"]
-                left_arm_pos = step_data["left_arm"]["qpos"]
-                right_arm_pos = step_data["right_arm"]["qpos"]
-                left_ee_pos = np.array(step_data["left_ee"]["qpos"])
-                left_ee_pos = left_ee_pos[left_inspire_api_to_urdf_index]
-                right_ee_pos = np.array(step_data["right_ee"]["qpos"])
-                right_ee_pos = right_ee_pos[right_inspire_api_to_urdf_index]
-
-                target_q = np.zeros((26, ), dtype=np.float32)
-                target_q[:7] = left_arm_pos
-                target_q[7:13] = left_ee_pos
-                target_q[13:20] = right_arm_pos
-                target_q[20:] = right_ee_pos
-
-                vis_model.vis.display(target_q)
+                show_current_q(vis_model, step_data)
                 current_step += 1
 
             # Ensure consistent frame rate
