@@ -254,7 +254,7 @@ if __name__ == "__main__":
         start_time = time.time()
 
         # we will use the action, not the state data
-        step_data = episode["data"][i]["action"]
+        step_data = episode["data"][i]["actions"]
 
         # 7 degree
         left_arm_pos = step_data["left_arm"]["qpos"]
