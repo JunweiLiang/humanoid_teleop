@@ -12,7 +12,9 @@ from pinocchio.robot_wrapper import RobotWrapper
 from pinocchio.visualize import MeshcatVisualizer
 import os
 import sys
-import threading
+import select # For non-blocking input
+import tty    # For non-blocking input
+import termios # For non-blocking input
 
 parser = argparse.ArgumentParser()
 
@@ -199,62 +201,6 @@ class G1_29_Vis_Episode:
 
         self.vis.display(pin.neutral(self.reduced_robot.model))
 
-        self.paused = False
-        self.current_step = 0
-        self.total_steps = 0
-        self.fps = fps
-        self.lock = threading.Lock()
-
-    def update_display_text(self):
-        with self.lock:
-            current_time_display = self.current_step / self.fps
-            self.vis.viewer["info"].set_object(
-                mg.Text(f"Time: {current_time_display:.2f}s | Step: {self.current_step}/{self.total_steps}",
-                        height=0.1))
-            self.vis.viewer["info"].set_transform(
-                mg.Translation(0.5, 0, 0.5)
-            ) # Adjust position as needed
-
-    def process_key_event(self, event):
-        if event.key == "s":
-            with self.lock:
-                self.paused = not self.paused
-                print(f"Playback {'paused' if self.paused else 'resumed'}")
-        elif self.paused:
-            if event.key == "-":
-                with self.lock:
-                    self.current_step = max(0, self.current_step - 10)
-                    print(f"Jumped back to step {self.current_step}")
-                    self.display_current_frame()
-            elif event.key == "+":
-                with self.lock:
-                    self.current_step = min(self.total_steps - 1, self.current_step + 10)
-                    print(f"Jumped forward to step {self.current_step}")
-                    self.display_current_frame()
-
-    def display_current_frame(self):
-        # This function will be called to update the robot's pose based on current_step
-        # You'll need access to the `episode` data here.
-        # For simplicity, let's assume `self.episode_data` holds the loaded episode.
-        if self.current_step < self.total_steps:
-            step_data = self.episode_data["data"][self.current_step]["actions"]
-
-            left_arm_pos = step_data["left_arm"]["qpos"]
-            right_arm_pos = step_data["right_arm"]["qpos"]
-
-            left_ee_pos = np.array(step_data["left_ee"]["qpos"])
-            left_ee_pos = left_ee_pos[left_inspire_api_to_urdf_index]
-            right_ee_pos = np.array(step_data["right_ee"]["qpos"])
-            right_ee_pos = right_ee_pos[right_inspire_api_to_urdf_index]
-
-            target_q = np.zeros((26, ), dtype=np.float32)
-            target_q[:7] = left_arm_pos
-            target_q[7:13] = left_ee_pos
-            target_q[13:20] = right_arm_pos
-            target_q[20:] = right_ee_pos
-
-            self.vis.display(target_q)
-            self.update_display_text()
 
 left_inspire_api_joint_names = [
     'L_pinky_proximal_joint',
@@ -296,6 +242,24 @@ right_inspire_api_to_urdf_index = [
     right_inspire_api_joint_names.index(name)
     for name in right_inspire_urdf_joint_names]
 
+def get_char_nonblocking():
+    """Reads a single character from stdin without blocking."""
+    # This implementation is for POSIX systems (Linux, macOS)
+    # For Windows, you'd typically use msvcrt.kbhit() and msvcrt.getch()
+    # To keep it somewhat cross-platform, we'll assume a Unix-like environment
+    # where select and tty are available.
+    try:
+        fd = sys.stdin.fileno()
+        old_settings = termios.tcgetattr(fd)
+        tty.setcbreak(fd)
+        if select.select([sys.stdin], [], [], 0) == ([sys.stdin], [], []):
+            return sys.stdin.read(1)
+        else:
+            return None
+    finally:
+        termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+
+
 if __name__ == "__main__":
     args = parser.parse_args()
 
@@ -303,25 +267,70 @@ if __name__ == "__main__":
 
     # load the episode
     episode = json.load(open(args.episode_json))
-    vis_model.episode_data = episode # Store episode data for access in display_current_frame
 
     num_data_step = len(episode["data"])
-    vis_model.total_steps = num_data_step
     print("total %d data steps, it should be %.2f seconds long" % (num_data_step, num_data_step/args.fps))
 
-    # Set up keyboard callback
-    vis_model.vis.viewer.on_render(vis_model.process_key_event)
-    vis_model.vis.viewer["info"].set_object(mg.Text("Loading...", height=0.1))
+    current_step = 0
+    paused = False
 
+    while current_step < num_data_step:
+        start_time = time.time()
 
-    while True:
-        with vis_model.lock:
-            if not vis_model.paused:
-                if vis_model.current_step < num_data_step:
-                    vis_model.display_current_frame()
-                    vis_model.current_step += 1
-                else:
-                    print("Episode finished.")
-                    vis_model.paused = True # Pause at the end
+        char = get_char_nonblocking()
+        if char is not None:
+            if char == 's':
+                paused = not paused
+                print(f"\n{'Paused' if paused else 'Resumed'} replay.")
+            elif paused:
+                if char == '+':
+                    current_step = min(num_data_step - 1, current_step + 10)
+                    print(f"\nStepped forward to step {current_step}")
+                elif char == '-':
+                    current_step = max(0, current_step - 10)
+                    print(f"\nStepped back to step {current_step}")
 
-        time.sleep(1 / args.fps)
+        if not paused:
+            # Display current time and step ID
+            current_episode_time = current_step / args.fps
+            print(f"\rTime: {current_episode_time:.2f}s | Step ID: {current_step}/{num_data_step-1}", end="")
+
+            # we will use the action, not the state data
+            step_data = episode["data"][current_step]["actions"]
+
+            # 7 degree
+            left_arm_pos = step_data["left_arm"]["qpos"]
+            right_arm_pos = step_data["right_arm"]["qpos"]
+            # 6 degree # 注意，因时的qpos已经0,1 norm了，这里的vis应该是不准的
+            """
+            robot_hand_inspire.py -> hand_retargeting.py
+                self.left_inspire_api_joint_names  = [
+                    'L_pinky_proximal_joint',
+                    'L_ring_proximal_joint',
+                    'L_middle_proximal_joint',
+                    'L_index_proximal_joint',
+                    'L_thumb_proximal_pitch_joint',
+                    'L_thumb_proximal_yaw_joint' ]
+            """
+            left_ee_pos = np.array(step_data["left_ee"]["qpos"])
+            left_ee_pos = left_ee_pos[left_inspire_api_to_urdf_index]
+            right_ee_pos = np.array(step_data["right_ee"]["qpos"])
+            right_ee_pos = right_ee_pos[right_inspire_api_to_urdf_index]
+
+            target_q = np.zeros((26, ), dtype=np.float32)
+            target_q[:7] = left_arm_pos
+            target_q[7:13] = left_ee_pos
+            target_q[13:20] = right_arm_pos
+            target_q[20:] = right_ee_pos
+
+            vis_model.vis.display(target_q)
+
+            current_step += 1
+
+        # 确保在args.fps以下play
+        current_time = time.time()
+        time_elapsed = current_time - start_time
+        sleep_time = max(0, (1 / args.fps) - time_elapsed)
+        time.sleep(sleep_time)
+
+    print("\nReplay finished.")
