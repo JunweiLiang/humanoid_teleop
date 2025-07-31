@@ -12,6 +12,7 @@ from pinocchio.robot_wrapper import RobotWrapper
 from pinocchio.visualize import MeshcatVisualizer
 import os
 import sys
+import threading
 
 parser = argparse.ArgumentParser()
 
@@ -198,6 +199,62 @@ class G1_29_Vis_Episode:
 
         self.vis.display(pin.neutral(self.reduced_robot.model))
 
+        self.paused = False
+        self.current_step = 0
+        self.total_steps = 0
+        self.fps = fps
+        self.lock = threading.Lock()
+
+    def update_display_text(self):
+        with self.lock:
+            current_time_display = self.current_step / self.fps
+            self.vis.viewer["info"].set_object(
+                mg.Text(f"Time: {current_time_display:.2f}s | Step: {self.current_step}/{self.total_steps}",
+                        height=0.1))
+            self.vis.viewer["info"].set_transform(
+                mg.Translation(0.5, 0, 0.5)
+            ) # Adjust position as needed
+
+    def process_key_event(self, event):
+        if event.key == "s":
+            with self.lock:
+                self.paused = not self.paused
+                print(f"Playback {'paused' if self.paused else 'resumed'}")
+        elif self.paused:
+            if event.key == "-":
+                with self.lock:
+                    self.current_step = max(0, self.current_step - 10)
+                    print(f"Jumped back to step {self.current_step}")
+                    self.display_current_frame()
+            elif event.key == "+":
+                with self.lock:
+                    self.current_step = min(self.total_steps - 1, self.current_step + 10)
+                    print(f"Jumped forward to step {self.current_step}")
+                    self.display_current_frame()
+
+    def display_current_frame(self):
+        # This function will be called to update the robot's pose based on current_step
+        # You'll need access to the `episode` data here.
+        # For simplicity, let's assume `self.episode_data` holds the loaded episode.
+        if self.current_step < self.total_steps:
+            step_data = self.episode_data["data"][self.current_step]["actions"]
+
+            left_arm_pos = step_data["left_arm"]["qpos"]
+            right_arm_pos = step_data["right_arm"]["qpos"]
+
+            left_ee_pos = np.array(step_data["left_ee"]["qpos"])
+            left_ee_pos = left_ee_pos[left_inspire_api_to_urdf_index]
+            right_ee_pos = np.array(step_data["right_ee"]["qpos"])
+            right_ee_pos = right_ee_pos[right_inspire_api_to_urdf_index]
+
+            target_q = np.zeros((26, ), dtype=np.float32)
+            target_q[:7] = left_arm_pos
+            target_q[7:13] = left_ee_pos
+            target_q[13:20] = right_arm_pos
+            target_q[20:] = right_ee_pos
+
+            self.vis.display(target_q)
+            self.update_display_text()
 
 left_inspire_api_joint_names = [
     'L_pinky_proximal_joint',
@@ -246,45 +303,25 @@ if __name__ == "__main__":
 
     # load the episode
     episode = json.load(open(args.episode_json))
+    vis_model.episode_data = episode # Store episode data for access in display_current_frame
 
     num_data_step = len(episode["data"])
+    vis_model.total_steps = num_data_step
     print("total %d data steps, it should be %.2f seconds long" % (num_data_step, num_data_step/args.fps))
 
-    for i in range(num_data_step):
-        start_time = time.time()
+    # Set up keyboard callback
+    vis_model.vis.viewer.on_render(vis_model.process_key_event)
+    vis_model.vis.viewer["info"].set_object(mg.Text("Loading...", height=0.1))
 
-        # we will use the action, not the state data
-        step_data = episode["data"][i]["actions"]
 
-        # 7 degree
-        left_arm_pos = step_data["left_arm"]["qpos"]
-        right_arm_pos = step_data["right_arm"]["qpos"]
-        # 6 degree # 注意，因时的qpos已经0,1 norm了，这里的vis应该是不准的
-        """
-        robot_hand_inspire.py -> hand_retargeting.py
-            self.left_inspire_api_joint_names  = [
-                'L_pinky_proximal_joint',
-                'L_ring_proximal_joint',
-                'L_middle_proximal_joint',
-                'L_index_proximal_joint',
-                'L_thumb_proximal_pitch_joint',
-                'L_thumb_proximal_yaw_joint' ]
-        """
-        left_ee_pos = np.array(step_data["left_ee"]["qpos"])
-        left_ee_pos = left_ee_pos[left_inspire_api_to_urdf_index]
-        right_ee_pos = np.array(step_data["right_ee"]["qpos"])
-        right_ee_pos = right_ee_pos[right_inspire_api_to_urdf_index]
+    while True:
+        with vis_model.lock:
+            if not vis_model.paused:
+                if vis_model.current_step < num_data_step:
+                    vis_model.display_current_frame()
+                    vis_model.current_step += 1
+                else:
+                    print("Episode finished.")
+                    vis_model.paused = True # Pause at the end
 
-        target_q = np.zeros((26, ), dtype=np.float32)
-        target_q[:7] = left_arm_pos
-        target_q[7:13] = left_ee_pos
-        target_q[13:20] = right_arm_pos
-        target_q[20:] = right_ee_pos
-
-        vis_model.vis.display(target_q)
-
-        # 确保在args.fps以下play
-        current_time = time.time()
-        time_elapsed = current_time - start_time
-        sleep_time = max(0, (1 / args.fps) - time_elapsed)
-        time.sleep(sleep_time)
+        time.sleep(1 / args.fps)
