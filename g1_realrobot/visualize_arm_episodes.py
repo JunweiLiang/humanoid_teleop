@@ -322,7 +322,7 @@ if __name__ == "__main__":
                         paused = not paused
                         print(f"\n{'Paused' if paused else 'Resumed'} replay.")
                         s_pressed_handled = True
-                elif char == '+':
+                elif char == ',':
                     if paused and not plus_pressed_handled:
                         current_step = min(num_data_step - 1, current_step + 10)
                         print(f"\nStepped forward to step {current_step}")
@@ -331,7 +331,7 @@ if __name__ == "__main__":
                         show_current_q(vis_model, step_data)
 
                         plus_pressed_handled = True
-                elif char == '-':
+                elif char == '.':
                     if paused and not minus_pressed_handled:
                         current_step = max(0, current_step - 10)
                         print(f"\nStepped back to step {current_step}")
