@@ -275,7 +275,7 @@ if __name__ == "__main__":
         right_ee_pos = np.array(step_data["right_ee"]["qpos"])
         right_ee_pos = right_ee_pos[right_inspire_api_to_urdf_index]
 
-        target_q = np.zeros((26, ), type=np.float)
+        target_q = np.zeros((26, ), type=np.float32)
         target_q[:7] = left_arm_pos
         target_q[7:13] = left_ee_pos
         target_q[13:20] = right_arm_pos
