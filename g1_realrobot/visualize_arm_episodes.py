@@ -287,7 +287,7 @@ def show_current_q(vis_model, step_data):
     target_q[13:20] = right_arm_pos
     target_q[20:] = right_ee_pos
 
-    vis_model.vis.display(target_q, step_data)
+    vis_model.vis.display(target_q)
 
 
 if __name__ == "__main__":
