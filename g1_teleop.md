@@ -357,6 +357,26 @@ exts."isaacsim.asset.browser".folders = [
                                         [-0.8431334523569074, 0.3125219682813758, -0.3504520738550948, 1.1770103578690738, 0.7314618342210563, -0.25334802959393105, 1.2331182185156233]
                                             # 获取qpos各个数字，和URDF joint名字的对应关系
                                             # 这里得到的qpos顺序，就是直接solve_ik的sol_q，from robot_control/robot_arm_id.py
+                                                14个顺序：
+                                                    Joints in Reduced Robot:
+                                                    Joint ID 0: universe
+                                                    Joint ID 1: left_shoulder_pitch_joint
+                                                    Joint ID 2: left_shoulder_roll_joint
+                                                    Joint ID 3: left_shoulder_yaw_joint
+                                                    Joint ID 4: left_elbow_joint
+                                                    Joint ID 5: left_wrist_roll_joint
+                                                    Joint ID 6: left_wrist_pitch_joint
+                                                    Joint ID 7: left_wrist_yaw_joint
+                                                    Joint ID 8: right_shoulder_pitch_joint
+                                                    Joint ID 9: right_shoulder_roll_joint
+                                                    Joint ID 10: right_shoulder_yaw_joint
+                                                    Joint ID 11: right_elbow_joint
+                                                    Joint ID 12: right_wrist_roll_joint
+                                                    Joint ID 13: right_wrist_pitch_joint
+                                                    Joint ID 14: right_wrist_yaw_joint
+                                                    reduced_robot.model.nq:14
+                                                可以通过注释visualize_arm_episodes.py查看
+                                                    (g1) junweil@office-precognition:~/projects/humanoid_teleop$ python g1_realrobot/visualize_arm_episodes.py ~/Downloads/g1_geishou_data.json assets/g1/g1_body29_hand14.urdf --fps 60
 
                                         # 因时的手是6自由度
                                         >>> a["data"][1]["actions"]["left_ee"]["qpos"]

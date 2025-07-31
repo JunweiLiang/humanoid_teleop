@@ -19,6 +19,34 @@ parser.add_argument("episode_json")
 parser.add_argument("urdf")
 parser.add_argument("--fps", type=float, default="60", help="the episode is recored in this fps, so we play in this fps")
 
+""" # joint id for reduced g1 with inspire hand
+Joint ID 1: left_shoulder_pitch_joint
+Joint ID 2: left_shoulder_roll_joint
+Joint ID 3: left_shoulder_yaw_joint
+Joint ID 4: left_elbow_joint
+Joint ID 5: left_wrist_roll_joint
+Joint ID 6: left_wrist_pitch_joint
+Joint ID 7: left_wrist_yaw_joint
+Joint ID 8: L_index_proximal_joint
+Joint ID 9: L_middle_proximal_joint
+Joint ID 10: L_pinky_proximal_joint
+Joint ID 11: L_ring_proximal_joint
+Joint ID 12: L_thumb_proximal_yaw_joint
+Joint ID 13: L_thumb_proximal_pitch_joint
+Joint ID 14: right_shoulder_pitch_joint
+Joint ID 15: right_shoulder_roll_joint
+Joint ID 16: right_shoulder_yaw_joint
+Joint ID 17: right_elbow_joint
+Joint ID 18: right_wrist_roll_joint
+Joint ID 19: right_wrist_pitch_joint
+Joint ID 20: right_wrist_yaw_joint
+Joint ID 21: R_index_proximal_joint
+Joint ID 22: R_middle_proximal_joint
+Joint ID 23: R_pinky_proximal_joint
+Joint ID 24: R_ring_proximal_joint
+Joint ID 25: R_thumb_proximal_yaw_joint
+Joint ID 26: R_thumb_proximal_pitch_joint
+"""
 class G1_29_Vis_Episode:
     def __init__(self, urdf, fps=60):
 
@@ -85,6 +113,9 @@ class G1_29_Vis_Episode:
             #"R_middle_proximal_joint",
             "R_middle_intermediate_joint"
         ]
+        # fixed joint from xr_teleoperate/teleop/robot_control/robot_arm_ik.py
+        # use g1_body29_hand14.urdf
+        """
         self.mixed_jointsToLockIDs = [
                                         "left_hip_pitch_joint" ,
                                         "left_hip_roll_joint" ,
@@ -119,6 +150,7 @@ class G1_29_Vis_Episode:
                                         "right_hand_middle_0_joint",
                                         "right_hand_middle_1_joint"
                                     ]
+        """
 
         # https://docs.ros.org/en/kinetic/api/pinocchio/html/classpinocchio_1_1robot__wrapper_1_1RobotWrapper.html#aef341b27b4709b03c93d66c8c196bc0f
         # the above joint will be locked, at 0.0
@@ -128,6 +160,7 @@ class G1_29_Vis_Episode:
         )
 
         #debugging printouts
+        """
         print("reduced_robot.model.nframes")
         for i in range(self.reduced_robot.model.nframes):
             frame = self.reduced_robot.model.frames[i]
@@ -149,6 +182,7 @@ class G1_29_Vis_Episode:
 
         print("reduced_robot.model.nq:%s" % self.reduced_robot.model.nq)
         sys.exit()
+        """
 
 
         self.init_data = np.zeros(self.reduced_robot.model.nq)
@@ -165,7 +199,45 @@ class G1_29_Vis_Episode:
         self.vis.display(pin.neutral(self.reduced_robot.model))
 
 
+left_inspire_api_joint_names = [
+    'L_pinky_proximal_joint',
+    'L_ring_proximal_joint',
+    'L_middle_proximal_joint',
+    'L_index_proximal_joint',
+    'L_thumb_proximal_pitch_joint',
+    'L_thumb_proximal_yaw_joint' ]
 
+left_inspire_urdf_joint_names = [
+    'L_index_proximal_joint',
+    'L_middle_proximal_joint',
+    'L_pinky_proximal_joint',
+    'L_ring_proximal_joint',
+    'L_thumb_proximal_yaw_joint',
+    'L_thumb_proximal_pitch_joint',
+]
+left_inspire_api_to_urdf_index = [
+    left_inspire_api_joint_names.index(name)
+    for name in left_inspire_urdf_joint_names]
+
+right_inspire_api_joint_names = [
+    'R_pinky_proximal_joint',
+    'R_ring_proximal_joint',
+    'R_middle_proximal_joint',
+    'R_index_proximal_joint',
+    'R_thumb_proximal_pitch_joint',
+    'R_thumb_proximal_yaw_joint' ]
+
+right_inspire_urdf_joint_names = [
+    'R_index_proximal_joint',
+    'R_middle_proximal_joint',
+    'R_pinky_proximal_joint',
+    'R_ring_proximal_joint',
+    'R_thumb_proximal_yaw_joint',
+    'R_thumb_proximal_pitch_joint',
+]
+right_inspire_api_to_urdf_index = [
+    right_inspire_api_joint_names.index(name)
+    for name in right_inspire_urdf_joint_names]
 
 if __name__ == "__main__":
     args = parser.parse_args()
@@ -198,10 +270,16 @@ if __name__ == "__main__":
                 'L_thumb_proximal_pitch_joint',
                 'L_thumb_proximal_yaw_joint' ]
         """
-        left_ee_pos = step_data["left_ee"]["qpos"]
-        right_ee_pos = step_data["right_ee"]["qpos"]
+        left_ee_pos = np.array(step_data["left_ee"]["qpos"])
+        left_ee_pos = left_ee_pos[left_inspire_api_to_urdf_index]
+        right_ee_pos = np.array(step_data["right_ee"]["qpos"])
+        right_ee_pos = right_ee_pos[right_inspire_api_to_urdf_index]
 
-        target_q = np.concatenate((left_arm_pos, right_arm_pos, left_ee_pos, right_ee_pos))
+        target_q = np.zeros((26, ), type=np.float)
+        target_q[:7] = left_arm_pos
+        target_q[7:13] = left_ee_pos
+        target_q[13:20] = right_arm_pos
+        target_q[20:] = right_ee_pos
 
         vis_model.vis.display(target_q)
 
