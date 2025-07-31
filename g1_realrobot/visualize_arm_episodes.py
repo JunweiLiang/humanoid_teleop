@@ -241,96 +241,126 @@ right_inspire_urdf_joint_names = [
 right_inspire_api_to_urdf_index = [
     right_inspire_api_joint_names.index(name)
     for name in right_inspire_urdf_joint_names]
+# Global variable to store old terminal settings
+old_terminal_settings = None
+
+def set_terminal_cbreak():
+    """Sets the terminal to cbreak mode and saves old settings."""
+    global old_terminal_settings
+    fd = sys.stdin.fileno()
+    old_terminal_settings = termios.tcgetattr(fd)
+    tty.setcbreak(fd)
+
+def restore_terminal_settings():
+    """Restores the terminal to its original settings."""
+    global old_terminal_settings
+    if old_terminal_settings is not None:
+        fd = sys.stdin.fileno()
+        termios.tcsetattr(fd, termios.TCSADRAIN, old_terminal_settings)
+        old_terminal_settings = None # Clear after restoring
 
 def get_char_nonblocking():
-    """Reads a single character from stdin without blocking."""
-    # This implementation is for POSIX systems (Linux, macOS)
-    # For Windows, you'd typically use msvcrt.kbhit() and msvcrt.getch()
-    # To keep it somewhat cross-platform, we'll assume a Unix-like environment
-    # where select and tty are available.
-    try:
-        fd = sys.stdin.fileno()
-        old_settings = termios.tcgetattr(fd)
-        tty.setcbreak(fd)
-        if select.select([sys.stdin], [], [], 0) == ([sys.stdin], [], []):
-            return sys.stdin.read(1)
-        else:
+    """Reads a single character from stdin without blocking, for Unix-like systems."""
+    fd = sys.stdin.fileno()
+    # Check if data is available for reading
+    if select.select([sys.stdin], [], [], 0) == ([sys.stdin], [], []):
+        try:
+            char = sys.stdin.read(1)
+            return char
+        except IOError:
+            # This can happen if stdin is closed or other issues
             return None
-    finally:
-        termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
-
+    return None
 
 if __name__ == "__main__":
     args = parser.parse_args()
 
     vis_model = G1_29_Vis_Episode(urdf=args.urdf, fps=args.fps)
 
-    # load the episode
     episode = json.load(open(args.episode_json))
-
     num_data_step = len(episode["data"])
     print("total %d data steps, it should be %.2f seconds long" % (num_data_step, num_data_step/args.fps))
 
     current_step = 0
     paused = False
 
-    while current_step < num_data_step:
-        start_time = time.time()
+    # Keep track of key press states to avoid multiple triggers on hold
+    s_pressed_handled = False
+    plus_pressed_handled = False
+    minus_pressed_handled = False
 
-        char = get_char_nonblocking()
-        if char is not None:
-            if char == 's':
-                paused = not paused
-                print(f"\n{'Paused' if paused else 'Resumed'} replay.")
-            elif paused:
-                if char == '+':
-                    current_step = min(num_data_step - 1, current_step + 10)
-                    print(f"\nStepped forward to step {current_step}")
+    # Set terminal to cbreak mode at the start
+    set_terminal_cbreak()
+
+    try:
+        while current_step < num_data_step:
+            start_time = time.time()
+
+            char = get_char_nonblocking()
+            if char is not None:
+                # print(f"Key pressed: '{char}'") # For debugging input
+                if char == 's':
+                    if not s_pressed_handled:
+                        paused = not paused
+                        print(f"\n{'Paused' if paused else 'Resumed'} replay.")
+                        s_pressed_handled = True
+                elif char == '+':
+                    if paused and not plus_pressed_handled:
+                        current_step = min(num_data_step - 1, current_step + 10)
+                        print(f"\nStepped forward to step {current_step}")
+                        plus_pressed_handled = True
                 elif char == '-':
-                    current_step = max(0, current_step - 10)
-                    print(f"\nStepped back to step {current_step}")
+                    if paused and not minus_pressed_handled:
+                        current_step = max(0, current_step - 10)
+                        print(f"\nStepped back to step {current_step}")
+                        minus_pressed_handled = True
+                # Handle Ctrl+C (ASCII 3) or Ctrl+D (ASCII 4) to exit cleanly
+                elif ord(char) == 3 or ord(char) == 4:
+                    print("\nExiting replay.")
+                    break # Exit the loop
 
-        if not paused:
-            # Display current time and step ID
-            current_episode_time = current_step / args.fps
-            print(f"\rTime: {current_episode_time:.2f}s | Step ID: {current_step}/{num_data_step-1}", end="")
+            # Reset handled flags if keys are released
+            if char != 's':
+                s_pressed_handled = False
+            if char != '+':
+                plus_pressed_handled = False
+            if char != '-':
+                minus_pressed_handled = False
 
-            # we will use the action, not the state data
-            step_data = episode["data"][current_step]["actions"]
 
-            # 7 degree
-            left_arm_pos = step_data["left_arm"]["qpos"]
-            right_arm_pos = step_data["right_arm"]["qpos"]
-            # 6 degree # 注意，因时的qpos已经0,1 norm了，这里的vis应该是不准的
-            """
-            robot_hand_inspire.py -> hand_retargeting.py
-                self.left_inspire_api_joint_names  = [
-                    'L_pinky_proximal_joint',
-                    'L_ring_proximal_joint',
-                    'L_middle_proximal_joint',
-                    'L_index_proximal_joint',
-                    'L_thumb_proximal_pitch_joint',
-                    'L_thumb_proximal_yaw_joint' ]
-            """
-            left_ee_pos = np.array(step_data["left_ee"]["qpos"])
-            left_ee_pos = left_ee_pos[left_inspire_api_to_urdf_index]
-            right_ee_pos = np.array(step_data["right_ee"]["qpos"])
-            right_ee_pos = right_ee_pos[right_inspire_api_to_urdf_index]
+            if not paused:
+                current_episode_time = current_step / args.fps
+                # Use sys.stdout.write for finer control and avoid print's buffering issues
+                sys.stdout.write(f"\rTime: {current_episode_time:.2f}s | Step ID: {current_step}/{num_data_step-1}")
+                sys.stdout.flush() # Ensure it's written immediately
 
-            target_q = np.zeros((26, ), dtype=np.float32)
-            target_q[:7] = left_arm_pos
-            target_q[7:13] = left_ee_pos
-            target_q[13:20] = right_arm_pos
-            target_q[20:] = right_ee_pos
+                step_data = episode["data"][current_step]["actions"]
+                left_arm_pos = step_data["left_arm"]["qpos"]
+                right_arm_pos = step_data["right_arm"]["qpos"]
+                left_ee_pos = np.array(step_data["left_ee"]["qpos"])
+                left_ee_pos = left_ee_pos[left_inspire_api_to_urdf_index]
+                right_ee_pos = np.array(step_data["right_ee"]["qpos"])
+                right_ee_pos = right_ee_pos[right_inspire_api_to_urdf_index]
 
-            vis_model.vis.display(target_q)
+                target_q = np.zeros((26, ), dtype=np.float32)
+                target_q[:7] = left_arm_pos
+                target_q[7:13] = left_ee_pos
+                target_q[13:20] = right_arm_pos
+                target_q[20:] = right_ee_pos
 
-            current_step += 1
+                vis_model.vis.display(target_q)
+                current_step += 1
 
-        # 确保在args.fps以下play
-        current_time = time.time()
-        time_elapsed = current_time - start_time
-        sleep_time = max(0, (1 / args.fps) - time_elapsed)
-        time.sleep(sleep_time)
+            # Ensure consistent frame rate
+            current_time = time.time()
+            time_elapsed = current_time - start_time
+            sleep_time = max(0, (1 / args.fps) - time_elapsed)
+            time.sleep(sleep_time)
 
-    print("\nReplay finished.")
+    except Exception as e:
+        print(f"\nAn error occurred: {e}")
+    finally:
+        # Always restore terminal settings before exiting
+        restore_terminal_settings()
+        print("\nReplay finished.")
+
