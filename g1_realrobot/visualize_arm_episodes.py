@@ -3,12 +3,11 @@
 Given a json episode of two arms (collected using xr_teleoperate), visualize in meshcat
 """
 import argparse
-import casadi
+import json
 import meshcat.geometry as mg
 import numpy as np
 import pinocchio as pin
 import time
-from pinocchio import casadi as cpin
 from pinocchio.robot_wrapper import RobotWrapper
 from pinocchio.visualize import MeshcatVisualizer
 import os
@@ -18,11 +17,161 @@ parser = argparse.ArgumentParser()
 
 parser.add_argument("episode_json")
 parser.add_argument("urdf")
+parser.add_argument("--fps", type=float, default="60", help="the episode is recored in this fps, so we play in this fps")
+
+class G1_29_Vis_Episode:
+    def __init__(self, urdf, fps=60):
+
+        np.set_printoptions(precision=5, suppress=True, linewidth=200)
+
+        self.robot = pin.RobotWrapper.BuildFromURDF(urdf, os.path.dirname(urdf))
+
+        self.mixed_jointsToLockIDs = [
+            # 固定下半身
+            "left_hip_pitch_joint" ,
+            "left_hip_roll_joint" ,
+            "left_hip_yaw_joint" ,
+            "left_knee_joint" ,
+            "left_ankle_pitch_joint" ,
+            "left_ankle_roll_joint" ,
+            "right_hip_pitch_joint" ,
+            "right_hip_roll_joint" ,
+            "right_hip_yaw_joint" ,
+            "right_knee_joint" ,
+            "right_ankle_pitch_joint" ,
+            "right_ankle_roll_joint" ,
+            "waist_yaw_joint" ,
+            "waist_roll_joint" ,
+            "waist_pitch_joint",
+
+
+            # 单手URDF里，12个自由度，4个手指每个2个所以8个，剩4个自由度在拇指
+            # 实机单手只有6自由度，每个手指一个，拇指2个
+
+            # 这六个是主动关节， 我们锁定其他的被动关节
+            # 遥操作的时候也只有6个主动关节的数据
+            #'R_thumb_proximal_yaw_joint',
+            #'R_thumb_proximal_pitch_joint',
+            #'R_index_proximal_joint',
+            #'R_middle_proximal_joint',
+            #'R_ring_proximal_joint',
+            #'R_pinky_proximal_joint'
+
+            # 左手关节
+            #"L_pinky_proximal_joint",
+            "L_pinky_intermediate_joint",
+            #"L_ring_proximal_joint",
+            "L_ring_intermediate_joint",
+            "L_thumb_intermediate_joint",
+            #"L_thumb_proximal_yaw_joint",
+            #"L_thumb_proximal_pitch_joint",
+            "L_thumb_distal_joint",
+            #"L_middle_proximal_joint",
+            "L_middle_intermediate_joint",
+            #"L_index_proximal_joint",
+            "L_index_intermediate_joint",
+
+            # 右手关节（已更新）
+            #"R_pinky_proximal_joint",
+            "R_pinky_intermediate_joint",
+            #"R_ring_proximal_joint",
+            "R_ring_intermediate_joint",
+            "R_thumb_intermediate_joint",
+            #"R_thumb_proximal_yaw_joint",
+            #"R_thumb_proximal_pitch_joint",
+            "R_thumb_distal_joint",
+            #"R_index_proximal_joint",
+            "R_index_intermediate_joint",
+            #"R_middle_proximal_joint",
+            "R_middle_intermediate_joint"
+        ]
+
+        # https://docs.ros.org/en/kinetic/api/pinocchio/html/classpinocchio_1_1robot__wrapper_1_1RobotWrapper.html#aef341b27b4709b03c93d66c8c196bc0f
+        # the above joint will be locked, at 0.0
+        self.reduced_robot = self.robot.buildReducedRobot(
+            list_of_joints_to_lock=self.mixed_jointsToLockIDs,
+            reference_configuration=np.array([0.0] * self.robot.model.nq),
+        )
+
+        #debugging printouts
+        for i in range(self.reduced_robot.model.nframes):
+            frame = self.reduced_robot.model.frames[i]
+            frame_id = self.reduced_robot.model.getFrameId(frame.name)
+            print(f"Frame ID: {frame_id}, Name: {frame.name}")
+
+        #assert len(self.reduced_robot.model.frames) == len(self.reduced_robot.data.oMf), \
+        #    f"Mismatch: {len(self.reduced_robot.model.frames)} frames vs. {len(self.reduced_robot.data.oMf)} transformations"
+
+        # Print all joints in the original robot model
+        print("All Joints in Original Robot:")
+        for idx, joint in enumerate(self.robot.model.names):
+            print(f"Joint ID {idx}: {joint}")
+
+        # Print joints in the reduced robot model
+        print("\nJoints in Reduced Robot:")
+        for idx, joint in enumerate(self.reduced_robot.model.names):
+            print(f"Joint ID {idx}: {joint}")
+
+        print("reduced_robot.mode.nq:%s" % self.reduced_robot.model.nq)
+        sys.exit()
+
+
+        self.init_data = np.zeros(self.reduced_robot.model.nq)
+
+        self.current_q = np.zeros(self.reduced_robot.model.nq) # used to save the current q
+
+
+        # Initialize the Meshcat visualizer for visualization
+        self.vis = MeshcatVisualizer(
+            self.reduced_robot.model, self.reduced_robot.collision_model, self.reduced_robot.visual_model)
+        self.vis.initViewer(open=True)
+        self.vis.loadViewerModel("pinocchio")
+
+        self.vis.display(pin.neutral(self.reduced_robot.model))
+
+
+
 
 if __name__ == "__main__":
     args = parser.parse_args()
 
-    # -----------   定义右手初始姿态
-    #urdf_path = args.urdf
-    down_target = np.zeros(7)
-    arm_ik = G1_29_ArmIK(urdf=args.urdf, visualization=True, start_q=down_target)
+    vis_model = G1_29_Vis_Episode(urdf=args.urdf, fps=args.fps)
+
+    # load the episode
+    episode = json.load(open(args.episode_json))
+
+    num_data_step = len(episode["data"])
+    print("total %d data steps, it should be %.2f seconds long" % (num_data_step, num_data_step/args.fps))
+
+    for i in range(num_data_step):
+        start_time = time.time()
+
+        # we will use the action, not the state data
+        step_data = episode["data"][i]["action"]
+
+        # 7 degree
+        left_arm_pos = step_data["left_arm"]["qpos"]
+        right_arm_pos = step_data["right_arm"]["qpos"]
+        # 6 degree # 注意，因时的qpos已经0,1 norm了，这里的vis应该是不准的
+        """
+        robot_hand_inspire.py -> hand_retargeting.py
+            self.left_inspire_api_joint_names  = [
+                'L_pinky_proximal_joint',
+                'L_ring_proximal_joint',
+                'L_middle_proximal_joint',
+                'L_index_proximal_joint',
+                'L_thumb_proximal_pitch_joint',
+                'L_thumb_proximal_yaw_joint' ]
+        """
+        left_ee_pos = step_data["left_ee"]["qpos"]
+        right_ee_pos = step_data["right_ee"]["qpos"]
+
+        target_q = np.concatenate((left_arm_pos, right_arm_pos, left_ee_pos, right_ee_pos))
+
+        vis_model.vis.display(target_q)
+
+        # 确保在args.fps以下play
+        current_time = time.time()
+        time_elapsed = current_time - start_time
+        sleep_time = max(0, (1 / args.fps) - time_elapsed)
+        time.sleep(sleep_time)

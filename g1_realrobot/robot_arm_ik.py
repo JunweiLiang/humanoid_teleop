@@ -82,6 +82,17 @@ class G1_29_ArmIK:
                                         "left_wrist_roll_joint",
                                         "left_wrist_yaw_joint",
 
+                                        # 单手URDF里，12个自由度，4个手指每个2个所以8个，剩4个自由度在拇指
+                                        # 实机单手只有6自由度，每个手指一个，拇指2个
+
+                                        # 这六个是主动关节
+                                        #'R_thumb_proximal_yaw_joint',
+                                        #'R_thumb_proximal_pitch_joint',
+                                        #'R_index_proximal_joint',
+                                        #'R_middle_proximal_joint',
+                                        #'R_ring_proximal_joint',
+                                        #'R_pinky_proximal_joint'
+
                                         # 左手关节（已更新）
                                         "L_pinky_proximal_joint",
                                         "L_pinky_intermediate_joint",

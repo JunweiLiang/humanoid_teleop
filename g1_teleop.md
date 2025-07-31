@@ -158,6 +158,7 @@ exts."isaacsim.asset.browser".folders = [
 
                         # 查明原因了，是CPU太弱了，把 CPU设置到更高频率，hz提升了
                             # office 提升到 10.7 Hz, average loop time 94ms
+                                # 去bios里把cpu超线程关了(SMT)，htop看32核心变成16核心，好像快一丢丢，变成91ms, 11 Hz
 
                             $ sudo apt install cpufrequtils
                             (base) junweil@office-precognition:~$ cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_available_governors
@@ -354,11 +355,56 @@ exts."isaacsim.asset.browser".folders = [
                                         # 7自由度手臂
                                         >>> a["data"][1]["actions"]["left_arm"]["qpos"]
                                         [-0.8431334523569074, 0.3125219682813758, -0.3504520738550948, 1.1770103578690738, 0.7314618342210563, -0.25334802959393105, 1.2331182185156233]
+                                            # 获取qpos各个数字，和URDF joint名字的对应关系
+                                            # 这里得到的qpos顺序，就是直接solve_ik的sol_q，from robot_control/robot_arm_id.py
+
                                         # 因时的手是6自由度
                                         >>> a["data"][1]["actions"]["left_ee"]["qpos"]
                                         [0.9392543494333019, 0.9665400978589515, 0.9799967298529748, 0.8853130570344678, 0.5909996522300536, 0.7740214705733652]
+                                        # 但其实URDF中因时手是12自由度，
+                                            # xr_teleoperate/assets/inspire_hand/inspire_hand.yml
+                                            # 有写宇树如何retarget
+                                                robot_hand_inspire.py -> hand_retargeting.py
+                                                self.left_inspire_api_joint_names  = [
+                                                    'L_pinky_proximal_joint',
+                                                    'L_ring_proximal_joint',
+                                                    'L_middle_proximal_joint',
+                                                    'L_index_proximal_joint',
+                                                    'L_thumb_proximal_pitch_joint',
+                                                    'L_thumb_proximal_yaw_joint' ]
 
                                     # 数据没有timestamp的，data frequency在teleop_hand_and_arm.py中设定默认60 fps，这应该是最大值
+
+                            # 遥操作代码解读
+                                手部获取这两个信息:
+                                    left_hand_pos_array, 75 -> 25x3
+                                    OpenXR标准，代码在 teleop/televuer/src/televuer/tv_wrapper.py
+                                    进行了坐标转换，从WORLD to HEAD，to WAIST，也就是G1自己的原点
+                                    # OpenXR的手的25个id, 包括wrist，用于计算ee IK
+                                        # https://registry.khronos.org/OpenXR/specs/1.1/man/html/openxr.html
+                                        # 25个点参考这个图: https://docs.unity.cn/Packages/com.unity.xr.hands@1.2/manual/hand-data/xr-hand-data-model.html
+
+                                手部信息在循环中存储到 left_hand_pos_array
+                                然后 Inspire_Controller 以最高100 Hz，获取hand_pos_array，
+                                    然后retarget到机器手的这个，因时就是12维度， 6x2
+                                        dual_hand_state_array, dual_hand_action_array
+
+                                    # teleop/robot_control/robot_hand_inspire.py
+                                        # --> retarget 代码在teleop/robot_control/hand_retargeting.py
+                                        # 用的是DexPilot 算法：teleop/robot_control/dex-retargeting/src/dex_retargeting/retargeting_config.py -> build(), 用urdf算
+                                            # https://github.com/dexsuite/dex-retargeting
+                                            # 根据这个config，定义了人手的相对大小: assets/inspire_hand/inspire_hand.xml
+
+                                        # build()的时候只是初始化optimizer，在robot_hand_inspire.py的100Hz loop中跑retarget() function的时候返回robot_qpos
+                                            # 自由度的顺序，根据 robot_hand_inspire.py -> hand_retargeting.py 的self.left_inspire_api_joint_names
+                                                self.left_inspire_api_joint_names  = [
+                                                    'L_pinky_proximal_joint',
+                                                    'L_ring_proximal_joint',
+                                                    'L_middle_proximal_joint',
+                                                    'L_index_proximal_joint',
+                                                    'L_thumb_proximal_pitch_joint',
+                                                    'L_thumb_proximal_yaw_joint' ]
+
                 # replay!!
 
                     # 基础知识
@@ -378,11 +424,15 @@ exts."isaacsim.asset.browser".folders = [
 
                             junweiliang@work_laptop:~/Desktop/github_projects/humanoid_teleop/assets/g1$ python ~/Desktop/github_projects/humanoid_teleop/g1_realrobot/urdf_viewer.py g1_body29_hand14.urdf
 
+                            # 宇树g1_comp，23自由度无手
+                                junweiliang@work_laptop:~/Desktop/github_projects/humanoid_teleop/assets/g1$ python ~/Desktop/github_projects/humanoid_teleop/g1_realrobot/urdf_viewer.py g1_comp.urdf
+
                         # 宇树加因时灵巧手
                             # 单手URDF里，12个自由度，4个手指每个2个所以8个，剩4个自由度在拇指
-                                # 实机单手只有6自由度，每个手指一个，拇指2个
-                                    junweiliang@work_laptop:~/Desktop/github_projects/humanoid_teleop/assets/g1$ python ~/Desktop/github_projects/humanoid_teleop/g1_realrobot/urdf_viewer.py g1_body29_inspired_hand.urdf
+                            # 实机单手只有6自由度，每个手指一个，拇指2个
+                                junweiliang@work_laptop:~/Desktop/github_projects/humanoid_teleop/assets/g1$ python ~/Desktop/github_projects/humanoid_teleop/g1_realrobot/urdf_viewer.py g1_body29_inspired_hand.urdf
 
+                        # replay!
 
             # 实机中replay一下看看
                 # 需要用到 arm_sdk topic。下肢应该只能用主运控. 向 rt/arm_sdk 话题发送 LowCmd 类型的消息
