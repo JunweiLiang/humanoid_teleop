@@ -283,9 +283,9 @@ def show_current_q(vis_model, step_data):
 
     target_q = np.zeros((26, ), dtype=np.float32)
     target_q[:7] = left_arm_pos
-    target_q[7:13] = left_ee_pos
+    target_q[7:13] = left_ee_pos*1.5
     target_q[13:20] = right_arm_pos
-    target_q[20:] = right_ee_pos
+    target_q[20:] = right_ee_pos*1.5
 
     vis_model.vis.display(target_q)
 

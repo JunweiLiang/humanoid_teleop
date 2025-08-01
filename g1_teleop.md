@@ -461,6 +461,61 @@ exts."isaacsim.asset.browser".folders = [
                             # replay
                                 (g1) junweil@office-precognition:~/projects/humanoid_teleop$ python g1_realrobot/visualize_arm_episodes.py ~/Downloads/g1_geishou_data.json assets/g1/g1_body29_inspired_hand.urdf --fps 60
 
+                                按s开始暂停， ,.前后10step看
+
+                # 重新再跑一次，我们不需要手腕的 RGB, 而且quest 3可以连接学校的wifi内网
+                    # 修改 unitree_sim_isaaclab/tasks/g1_tasks/pick_place_cylinder_g1_29dof_inspire
+                        # 或其他对应的task cfg文件
+
+                        # junwei: 不需要wrist camera
+                        #left_wrist_camera = CameraPresets.left_dex3_wrist_camera()
+                        #right_wrist_camera = CameraPresets.right_dex3_wrist_camera()
+
+                        # 【TODO】有bug，tv过程rgb没有更新图像了，
+                        # 修复了加这个：https://github.com/unitreerobotics/xr_teleoperate/issues/111
+                            elif not WRIST and args.sim:
+                                img_client = ImageClient(tv_img_shape = tv_img_shape, tv_img_shm_name = tv_img_shm.name, server_address="127.0.0.1")
+                            # 还有注释掉img_config中的wrist camera
+
+
+
+                    # 1. 跑仿真
+
+                        # office [去除两个wrist camera, 从11Hz涨到 14Hz, 71ms loop time]
+
+                            (unitree_sim_env) junweil@office-precognition:~/projects/xr_teleoperate/unitree_sim_isaaclab$ python sim_main.py --device cpu  --enable_cameras  --task  Isaac-PickPlace-RedBlock-G129-Inspire-Joint    --enable_inspire_dds --robot_type g129
+
+                        # laptop4 [去除两个wrist camera, 从17Hz涨到 21Hz, 46ms loop time]
+                            # [lt4.precognition.team]
+
+                            (unitree_sim_env) junweil@precognition-laptop4:~/projects/xr_teleoperate/unitree_sim_isaaclab$ python sim_main.py --device cpu  --enable_cameras  --task  Isaac-PickPlace-RedBlock-G129-Inspire-Joint   --enable_inspire_dds --robot_type g129
+
+                            # 有很多红字error，没事
+
+                    # 2. 跑遥操作服务器
+
+                        (tv) junweil@precognition-laptop4:~/projects/xr_teleoperate/teleop$ python teleop_hand_and_arm.py --xr-mode=hand  --arm=G1_29 --ee=inspire1 --sim --record
+
+                        # 先不要加 --motion
+
+                        # 原本的代码，dex3/inspire不能用controller，必须用手识别，把人的三指 map到宇树3指
+                            # 需要写一个把dex3当作gripper, gripper value和controller的对应关系，可以参考dex1
+
+                    # 3. Quest 3
+                        这时候带上quest 3，打开浏览器
+                            # https://lt4.precognition.team:8012?ws=wss://lt4.precognition.team:8012
+                            # 点刷新， 遥操作服务器终端会显示有websocket连接
+                            # 先按r，开始遥操作，这时候仿真中手会飘起来。
+                            # 再在VR中点passthrough模式，可以还看到周边环境
+                            # 按键盘s 开始录制，s再结束
+                            # 要用controller点meta按键，然后浏览器中点“quit”，然后可以摘下Quest 3了
+                            # 再在遥操作服务器终端点q退出
+
+                    # 4. replay刚刚的EP
+
+                        (g1) junweil@precognition-laptop4:~/projects/humanoid_teleop$ python g1_realrobot/visualize_arm_episodes.py ~/projects/xr_teleoperate/teleop//utils/data/episode_0004/data.json assets/g1/g1_body29_inspired_hand.urdf --fps 60
+
+
             # 实机中replay一下看看
                 # 需要用到 arm_sdk topic。下肢应该只能用主运控. 向 rt/arm_sdk 话题发送 LowCmd 类型的消息
                 # 对于电机的底层控制算法，唯一需要的控制目标就是输出力矩。对于机器人，我们通常需要给关节设定位置、速度和力矩，就需要对关节电机进行混合控制。
