@@ -276,19 +276,37 @@ def show_current_q(vis_model, step_data):
     #step_data = episode["data"][current_step]["actions"]
     left_arm_pos = step_data["left_arm"]["qpos"]
     right_arm_pos = step_data["right_arm"]["qpos"]
+
     left_ee_pos = np.array(step_data["left_ee"]["qpos"])
     left_ee_pos = left_ee_pos[left_inspire_api_to_urdf_index]
+    denorm_inspire(left_ee_pos)
+
     right_ee_pos = np.array(step_data["right_ee"]["qpos"])
     right_ee_pos = right_ee_pos[right_inspire_api_to_urdf_index]
+    denorm_inspire(right_ee_pos)
 
     target_q = np.zeros((26, ), dtype=np.float32)
     target_q[:7] = left_arm_pos
-    target_q[7:13] = left_ee_pos*1.5
+    target_q[7:13] = left_ee_pos
     target_q[13:20] = right_arm_pos
-    target_q[20:] = right_ee_pos*1.5
+    target_q[20:] = right_ee_pos
 
     vis_model.vis.display(target_q)
 
+
+# xr_teleoperate/teleop/robot_control/robot_hand_inspired.py has the q_target normalized
+def denorm_inspire(normed_ee_pos):
+    Inspire_Num_Motors = 6
+    for idx in range(Inspire_Num_Motors):
+        if idx <= 3:
+            normed_ee_pos[idx]  = denormalize(normed_ee_pos[idx], 0.0, 1.7)
+        elif idx == 4:
+            normed_ee_pos[idx]  = denormalize(normed_ee_pos[idx], 0.0, 0.5)
+        elif idx == 5:
+            normed_ee_pos[idx]  = denormalize(normed_ee_pos[idx], -0.1, 1.3)
+
+def denormalize(normalized_val, min_val, max_val):
+    return max_val - (normalized_val * (max_val - min_val))
 
 if __name__ == "__main__":
     args = parser.parse_args()

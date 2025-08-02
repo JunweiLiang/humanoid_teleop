@@ -515,6 +515,8 @@ exts."isaacsim.asset.browser".folders = [
 
                         (g1) junweil@precognition-laptop4:~/projects/humanoid_teleop$ python g1_realrobot/visualize_arm_episodes.py ~/projects/xr_teleoperate/teleop//utils/data/episode_0004/data.json assets/g1/g1_body29_inspired_hand.urdf --fps 60
 
+                        [08/01/2025] 手指可视化有问题，手指运动方向反了，角度应该也不对
+
 
             # 实机中replay一下看看
                 # 需要用到 arm_sdk topic。下肢应该只能用主运控. 向 rt/arm_sdk 话题发送 LowCmd 类型的消息
