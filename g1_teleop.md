@@ -262,7 +262,7 @@ exts."isaacsim.asset.browser".folders = [
 
             # 开启遥操服务器
 
-                (tv) junweil@office-precognition:~/projects/xr_teleoperate/teleop$ python teleop_hand_and_arm.py --xr-mode=controller  --arm=G1_29 --ee=dex3 --sim --record --motion
+                (tv) junweil@office-precognition:~/projects/test2/xr_teleoperate/teleop$ python teleop_hand_and_arm.py --xr-mode=controller  --arm=G1_29 --ee=dex3 --sim --record --motion
 
                 # quest 3容易死机，有异常就重启quest 3
                 # quest 3 打开浏览器
@@ -493,10 +493,12 @@ exts."isaacsim.asset.browser".folders = [
                             # 有很多红字error，没事
 
                     # 2. 跑遥操作服务器
+                        # 注意 test2/， 这里的才是我们自己的repo
 
-                        (tv) junweil@precognition-laptop4:~/projects/xr_teleoperate/teleop$ python teleop_hand_and_arm.py --xr-mode=hand  --arm=G1_29 --ee=inspire1 --sim --record
+                        (tv) junweil@office-precognition:~/projects/test2/xr_teleoperate/teleop$ python teleop_hand_and_arm.py --xr-mode=hand  --arm=G1_29 --ee=inspire1 --sim --record
 
                         # 先不要加 --motion
+                            # sim中应该不能加motion，机器人是固定的
 
                         # 原本的代码，dex3/inspire不能用controller，必须用手识别，把人的三指 map到宇树3指
                             # 需要写一个把dex3当作gripper, gripper value和controller的对应关系，可以参考dex1
@@ -504,6 +506,7 @@ exts."isaacsim.asset.browser".folders = [
                     # 3. Quest 3
                         这时候带上quest 3，打开浏览器
                             # https://lt4.precognition.team:8012?ws=wss://lt4.precognition.team:8012
+                            # https://office.precognition.team:8012?ws=wss://office.precognition.team:8012
                             # 点刷新， 遥操作服务器终端会显示有websocket连接
                             # 先按r，开始遥操作，这时候仿真中手会飘起来。
                             # 再在VR中点passthrough模式，可以还看到周边环境
@@ -513,9 +516,53 @@ exts."isaacsim.asset.browser".folders = [
 
                     # 4. replay刚刚的EP
 
-                        (g1) junweil@precognition-laptop4:~/projects/humanoid_teleop$ python g1_realrobot/visualize_arm_episodes.py ~/projects/xr_teleoperate/teleop//utils/data/episode_0004/data.json assets/g1/g1_body29_inspired_hand.urdf --fps 60
+                        (g1) junweil@office-precognition:~/projects/humanoid_teleop$ python g1_realrobot/visualize_arm_episodes.py ~/projects/xr_teleoperate/teleop//utils/data/episode_0002/data.json assets/g1/g1_body29_inspired_hand.urdf --fps 60
 
                         [08/01/2025] 手指可视化有问题，手指运动方向反了，角度应该也不对
+                        [08/02/2025] 已经解决，把角度denormal之后，显示正常了，只不过只记录了6个自由度，握不了拳，在仿真里
+
+
+            # [08/2025] 修改log
+                # 0. 调试记录
+                    # 0.1 测试quest 3 controller按钮获取、值范围等
+                        (tv) junweil@office-precognition:~/projects/test2/xr_teleoperate/teleop$ python teleop_hand_and_arm.py --xr-mode=controller  --arm=G1_29 --ee=inspire1 --sim --debug_controller
+
+                    # 0.2 确认 gripper形态如何对应手指
+                        # 宇树3指版本
+                            # 单手7个主动自由度，所以叫hand14
+
+                            junweiliang@work_laptop:~/Desktop/github_projects/xr_teleoperate/assets/g1$ python ~/Desktop/github_projects/humanoid_teleop/g1_realrobot/urdf_viewer.py g1_body29_hand14.urdf
+
+                            # MuJoCo tips
+                                # 1. pause 仿真，然后点reset，获取零位的状态
+                                # 2. Alt + J 可以可视化关节在哪
+                                # 3. 具体joint 名称需要对着打印出来的name看, GUI中太短
+
+                            # 关节角度全是0的情况下，拇指对其另外两指的空隙，90度角打开，
+                                # 定义 gripper 全打开状态，让拇指微微弯曲，：
+                                    # right_hand_thumb_1_joint: -0.507
+                                    # right_hand_thumb_2_joint: -0.628
+                                    # left_hand_thumb_1_joint: 0.507
+                                    # left_hand_thumb_2_joint: 0.628
+                                    # 如[图](./g1_hand14_open.png)
+                                # 定义 gripper 全关闭状态, 拇指和两指 指尖在一个平面上:
+                                    # left_hand_thumb_1_joint: 0.888
+                                    # left_hand_thumb_2_joint: 0.628
+                                    # left_hand_middle_0_joint: -0.707
+                                    # left_hand_middle_1_joint: -0.768
+                                    # left_hand_index_0_joint: -0.707
+                                    # left_hand_index_1_joint: -0.768
+                                    # right_hand_thumb_1_joint: -0.888
+                                    # right_hand_thumb_2_joint: -0.628
+                                    # right_hand_middle_0_joint: 0.707
+                                    # right_hand_middle_1_joint: 0.768
+                                    # right_hand_index_0_joint: 0.707
+                                    # right_hand_index_1_joint: 0.768
+                                    # 如[图](./g1_hand14_close.png)
+                        # 宇树5指版本
+
+
+                # 1. Quest 3 controller 控制5指手、三指手
 
 
             # 实机中replay一下看看

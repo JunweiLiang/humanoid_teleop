@@ -91,6 +91,12 @@ if __name__ == "__main__":
     model = mujoco.MjModel.from_xml_string(urdf_xml)
     data = mujoco.MjData(model)
 
+    # print out the robot joints as in the GUI's order. The GUI might not show all the joint names
+    # Iterate through joints by their IDs, which corresponds to the GUI order
+    for joint_id in range(model.njnt):
+        joint_name = model.joint(joint_id).name # Use named access to get the joint name [8]
+        print("joint id: %d, name: %s" % (joint_id, joint_name))
+
     # Launch the MuJoCo viewer using the `launch` method
     mujoco.viewer.launch(model, data)
 
