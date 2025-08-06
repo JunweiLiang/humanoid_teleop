@@ -280,11 +280,8 @@ def show_current_q(vis_model, step_data):
     right_arm_pos = step_data["right_arm"]["qpos"]
 
     left_ee_pos = np.array(step_data["left_ee"]["qpos"])
-    print(left_ee_pos)
     left_ee_pos = left_ee_pos[left_inspire_api_to_urdf_index]
-    print(left_ee_pos)
     denorm_inspire(left_ee_pos)
-    sys.exit()
 
     right_ee_pos = np.array(step_data["right_ee"]["qpos"])
     right_ee_pos = right_ee_pos[right_inspire_api_to_urdf_index]
