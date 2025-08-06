@@ -280,11 +280,8 @@ def show_current_q(vis_model, step_data):
     right_arm_pos = step_data["right_arm"]["qpos"]
 
     left_ee_pos = np.array(step_data["left_ee"]["qpos"])
-    denorm_inspire(left_ee_pos)
+    denorm_inspire(left_ee_pos) # 先按telop_hand_and_arm.py denorm之后再换成URDF ID
     left_ee_pos = left_ee_pos[left_inspire_api_to_urdf_index]
-
-
-
 
     right_ee_pos = np.array(step_data["right_ee"]["qpos"])
     denorm_inspire(right_ee_pos)
