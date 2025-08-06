@@ -305,10 +305,8 @@ def denorm_inspire(normed_ee_pos):
         elif idx == 4:
             normed_ee_pos[idx]  = denormalize(normed_ee_pos[idx], 0.0, 0.5)
         elif idx == 5:
-            print("-"*40)
-            print(normed_ee_pos[idx])
-            normed_ee_pos[idx]  = denormalize(normed_ee_pos[idx], -0.1, 1.3)
-            print(normed_ee_pos[idx])
+            normed_ee_pos[idx]  = 1.3 #denormalize(normed_ee_pos[idx], -0.1, 1.3)
+
 
 def denormalize(normalized_val, min_val, max_val):
     return max_val - (normalized_val * (max_val - min_val))
