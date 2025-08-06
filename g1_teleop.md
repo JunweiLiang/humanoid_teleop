@@ -601,8 +601,21 @@ exts."isaacsim.asset.browser".folders = [
                                 # 如[图](./g1_inspire_close.png)
 
 
-                # 1. Quest 3 controller 控制5指手、三指手
+                # 1. Quest 3 controller 控制5指手 inspire1
+                    # 1.1 开启遥操作
+                        (tv) junweil@office-precognition:~/projects/test2/xr_teleoperate/teleop$ python teleop_hand_and_arm.py --xr-mode=controller  --arm=G1_29 --ee=inspire1 --sim --record
 
+                        # 看到 'r'提示后就可以带上头显了，拿起controller
+                            # 点击浏览器刷新，确保前面终端显示已连接websocket
+                            # 点击 pass through，开启遥操作数据传输
+                            # 把双手摆好，然后右手 B按键开启程序，这时候机器人应该就响应遥操作了
+                            # 左手x按键开启数据录制，再按x按键一次结束，按了一次可能要等一会儿才能显示save ***/data.json
+                            # 右手A按键结束程序，回零位，这时可以按Meta按键退出VR，再在浏览器上点一次QUIT，就可以摘了
+
+                    # 1.2 可视化刚刚录制的EP
+                        (g1) junweil@office-precognition:~/projects/humanoid_teleop$ python g1_realrobot/visualize_arm_episodes.py ~/projects/test2/xr_teleoperate/teleop//utils/data/episode_0014/data.json assets/g1/g1_body29_inspired_hand.urdf --fps 60
+
+                # 2. Quest 3 controller 控制3指手 dex3
 
             # 实机中replay一下看看
                 # 需要用到 arm_sdk topic。下肢应该只能用主运控. 向 rt/arm_sdk 话题发送 LowCmd 类型的消息

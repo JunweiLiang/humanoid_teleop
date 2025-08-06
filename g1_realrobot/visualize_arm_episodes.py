@@ -52,6 +52,42 @@ Joint ID 24: R_ring_proximal_joint
 Joint ID 25: R_thumb_proximal_yaw_joint
 Joint ID 26: R_thumb_proximal_pitch_joint
 """
+
+""" # joint id for reduced g1 with dex3 hand
+# to print it, use this command:
+    (g1) junweil@office-precognition:~/projects/humanoid_teleop$ python g1_realrobot/visualize_arm_episodes.py ~/projects/test2/xr_teleoperate/teleop//utils/data/episode_0014/data.json assets/g1/g1_body29_hand14.urdf --hand_type dex3 --fps 60 --print
+
+Joint ID 1: left_shoulder_pitch_joint
+Joint ID 2: left_shoulder_roll_joint
+Joint ID 3: left_shoulder_yaw_joint
+Joint ID 4: left_elbow_joint
+Joint ID 5: left_wrist_roll_joint
+Joint ID 6: left_wrist_pitch_joint
+Joint ID 7: left_wrist_yaw_joint
+Joint ID 8: left_hand_index_0_joint
+Joint ID 9: left_hand_index_1_joint
+Joint ID 10: left_hand_middle_0_joint
+Joint ID 11: left_hand_middle_1_joint
+Joint ID 12: left_hand_thumb_0_joint
+Joint ID 13: left_hand_thumb_1_joint
+Joint ID 14: left_hand_thumb_2_joint
+Joint ID 15: right_shoulder_pitch_joint
+Joint ID 16: right_shoulder_roll_joint
+Joint ID 17: right_shoulder_yaw_joint
+Joint ID 18: right_elbow_joint
+Joint ID 19: right_wrist_roll_joint
+Joint ID 20: right_wrist_pitch_joint
+Joint ID 21: right_wrist_yaw_joint
+Joint ID 22: right_hand_index_0_joint
+Joint ID 23: right_hand_index_1_joint
+Joint ID 24: right_hand_middle_0_joint
+Joint ID 25: right_hand_middle_1_joint
+Joint ID 26: right_hand_thumb_0_joint
+Joint ID 27: right_hand_thumb_1_joint
+Joint ID 28: right_hand_thumb_2_joint
+
+"""
+
 class G1_29_Vis_Episode:
     def __init__(self, urdf, fps=60, hand_type="inspire1", print_urdf_joints=False):
 
@@ -246,6 +282,18 @@ left_dex3_api_joint_names = [
     'left_hand_index_0_joint',
     'left_hand_index_1_joint' ]
 
+left_dex3_urdf_joint_names = [
+    'left_hand_index_0_joint',
+    'left_hand_index_1_joint',
+    'left_hand_middle_0_joint',
+    'left_hand_middle_1_joint',
+    'left_hand_thumb_0_joint',
+    'left_hand_thumb_1_joint',
+    'left_hand_thumb_2_joint' ]
+left_dex3_api_to_urdf_index = [
+    left_dex3_api_joint_names.index(name)
+    for name in left_dex3_urdf_joint_names]
+
 right_dex3_api_joint_names = [
     'right_hand_thumb_0_joint',
     'right_hand_thumb_1_joint',
@@ -254,6 +302,20 @@ right_dex3_api_joint_names = [
     'right_hand_middle_1_joint',
     'right_hand_index_0_joint',
     'right_hand_index_1_joint' ]
+
+right_dex3_urdf_joint_names = [
+    'right_hand_index_0_joint',
+    'right_hand_index_1_joint',
+    'right_hand_middle_0_joint',
+    'right_hand_middle_1_joint',
+    'right_hand_thumb_0_joint',
+    'right_hand_thumb_1_joint',
+    'right_hand_thumb_2_joint' ]
+right_dex3_api_to_urdf_index = [
+    right_dex3_api_joint_names.index(name)
+    for name in right_dex3_urdf_joint_names]
+
+
 
 
 def set_terminal_cbreak():
@@ -284,25 +346,41 @@ def get_char_nonblocking():
             return None
     return None
 
-def show_current_q(vis_model, step_data):
+def show_current_q(vis_model, step_data, hand_type="inspire1"):
     #step_data = episode["data"][current_step]["actions"]
     left_arm_pos = step_data["left_arm"]["qpos"]
     right_arm_pos = step_data["right_arm"]["qpos"]
 
-    left_ee_pos = np.array(step_data["left_ee"]["qpos"])
-    denorm_inspire(left_ee_pos) # 先按telop_hand_and_arm.py denorm之后再换成URDF ID
-    left_ee_pos = left_ee_pos[left_inspire_api_to_urdf_index]
+    if hand_type == "inspire1":
 
-    right_ee_pos = np.array(step_data["right_ee"]["qpos"])
-    denorm_inspire(right_ee_pos)
-    right_ee_pos = right_ee_pos[right_inspire_api_to_urdf_index]
+        left_ee_pos = np.array(step_data["left_ee"]["qpos"])
+        denorm_inspire(left_ee_pos) # 先按telop_hand_and_arm.py denorm之后再换成URDF ID
+        left_ee_pos = left_ee_pos[left_inspire_api_to_urdf_index]
+
+        right_ee_pos = np.array(step_data["right_ee"]["qpos"])
+        denorm_inspire(right_ee_pos)
+        right_ee_pos = right_ee_pos[right_inspire_api_to_urdf_index]
 
 
-    target_q = np.zeros((26, ), dtype=np.float32)
-    target_q[:7] = left_arm_pos
-    target_q[7:13] = left_ee_pos
-    target_q[13:20] = right_arm_pos
-    target_q[20:] = right_ee_pos
+        target_q = np.zeros((26, ), dtype=np.float32)
+        target_q[:7] = left_arm_pos
+        target_q[7:13] = left_ee_pos
+        target_q[13:20] = right_arm_pos
+        target_q[20:] = right_ee_pos
+
+    elif hand_type == "dex3":
+        left_ee_pos = np.array(step_data["left_ee"]["qpos"])
+        left_ee_pos = left_ee_pos[left_dex3_api_to_urdf_index]
+
+        right_ee_pos = np.array(step_data["right_ee"]["qpos"])
+        right_ee_pos = right_ee_pos[right_dex3_api_to_urdf_index]
+
+
+        target_q = np.zeros((28, ), dtype=np.float32)
+        target_q[:7] = left_arm_pos
+        target_q[7:14] = left_ee_pos
+        target_q[14:21] = right_arm_pos
+        target_q[21:] = right_ee_pos
 
     vis_model.vis.display(target_q)
 
@@ -393,7 +471,7 @@ if __name__ == "__main__":
                 sys.stdout.flush() # Ensure it's written immediately
 
                 step_data = episode["data"][current_step]["actions"]
-                show_current_q(vis_model, step_data)
+                show_current_q(vis_model, step_data, hand_type=args.hand_type)
                 current_step += 1
 
             # Ensure consistent frame rate
