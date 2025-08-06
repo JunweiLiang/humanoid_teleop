@@ -21,6 +21,8 @@ parser = argparse.ArgumentParser()
 parser.add_argument("episode_json")
 parser.add_argument("urdf")
 parser.add_argument("--fps", type=float, default="60", help="the episode is recored in this fps, so we play in this fps")
+parser.add_argument("--hand_type", default="inspire1")
+parser.add_argument("--print_urdf_joints", action="store_true")
 
 """ # joint id for reduced g1 with inspire hand
 Joint ID 1: left_shoulder_pitch_joint
@@ -51,109 +53,99 @@ Joint ID 25: R_thumb_proximal_yaw_joint
 Joint ID 26: R_thumb_proximal_pitch_joint
 """
 class G1_29_Vis_Episode:
-    def __init__(self, urdf, fps=60):
+    def __init__(self, urdf, fps=60, hand_type="inspire1", print_urdf_joints=False):
 
         np.set_printoptions(precision=5, suppress=True, linewidth=200)
 
         self.robot = pin.RobotWrapper.BuildFromURDF(urdf, os.path.dirname(urdf))
 
-        self.mixed_jointsToLockIDs = [
-            # 固定下半身
-            "left_hip_pitch_joint" ,
-            "left_hip_roll_joint" ,
-            "left_hip_yaw_joint" ,
-            "left_knee_joint" ,
-            "left_ankle_pitch_joint" ,
-            "left_ankle_roll_joint" ,
-            "right_hip_pitch_joint" ,
-            "right_hip_roll_joint" ,
-            "right_hip_yaw_joint" ,
-            "right_knee_joint" ,
-            "right_ankle_pitch_joint" ,
-            "right_ankle_roll_joint" ,
-            "waist_yaw_joint" ,
-            "waist_roll_joint" ,
-            "waist_pitch_joint",
+        # 五指手，三指手
+        assert hand_type in ["inspire1", "dex3"]
+
+        if hand_type == "inspire1":
+            self.mixed_jointsToLockIDs = [
+                # 固定下半身
+                "left_hip_pitch_joint" ,
+                "left_hip_roll_joint" ,
+                "left_hip_yaw_joint" ,
+                "left_knee_joint" ,
+                "left_ankle_pitch_joint" ,
+                "left_ankle_roll_joint" ,
+                "right_hip_pitch_joint" ,
+                "right_hip_roll_joint" ,
+                "right_hip_yaw_joint" ,
+                "right_knee_joint" ,
+                "right_ankle_pitch_joint" ,
+                "right_ankle_roll_joint" ,
+                "waist_yaw_joint" ,
+                "waist_roll_joint" ,
+                "waist_pitch_joint",
 
 
-            # 单手URDF里，12个自由度，4个手指每个2个所以8个，剩4个自由度在拇指
-            # 实机单手只有6自由度，每个手指一个，拇指2个
+                # 单手URDF里，12个自由度，4个手指每个2个所以8个，剩4个自由度在拇指
+                # 实机单手只有6自由度，每个手指一个，拇指2个
 
-            # 这六个是主动关节， 我们锁定其他的被动关节
-            # 遥操作的时候也只有6个主动关节的数据
-            #'R_thumb_proximal_yaw_joint',
-            #'R_thumb_proximal_pitch_joint',
-            #'R_index_proximal_joint',
-            #'R_middle_proximal_joint',
-            #'R_ring_proximal_joint',
-            #'R_pinky_proximal_joint'
+                # 这六个是主动关节， 我们锁定其他的被动关节
+                # 遥操作的时候也只有6个主动关节的数据
+                #'R_thumb_proximal_yaw_joint',
+                #'R_thumb_proximal_pitch_joint',
+                #'R_index_proximal_joint',
+                #'R_middle_proximal_joint',
+                #'R_ring_proximal_joint',
+                #'R_pinky_proximal_joint'
 
-            # 左手关节
-            #"L_pinky_proximal_joint",
-            "L_pinky_intermediate_joint",
-            #"L_ring_proximal_joint",
-            "L_ring_intermediate_joint",
-            "L_thumb_intermediate_joint",
-            #"L_thumb_proximal_yaw_joint",
-            #"L_thumb_proximal_pitch_joint",
-            "L_thumb_distal_joint",
-            #"L_middle_proximal_joint",
-            "L_middle_intermediate_joint",
-            #"L_index_proximal_joint",
-            "L_index_intermediate_joint",
+                # 左手关节
+                #"L_pinky_proximal_joint",
+                "L_pinky_intermediate_joint",
+                #"L_ring_proximal_joint",
+                "L_ring_intermediate_joint",
+                "L_thumb_intermediate_joint",
+                #"L_thumb_proximal_yaw_joint",
+                #"L_thumb_proximal_pitch_joint",
+                "L_thumb_distal_joint",
+                #"L_middle_proximal_joint",
+                "L_middle_intermediate_joint",
+                #"L_index_proximal_joint",
+                "L_index_intermediate_joint",
 
-            # 右手关节（已更新）
-            #"R_pinky_proximal_joint",
-            "R_pinky_intermediate_joint",
-            #"R_ring_proximal_joint",
-            "R_ring_intermediate_joint",
-            "R_thumb_intermediate_joint",
-            #"R_thumb_proximal_yaw_joint",
-            #"R_thumb_proximal_pitch_joint",
-            "R_thumb_distal_joint",
-            #"R_index_proximal_joint",
-            "R_index_intermediate_joint",
-            #"R_middle_proximal_joint",
-            "R_middle_intermediate_joint"
-        ]
-        # fixed joint from xr_teleoperate/teleop/robot_control/robot_arm_ik.py
-        # use g1_body29_hand14.urdf
-        """
-        self.mixed_jointsToLockIDs = [
-                                        "left_hip_pitch_joint" ,
-                                        "left_hip_roll_joint" ,
-                                        "left_hip_yaw_joint" ,
-                                        "left_knee_joint" ,
-                                        "left_ankle_pitch_joint" ,
-                                        "left_ankle_roll_joint" ,
-                                        "right_hip_pitch_joint" ,
-                                        "right_hip_roll_joint" ,
-                                        "right_hip_yaw_joint" ,
-                                        "right_knee_joint" ,
-                                        "right_ankle_pitch_joint" ,
-                                        "right_ankle_roll_joint" ,
-                                        "waist_yaw_joint" ,
-                                        "waist_roll_joint" ,
-                                        "waist_pitch_joint" ,
+                # 右手关节（已更新）
+                #"R_pinky_proximal_joint",
+                "R_pinky_intermediate_joint",
+                #"R_ring_proximal_joint",
+                "R_ring_intermediate_joint",
+                "R_thumb_intermediate_joint",
+                #"R_thumb_proximal_yaw_joint",
+                #"R_thumb_proximal_pitch_joint",
+                "R_thumb_distal_joint",
+                #"R_index_proximal_joint",
+                "R_index_intermediate_joint",
+                #"R_middle_proximal_joint",
+                "R_middle_intermediate_joint"
+            ]
+        elif hand_type == "dex3":
 
-                                        # 用的宇树三指手的URDF，每个7自由度，全部锁了
-                                        "left_hand_thumb_0_joint" ,
-                                        "left_hand_thumb_1_joint" ,
-                                        "left_hand_thumb_2_joint" ,
-                                        "left_hand_middle_0_joint" ,
-                                        "left_hand_middle_1_joint" ,
-                                        "left_hand_index_0_joint" ,
-                                        "left_hand_index_1_joint" ,
+            self.mixed_jointsToLockIDs = [
+                # 固定下半身
+                "left_hip_pitch_joint" ,
+                "left_hip_roll_joint" ,
+                "left_hip_yaw_joint" ,
+                "left_knee_joint" ,
+                "left_ankle_pitch_joint" ,
+                "left_ankle_roll_joint" ,
+                "right_hip_pitch_joint" ,
+                "right_hip_roll_joint" ,
+                "right_hip_yaw_joint" ,
+                "right_knee_joint" ,
+                "right_ankle_pitch_joint" ,
+                "right_ankle_roll_joint" ,
+                "waist_yaw_joint" ,
+                "waist_roll_joint" ,
+                "waist_pitch_joint",
 
-                                        "right_hand_thumb_0_joint" ,
-                                        "right_hand_thumb_1_joint" ,
-                                        "right_hand_thumb_2_joint" ,
-                                        "right_hand_index_0_joint" ,
-                                        "right_hand_index_1_joint" ,
-                                        "right_hand_middle_0_joint",
-                                        "right_hand_middle_1_joint"
-                                    ]
-        """
+                # 用的宇树三指手的URDF，每个7自由度，都不用锁
+
+            ]
+
 
         # https://docs.ros.org/en/kinetic/api/pinocchio/html/classpinocchio_1_1robot__wrapper_1_1RobotWrapper.html#aef341b27b4709b03c93d66c8c196bc0f
         # the above joint will be locked, at 0.0
@@ -163,29 +155,29 @@ class G1_29_Vis_Episode:
         )
 
         #debugging printouts
-        """
-        print("reduced_robot.model.nframes")
-        for i in range(self.reduced_robot.model.nframes):
-            frame = self.reduced_robot.model.frames[i]
-            frame_id = self.reduced_robot.model.getFrameId(frame.name)
-            print(f"Frame ID: {frame_id}, Name: {frame.name}")
+        if print_urdf_joints:
+            print("reduced_robot.model.nframes")
+            for i in range(self.reduced_robot.model.nframes):
+                frame = self.reduced_robot.model.frames[i]
+                frame_id = self.reduced_robot.model.getFrameId(frame.name)
+                print(f"Frame ID: {frame_id}, Name: {frame.name}")
 
-        #assert len(self.reduced_robot.model.frames) == len(self.reduced_robot.data.oMf), \
-        #    f"Mismatch: {len(self.reduced_robot.model.frames)} frames vs. {len(self.reduced_robot.data.oMf)} transformations"
+            #assert len(self.reduced_robot.model.frames) == len(self.reduced_robot.data.oMf), \
+            #    f"Mismatch: {len(self.reduced_robot.model.frames)} frames vs. {len(self.reduced_robot.data.oMf)} transformations"
 
-        # Print all joints in the original robot model
-        print("All Joints in Original Robot:")
-        for idx, joint in enumerate(self.robot.model.names):
-            print(f"Joint ID {idx}: {joint}")
+            # Print all joints in the original robot model
+            print("All Joints in Original Robot:")
+            for idx, joint in enumerate(self.robot.model.names):
+                print(f"Joint ID {idx}: {joint}")
 
-        # Print joints in the reduced robot model
-        print("\nJoints in Reduced Robot:")
-        for idx, joint in enumerate(self.reduced_robot.model.names):
-            print(f"Joint ID {idx}: {joint}")
+            # Print joints in the reduced robot model
+            print("\nJoints in Reduced Robot:")
+            for idx, joint in enumerate(self.reduced_robot.model.names):
+                print(f"Joint ID {idx}: {joint}")
 
-        print("reduced_robot.model.nq:%s" % self.reduced_robot.model.nq)
-        sys.exit()
-        """
+            print("reduced_robot.model.nq:%s" % self.reduced_robot.model.nq)
+            sys.exit()
+
 
 
         self.init_data = np.zeros(self.reduced_robot.model.nq)
@@ -201,7 +193,10 @@ class G1_29_Vis_Episode:
 
         self.vis.display(pin.neutral(self.reduced_robot.model))
 
+# Global variable to store old terminal settings
+old_terminal_settings = None
 
+# mapping of saved api joints to URDF joints
 left_inspire_api_joint_names = [
     'L_pinky_proximal_joint',
     'L_ring_proximal_joint',
@@ -241,9 +236,24 @@ right_inspire_urdf_joint_names = [
 right_inspire_api_to_urdf_index = [
     right_inspire_api_joint_names.index(name)
     for name in right_inspire_urdf_joint_names]
-# Global variable to store old terminal settings
-old_terminal_settings = None
 
+left_dex3_api_joint_names = [
+    'left_hand_thumb_0_joint',
+    'left_hand_thumb_1_joint',
+    'left_hand_thumb_2_joint',
+    'left_hand_middle_0_joint',
+    'left_hand_middle_1_joint',
+    'left_hand_index_0_joint',
+    'left_hand_index_1_joint' ]
+
+right_dex3_api_joint_names = [
+    'right_hand_thumb_0_joint',
+    'right_hand_thumb_1_joint',
+    'right_hand_thumb_2_joint',
+    'right_hand_middle_0_joint',
+    'right_hand_middle_1_joint',
+    'right_hand_index_0_joint',
+    'right_hand_index_1_joint' ]
 
 
 def set_terminal_cbreak():
@@ -315,7 +325,7 @@ def denormalize(normalized_val, min_val, max_val):
 if __name__ == "__main__":
     args = parser.parse_args()
 
-    vis_model = G1_29_Vis_Episode(urdf=args.urdf, fps=args.fps)
+    vis_model = G1_29_Vis_Episode(urdf=args.urdf, fps=args.fps, hand_type=args.hand_type, print_urdf_joints=args.print_urdf_joints)
 
     episode = json.load(open(args.episode_json))
     num_data_step = len(episode["data"])
