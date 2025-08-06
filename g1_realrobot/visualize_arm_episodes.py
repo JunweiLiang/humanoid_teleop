@@ -324,7 +324,7 @@ if __name__ == "__main__":
     num_data_step = len(episode["data"])
     print("total %d data steps, it should be %.2f seconds long" % (num_data_step, num_data_step/args.fps))
 
-    current_step = 1000
+    current_step = 0
     paused = False
 
     # Keep track of key press states to avoid multiple triggers on hold
