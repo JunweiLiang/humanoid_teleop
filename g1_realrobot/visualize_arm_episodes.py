@@ -244,6 +244,9 @@ right_inspire_api_to_urdf_index = [
 # Global variable to store old terminal settings
 old_terminal_settings = None
 
+print(left_inspire_api_to_urdf_index)
+sys.exit()
+
 def set_terminal_cbreak():
     """Sets the terminal to cbreak mode and saves old settings."""
     global old_terminal_settings
@@ -301,10 +304,7 @@ def denorm_inspire(normed_ee_pos):
         if idx <= 3:
             normed_ee_pos[idx]  = denormalize(normed_ee_pos[idx], 0.0, 1.7)
         elif idx == 4:
-            print("-"*40)
-            print(normed_ee_pos[idx])
             normed_ee_pos[idx]  = denormalize(normed_ee_pos[idx], 0.0, 0.5)
-            print(normed_ee_pos[idx])
         elif idx == 5:
             print("-"*40)
             print(normed_ee_pos[idx])
