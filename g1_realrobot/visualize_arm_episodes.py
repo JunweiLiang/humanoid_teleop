@@ -280,12 +280,16 @@ def show_current_q(vis_model, step_data):
     right_arm_pos = step_data["right_arm"]["qpos"]
 
     left_ee_pos = np.array(step_data["left_ee"]["qpos"])
-    left_ee_pos = left_ee_pos[left_inspire_api_to_urdf_index]
     denorm_inspire(left_ee_pos)
+    left_ee_pos = left_ee_pos[left_inspire_api_to_urdf_index]
+
+
+
 
     right_ee_pos = np.array(step_data["right_ee"]["qpos"])
-    right_ee_pos = right_ee_pos[right_inspire_api_to_urdf_index]
     denorm_inspire(right_ee_pos)
+    right_ee_pos = right_ee_pos[right_inspire_api_to_urdf_index]
+
 
     target_q = np.zeros((26, ), dtype=np.float32)
     target_q[:7] = left_arm_pos
@@ -305,7 +309,7 @@ def denorm_inspire(normed_ee_pos):
         elif idx == 4:
             normed_ee_pos[idx]  = denormalize(normed_ee_pos[idx], 0.0, 0.5)
         elif idx == 5:
-            normed_ee_pos[idx]  = 1.3 #denormalize(normed_ee_pos[idx], -0.1, 1.3)
+            normed_ee_pos[idx]  = denormalize(normed_ee_pos[idx], -0.1, 1.3)
 
 
 def denormalize(normalized_val, min_val, max_val):
@@ -320,7 +324,7 @@ if __name__ == "__main__":
     num_data_step = len(episode["data"])
     print("total %d data steps, it should be %.2f seconds long" % (num_data_step, num_data_step/args.fps))
 
-    current_step = 0
+    current_step = 1000
     paused = False
 
     # Keep track of key press states to avoid multiple triggers on hold
