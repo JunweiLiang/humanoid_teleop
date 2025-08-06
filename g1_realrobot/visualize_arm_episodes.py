@@ -301,7 +301,10 @@ def denorm_inspire(normed_ee_pos):
         if idx <= 3:
             normed_ee_pos[idx]  = denormalize(normed_ee_pos[idx], 0.0, 1.7)
         elif idx == 4:
+            print("-"*40)
+            print(normed_ee_pos[idx])
             normed_ee_pos[idx]  = denormalize(normed_ee_pos[idx], 0.0, 0.5)
+            print(normed_ee_pos[idx])
         elif idx == 5:
             print("-"*40)
             print(normed_ee_pos[idx])
