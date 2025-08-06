@@ -95,7 +95,18 @@ if __name__ == "__main__":
     # Iterate through joints by their IDs, which corresponds to the GUI order
     for joint_id in range(model.njnt):
         joint_name = model.joint(joint_id).name # Use named access to get the joint name [8]
-        print("joint id: %d, name: %s" % (joint_id, joint_name))
+
+        # Get joint limits
+        # MuJoCo stores joint limits in `model.jnt_range`.
+        # For a revolute or prismatic joint, `jnt_range` will have two values [lower, upper].
+        # For other joint types (e.g., free, ball), `jnt_range` might be [0, 0] or not represent limits.
+        joint_range = model.jnt_range[joint_id]
+
+        # Check if the joint has defined limits (i.e., the range is not [0, 0])
+        if not np.array_equal(joint_range, [0, 0]):
+            print(f"joint id: {joint_id}, name: {joint_name}, limits: [{joint_range[0]:.3f}, {joint_range[1]:.3f}]")
+        else:
+            print(f"joint id: {joint_id}, name: {joint_name}, limits: N/A")
 
     # Launch the MuJoCo viewer using the `launch` method
     mujoco.viewer.launch(model, data)

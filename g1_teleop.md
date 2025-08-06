@@ -526,6 +526,16 @@ exts."isaacsim.asset.browser".folders = [
                 # 0. 调试记录
                     # 0.1 测试quest 3 controller按钮获取、值范围等
                         (tv) junweil@office-precognition:~/projects/test2/xr_teleoperate/teleop$ python teleop_hand_and_arm.py --xr-mode=controller  --arm=G1_29 --ee=inspire1 --sim --debug_controller
+                            # button都是 True/False
+                                right_aButton, right_bButton
+                                left_aButton (对应左手柄X), left_bButton (对应左手柄Y)
+
+                            # trigger_state 需要完全按下才会触发成True一段时间
+                            # trigger_value 0 -> 1之间，完全按下是1.0,
+                            # squeeze_ctrl_value 类似
+
+                            # thumbstick_state 需要整个遥杆按下才True
+                            # thumbstick_value 零位[0., 0.,]， 值为-1.0 到1.0
 
                     # 0.2 确认 gripper形态如何对应手指
                         # 宇树3指版本
@@ -539,27 +549,56 @@ exts."isaacsim.asset.browser".folders = [
                                 # 3. 具体joint 名称需要对着打印出来的name看, GUI中太短
 
                             # 关节角度全是0的情况下，拇指对其另外两指的空隙，90度角打开，
-                                # 定义 gripper 全打开状态，让拇指微微弯曲，：
-                                    # right_hand_thumb_1_joint: -0.507
-                                    # right_hand_thumb_2_joint: -0.628
-                                    # left_hand_thumb_1_joint: 0.507
-                                    # left_hand_thumb_2_joint: 0.628
-                                    # 如[图](./g1_hand14_open.png)
-                                # 定义 gripper 全关闭状态, 拇指和两指 指尖在一个平面上:
-                                    # left_hand_thumb_1_joint: 0.888
-                                    # left_hand_thumb_2_joint: 0.628
-                                    # left_hand_middle_0_joint: -0.707
-                                    # left_hand_middle_1_joint: -0.768
-                                    # left_hand_index_0_joint: -0.707
-                                    # left_hand_index_1_joint: -0.768
-                                    # right_hand_thumb_1_joint: -0.888
-                                    # right_hand_thumb_2_joint: -0.628
-                                    # right_hand_middle_0_joint: 0.707
-                                    # right_hand_middle_1_joint: 0.768
-                                    # right_hand_index_0_joint: 0.707
-                                    # right_hand_index_1_joint: 0.768
-                                    # 如[图](./g1_hand14_close.png)
+                            # 定义 gripper 全打开状态，让拇指微微弯曲，：
+                                # right_hand_thumb_1_joint: -0.507
+                                # right_hand_thumb_2_joint: -0.628
+                                # left_hand_thumb_1_joint: 0.507
+                                # left_hand_thumb_2_joint: 0.628
+                                # 如[图](./g1_hand14_open.png)
+                            # 定义 gripper 全关闭状态, 拇指和两指 指尖在一个平面上:
+                                # left_hand_thumb_1_joint: 0.888
+                                # left_hand_thumb_2_joint: 0.628
+                                # left_hand_middle_0_joint: -0.707
+                                # left_hand_middle_1_joint: -0.768
+                                # left_hand_index_0_joint: -0.707
+                                # left_hand_index_1_joint: -0.768
+                                # right_hand_thumb_1_joint: -0.888
+                                # right_hand_thumb_2_joint: -0.628
+                                # right_hand_middle_0_joint: 0.707
+                                # right_hand_middle_1_joint: 0.768
+                                # right_hand_index_0_joint: 0.707
+                                # right_hand_index_1_joint: 0.768
+                                # 如[图](./g1_hand14_close.png)
                         # 宇树5指版本
+                            junweiliang@work_laptop:~/Desktop/github_projects/xr_teleoperate/assets/g1$ python ~/Desktop/github_projects/humanoid_teleop/g1_realrobot/urdf_viewer.py g1_body29_inspired_hand.urdf
+
+                                joint id: 41, name: R_thumb_proximal_yaw_joint, limits: [-0.100, 1.300]
+                                joint id: 42, name: R_thumb_proximal_pitch_joint, limits: [-0.100, 0.600]
+                                joint id: 43, name: R_thumb_intermediate_joint, limits: [0.000, 0.800]
+                                joint id: 44, name: R_thumb_distal_joint, limits: [0.000, 1.200]
+                                joint id: 45, name: R_index_proximal_joint, limits: [0.000, 1.700]
+                                joint id: 46, name: R_index_intermediate_joint, limits: [0.000, 1.700]
+                                joint id: 47, name: R_middle_proximal_joint, limits: [0.000, 1.700]
+                                joint id: 48, name: R_middle_intermediate_joint, limits: [0.000, 1.700]
+                                joint id: 49, name: R_ring_proximal_joint, limits: [0.000, 1.700]
+                                joint id: 50, name: R_ring_intermediate_joint, limits: [0.000, 1.700]
+                                joint id: 51, name: R_pinky_proximal_joint, limits: [0.000, 1.700]
+                                joint id: 52, name: R_pinky_intermediate_joint, limits: [0.000, 1.700]
+
+                            # 定义 gripper 全打开状态，拇指对齐食指方向：
+                                # L_thumb_proximal_yaw_joint: 1.3
+                                # R_thumb_proximal_yaw_joint: 1.3
+                                # 如[图](./g1_inspire_open.png)
+
+                            # 定义 gripper 全关闭状态，以下设置了主动关节，留有些空间，实机为连杆结构，应该拇指尖和食指尖接触：
+                                # R_thumb_proximal_yaw_joint: 1.3
+                                # R_thumb_proximal_pitch_joint: 0.5 # follow宇树在Inspired_Controller里的设定最大值
+                                # R_index_proximal_joint: 0.756
+                                # R_middle_proximal_joint: 0.756
+                                # R_ring_proximal_joint: 0.756
+                                # R_pinky_proximal_joint: 0.756
+                                # L的数值也是一样的
+                                # 如[图](./g1_inspire_close.png)
 
 
                 # 1. Quest 3 controller 控制5指手、三指手
