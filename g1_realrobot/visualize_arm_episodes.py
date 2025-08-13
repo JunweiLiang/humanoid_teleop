@@ -438,7 +438,7 @@ if __name__ == "__main__":
                 # Load and display image using OpenCV
                 image = cv2.imread(image_file)
                 if image is not None:
-                    cv2.imshow("Episode Image %s" % image_file_name, image)
+                    cv2.imshow("Episode Image", image)
                     cv2.waitKey(1) # Refresh image window
 
             char = get_char_nonblocking()
@@ -484,7 +484,12 @@ if __name__ == "__main__":
             if not paused:
                 current_episode_time = current_step / args.fps
                 # Use sys.stdout.write for finer control and avoid print's buffering issues
-                sys.stdout.write(f"\rTime: {current_episode_time:.2f}s | Step ID: {current_step}/{num_data_step-1}")
+                if show_image:
+                    sys.stdout.write(
+                        f"\rTime: {current_episode_time:.2f}s | Step ID: {current_step}/{num_data_step-1} | Image {image_file_name}")
+                else:
+                    sys.stdout.write(
+                        f"\rTime: {current_episode_time:.2f}s | Step ID: {current_step}/{num_data_step-1}")
                 sys.stdout.flush() # Ensure it's written immediately
 
                 step_data = episode["data"][current_step]["actions"]
