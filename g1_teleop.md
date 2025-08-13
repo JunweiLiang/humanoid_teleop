@@ -807,9 +807,11 @@ exts."isaacsim.asset.browser".folders = [
 
                                 # TODO: 图像的需要优化，image_client 输出延迟显示
                                 # TODO: 使用时用运控模式，保证站稳
-                                # TODO: Replay加入图像可视化，查看图像和动作要对齐
-                                # TODO: 修改因时手，初始状态，拇指平一点，类似figure的
+                                # TODO: 遥操作时，quest挂脖子上
+                                # TODO: Replay加入图像可视化，查看图像和动作要对齐 [Done]
+                                # TODO: 修改因时手，初始状态，拇指平一点，类似figure的  [Done]
 
+                # 以上TODO在仿真里测试
 
             # 再次测试！在laptop6安装
 ```
