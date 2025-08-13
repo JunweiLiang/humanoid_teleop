@@ -432,12 +432,13 @@ if __name__ == "__main__":
         while current_step < num_data_step:
             start_time = time.time()
             if show_image:
-                image_file = os.path.join(args.image_path, "%06d_color_0.jpg" % current_step)
+                image_file_name = "%06d_color_0.jpg" % current_step
+                image_file = os.path.join(args.image_path, image_file_name)
                 assert os.path.exists(image_file)
                 # Load and display image using OpenCV
                 image = cv2.imread(image_file)
                 if image is not None:
-                    cv2.imshow("Episode Image", image)
+                    cv2.imshow("Episode Image %s" % image_file_name, image)
                     cv2.waitKey(1) # Refresh image window
 
             char = get_char_nonblocking()

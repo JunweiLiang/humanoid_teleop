@@ -28,6 +28,9 @@ sudo route add -net 224.0.0.0 netmask 240.0.0.0 dev eno2
 
             (base) junweil@office-precognition:~/projects$ conda create -n tv python=3.10 pinocchio=3.1.0 numpy=1.26.4 -c conda-forge
 
+                # use opencv for the episode replay
+                $ pip install numpy==1.26.4 opencv-python==4.10.0.84
+
             (tv) junweil@office-precognition:~/projects/xr_teleoperate$ git submodule update --init --depth 1
 
             (tv) junweil@office-precognition:~/projects/xr_teleoperate$ cd teleop/televuer
@@ -793,7 +796,11 @@ exts."isaacsim.asset.browser".folders = [
 
                                                 # 传输的图像非常卡顿
 
-                                                # replay刚录制的序列, 传回office机器看
+
+                                        # replay刚录制的序列, 传回office机器看
+
+                                        # 可以同时看图像
+                                        (tv) junweil@office-precognition:~/projects/humanoid_teleop$ python g1_realrobot/visualize_arm_episodes.py ~/Downloads/episode_0001/data.json assets/g1/g1_body29_inspired_hand.urdf --fps 60 --image_path /home/junweil/Downloads/episode_0001/colors/
 
 
                                     # Quest 3上退出: 右手A按键结束程序，机器人应该会自动回零位
