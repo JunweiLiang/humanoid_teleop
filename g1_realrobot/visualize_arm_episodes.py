@@ -15,11 +15,13 @@ import sys
 import select # For non-blocking input
 import tty    # For non-blocking input
 import termios # For non-blocking input
+import cv2
 
 parser = argparse.ArgumentParser()
 
 parser.add_argument("episode_json")
 parser.add_argument("urdf")
+parser.add_argument("--image_path", default=None, help="add this to visualize image at the same time")
 parser.add_argument("--fps", type=float, default="60", help="the episode is recored in this fps, so we play in this fps")
 parser.add_argument("--hand_type", default="inspire1")
 parser.add_argument("--print_urdf_joints", action="store_true")
@@ -420,9 +422,23 @@ if __name__ == "__main__":
     # Set terminal to cbreak mode at the start
     set_terminal_cbreak()
 
+    show_image = False
+    if args.image_path is not None:
+        show_image = True
+        # episode_0001/colors
+        # 000825_color_0.jpg # images as many as steps
+
     try:
         while current_step < num_data_step:
             start_time = time.time()
+            if show_image:
+                image_file = os.path.join(args.image_path, "%06d_color_0.jpg" % current_step)
+                assert os.path.exists(image_file)
+                # Load and display image using OpenCV
+                image = cv2.imread(image_file)
+                if image is not None:
+                    cv2.imshow("Episode Image", image)
+                    cv2.waitKey(1) # Refresh image window
 
             char = get_char_nonblocking()
             if char is not None:
@@ -485,5 +501,7 @@ if __name__ == "__main__":
     finally:
         # Always restore terminal settings before exiting
         restore_terminal_settings()
+        if show_image:
+            cv2.destroyAllWindows() # Close all OpenCV windows
         print("\nReplay finished.")
 

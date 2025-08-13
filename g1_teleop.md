@@ -636,6 +636,174 @@ exts."isaacsim.asset.browser".folders = [
                 # 需要用到 arm_sdk topic。下肢应该只能用主运控. 向 rt/arm_sdk 话题发送 LowCmd 类型的消息
                 # 对于电机的底层控制算法，唯一需要的控制目标就是输出力矩。对于机器人，我们通常需要给关节设定位置、速度和力矩，就需要对关节电机进行混合控制。
 
-            # 实机中跑遥操作, 改controller控制？
+                # 1. 先确保5指灵巧手可用
+                    # 1.1 G1旗舰版，自带了线与485转usb模块在身体背部，用usb-c，连接到PC2,需要在PC2上启动手部服务
+                    # 1.2 [08/12/2025] 宇树的线坏了，我们用独立的线和485转usb模块连接遥操作电脑，在遥操作电脑上开启手部服务
+
+                        # laptop2安装与调试
+
+                            # 下载代码 (有两个版本，我们用最新的v1.0.2 from https://support.unitree.com/home/zh/H1_developer/Dexterous_hand)
+                                (base) junweil@office-precognition:~/Downloads$ ls h1_inspire_hand_202*
+                                    h1_inspire_hand_20240507.zip  h1_inspire_hand_20250325.zip
+
+                                (base) junweil@ai-precognition-laptop2:~/projects/g1_codes$ scp junweil@office.precognition.team:~/Downloads/h1_inspire_hand_2025* .
+
+                            # 安装
+                                $ sudo apt update
+                                $ sudo apt install build-essential libeigen3-dev libyaml-cpp-dev
+                                $ sudo apt install libboost-all-dev libspdlog-dev cmake
+
+                                # 要先安装unitree SDK2 到system 目录 (ROS2)
+                                    (base) junweil@ai-precognition-laptop2:~/projects/g1_codes$ git clone https://github.com/unitreerobotics/unitree_sdk2
+
+                                    (base) junweil@ai-precognition-laptop2:~/projects/g1_codes/unitree_sdk2/build$ cmake ..
+
+                                    (base) junweil@ai-precognition-laptop2:~/projects/g1_codes/unitree_sdk2/build$ sudo make install
+
+                                # 还要安装ros2 和ROS2的dds组件
+                                    # ubuntu 24.04对应 jazzy: https://docs.ros.org/en/jazzy/Installation.html
+
+                                    $ sudo apt install software-properties-common
+                                    $ sudo add-apt-repository universe
+                                    $ sudo apt update && sudo apt install curl -y
+                                    $ export ROS_APT_SOURCE_VERSION=$(curl -s https://api.github.com/repos/ros-infrastructure/ros-apt-source/releases/latest | grep -F "tag_name" | awk -F\" '{print $4}')
+                                    $ curl -L -o /tmp/ros2-apt-source.deb "https://github.com/ros-infrastructure/ros-apt-source/releases/download/${ROS_APT_SOURCE_VERSION}/ros2-apt-source_${ROS_APT_SOURCE_VERSION}.$(. /etc/os-release && echo $VERSION_CODENAME)_all.deb" # If using Ubuntu derivates use $UBUNTU_CODENAME
+                                    $ sudo dpkg -i /tmp/ros2-apt-source.deb
+                                    $ sudo apt update
+                                    $ sudo apt install ros-jazzy-desktop
+
+                                    $ sudo apt install -y ros-jazzy-rmw-cyclonedds-cpp
+
+                                (base) junweil@ai-precognition-laptop2:~/projects/g1_codes/h1_inspire_service/build$ cmake .. -DCMAKE_BUILD_TYPE=Release
+
+                                (base) junweil@ai-precognition-laptop2:~/projects/g1_codes/h1_inspire_service/build$ make -j4
+
+                                # 然后laptop2还要按前面说的安装遥操作依赖，tv
+
+                            # 测试，把两只手都usb连到电脑
+
+                                # usb识别到之后才会有 ls /dev/ttyUSB*
+
+                                # 开手的服务器，这时手会合起来，食指没有其他手指那么贴手掌。
+                                    # 12V电源不行的，会卡顿
+                                    # 24V才行，24V3A是可以的。宇树的人也说要插24V电源 (G1 3个电源口中间那个)
+
+                                (base) junweil@ai-precognition-laptop2:~/projects/g1_codes/h1_inspire_service/build$ sudo ./inspire_hand -s /dev/ttyUSB0
+
+                                    加--network enp2s0?
+                                    # 这个service的param, 应该默认两只手连一个usb
+                                        ("help,h", "produce help message")
+                                        ("serial,s", po::value<std::string>(&serial_port)->default_value("/dev/ttyUSB0"), "serial port")
+                                        ("network", po::value<std::string>(&network)->default_value(""), "DDS network interface")
+                                        ("namespace", po::value<std::string>(&ns)->default_value("inspire"), "DDS topic namespace")
+                                        ;
+
+                                # 另一个terminal，执行下面的，手会开始开合；用于测试的
+                                (base) junweil@ai-precognition-laptop2:~/projects/g1_codes/h1_inspire_service/build$ ./h1_hand_example
+
+                            # 开始测试
+                                0. laptop2 连接学校校园网，然后有线连接G1，Quest 3连学校校园网
+                                    # laptop2 有线连接后，设置有线网络，设置自己为192.168.123.201, netmask 255.255.255.0
+                                    # 确保laptop2 全部流量走无线，有线的priority降低
+                                        $ nmcli connection show
+
+                                        # 看到有线网和无线网
+                                        NAME                  UUID                                  TYPE      DEVICE
+                                        HKUSTGZ               391770eb-48df-4888-94e6-6b6a768bc273  wifi      wlo1
+                                        g1_wired              8cf798d4-a07d-41d0-b640-83646329a40a  ethernet  enp2s0
+
+                                        # 看看各自的priority
+
+                                            (tv) junweil@ai-precognition-laptop2:~/projects/xr_teleoperate$ nmcli connection show "HKUSTGZ" | grep ipv4.route-metric
+                                            ipv4.route-metric:                      -1
+                                            (tv) junweil@ai-precognition-laptop2:~/projects/xr_teleoperate$ nmcli connection show "g1_wired" | grep ipv4.route-metric
+                                            ipv4.route-metric:                      -1
+
+                                        # 修改，越低的优先越高
+
+                                            sudo nmcli connection modify HKUSTGZ ipv4.route-metric 100
+                                            sudo nmcli connection modify g1_wired ipv4.route-metric 200
+
+                                    # 此时laptop2应该可以$ ping 192.168.123.164， PC2
+
+                                1. 开启G1，进入调试模式, 阻尼或零力矩模式下，遥控器按L2+R2进入调试模式;  L2 + B进入阻尼
+
+                                2. PC2上开image server
+                                    # 首先，我们需要G1的d435的serial number
+                                        进入G1 PC2选择2(noetic)，就是ROS1环境
+                                        $ roslaunch realsense2_camera rs_camera.launch
+                                        然后看到
+                                            [INFO] [1755001723.579841277]: Device Name: Intel RealSense D435I
+                                            [INFO] [1755001723.579856477]: Device Serial No: 243222072371
+
+                                        注意config 中的serial number必须是字符串
+                                    # 传代码过去
+                                        (base) junweil@ai-precognition-laptop2:~/projects/xr_teleoperate$ scp -r teleop/image_server/ unitree@192.168.123.164:~/projects/
+
+                                        # 先确保，image_server.py的 image config，和teleop_hand_and_arm.py一致
+                                            config = {
+                                                'fps': 30,
+                                                'head_camera_type': 'realsense',
+                                                'head_camera_image_shape': [720, 1280],  # Head camera resolution
+                                                'head_camera_id_numbers': ["243222072371"],
+                                                #'wrist_camera_type': 'opencv',
+                                                #'wrist_camera_image_shape': [480, 640],  # Wrist camera resolution
+                                                #'wrist_camera_id_numbers': [2, 4],
+                                            }
+
+                                    # 进入PC2开image server; 确保G1的realsense usbc接入了PC2
+                                    # PC2上需要有realsense的包裹，可以直接安装
+                                        # PC2设置了无线网络连到实验室的网络(可以连接外网)，有线是在G1里的网络
+
+                                        (base) unitree@ubuntu:~/projects/image_server$ python3.8 -m pip install pyrealsense2 pyzmq logging_mp
+
+                                    # 开始！！
+                                        (base) unitree@ubuntu:~/projects/image_server$ python3.8 image_server.py
+                                            20:38:32:045094 INFO     {'fps': 30, 'head_camera_type': 'realsense', 'head_camera_image_shape': [720,       image_server.py:141
+                                                                     1280], 'head_camera_id_numbers': ['243222072371']}
+                                            20:38:32:353138 INFO     [Image Server] Head camera 243222072371 resolution: 720 x 1280                      image_server.py:195
+                                            20:38:32:353410 INFO     [Image Server] Image server has started, waiting for client connections...          image_server.py:207
+
+
+                                # laptop2 测试image server
+                                    (tv) junweil@ai-precognition-laptop2:~/projects/xr_teleoperate/teleop/image_server$ python image_client.py
+                                    #这时能直接cv2窗口看到realsense视角
+
+                                    # laptop2 测试各个rt/ 的DDS topic 是否ok?
+
+                                # laptop2开启遥控操作程序，
+
+                                    # 先开启手部服务 # 注意这里因时灵巧手必须两只手接一个usb口
+                                        (base) junweil@ai-precognition-laptop2:~/projects/g1_codes/h1_inspire_service/build$ sudo ./inspire_hand -s /dev/ttyUSB0 --network enp2s0
+
+                                    (tv) junweil@ai-precognition-laptop2:~/projects/xr_teleoperate/teleop$ python teleop_hand_and_arm.py --xr-mode=controller  --arm=G1_29 --ee=inspire1 --record --network_interface enp2s0
+
+
+                                        # 这时候G1 会去到零位，因时灵巧手也会张开，终端显示inspire DDS OK
+
+                                        # 这时可以带上Quest 3开始
+                                            # Quest 3 中，先确保脸上了校园网HKUSTGZ，然后浏览器打开
+                                                # https://lt2.precognition.team:8012?ws=wss://lt2.precognition.team:8012
+                                                # 点击浏览器刷新，确保前面终端显示已连接websocket
+                                                # 点击 pass through，开启遥操作数据传输
+                                                # 把双手摆好，然后右手 B按键开启程序，这时候机器人应该就响应遥操作了
+                                                # 左手x按键开启数据录制，再按x按键一次结束，按了一次可能要等一会儿才能显示save ***/data.json
+                                                # 右手A按键结束程序，回零位，这时可以按Meta按键退出VR，再在浏览器上点一次QUIT，就可以摘了
+
+
+                                                # 传输的图像非常卡顿
+
+                                                # replay刚录制的序列, 传回office机器看
+
+
+                                    # Quest 3上退出: 右手A按键结束程序，机器人应该会自动回零位
+
+                                # TODO: 图像的需要优化，image_client 输出延迟显示
+                                # TODO: 使用时用运控模式，保证站稳
+                                # TODO: Replay加入图像可视化，查看图像和动作要对齐
+                                # TODO: 修改因时手，初始状态，拇指平一点，类似figure的
+
+
+            # 再次测试！在laptop6安装
 ```
 
