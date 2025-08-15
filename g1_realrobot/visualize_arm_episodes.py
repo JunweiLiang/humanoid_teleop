@@ -459,7 +459,7 @@ if __name__ == "__main__":
                         print(f"\nStepped forward to step {current_step}")
 
                         step_data = episode["data"][current_step]["actions"]
-                        show_current_q(vis_model, step_data)
+                        show_current_q(vis_model, step_data, hand_type=args.hand_type)
 
                         plus_pressed_handled = True
                 elif char == '.':
@@ -468,7 +468,7 @@ if __name__ == "__main__":
                         print(f"\nStepped back to step {current_step}")
 
                         step_data = episode["data"][current_step]["actions"]
-                        show_current_q(vis_model, step_data)
+                        show_current_q(vis_model, step_data, hand_type=args.hand_type)
 
                         minus_pressed_handled = True
                 # Handle Ctrl+C (ASCII 3) or Ctrl+D (ASCII 4) to exit cleanly
