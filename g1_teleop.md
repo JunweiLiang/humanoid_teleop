@@ -224,7 +224,7 @@ exts."isaacsim.asset.browser".folders = [
 
                         (base) junweil@precognition-laptop4:~/projects$ git clone https://github.com/JunweiLiang/xr_teleoperate
 
-                        (base) junweil@precognition-laptop4:~/projects/xr_teleoperate$ conda create -n tv python=3.10 pinocchio=3.1.0 numpy=1.26.4 -c conda-forge
+                        (base) junweil@precognition-laptop4:~/projects/xr_teleoperate$ conda create -n tv python=3.10 pinocchio=3.1.0 numpy=1.26.4 opencv-python==4.10.0.84 -c conda-forge
 
                         (tv) junweil@precognition-laptop4:~/projects/xr_teleoperate/teleop/televuer$ pip install -e .
 
@@ -806,13 +806,123 @@ exts."isaacsim.asset.browser".folders = [
                                     # Quest 3上退出: 右手A按键结束程序，机器人应该会自动回零位
 
                                 # TODO: 图像的需要优化，image_client 输出延迟显示
-                                # TODO: 使用时用运控模式，保证站稳
-                                # TODO: 遥操作时，quest挂脖子上
+                                    # 打开宇树代码里的Unit Test就好了
+                                    # 还是要添加一个指标，看看当前有多大延迟
+                                    # 30 还是 60 fps?
+                                    # 修改image server, 获取图片是一个thread，然后发送图片是另一个thread
+                                # TODO: 使用时用运控模式，保证站稳 [Done, 需要给 --motion]
+                                # TODO: 遥操作时，quest挂脖子上;
+                                    # 把quest3 舒适头套换回原版的头带
+                                    # 点pass through之后摘下来，
                                 # TODO: Replay加入图像可视化，查看图像和动作要对齐 [Done]
                                 # TODO: 修改因时手，初始状态，拇指平一点，类似figure的  [Done]
 
-                # 以上TODO在仿真里测试
-
             # 再次测试！在laptop6安装
+                (base) junweil@precognition-laptop6:~/projects$ git clone https://github.com/JunweiLiang/xr_teleoperate
+
+                (base) junweil@precognition-laptop6:~/projects$ conda create -n tv python=3.10 pinocchio=3.1.0 numpy=1.26.4  -c conda-forge
+
+                $ pip install opencv-python==4.10.0.84
+
+                (tv) junweil@precognition-laptop6:~/projects/xr_teleoperate/teleop/televuer$ pip install -e .
+
+                (tv) junweil@precognition-laptop6:~/projects/xr_teleoperate/teleop/televuer$ openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout key.pem -out cert.pem
+
+                $ cd ../robot_control/dex-retargeting/
+                $ pip install -e .
+
+                (tv) junweil@precognition-laptop6:~/projects/xr_teleoperate$ pip install -r requirements.txt
+
+                (tv) junweil@precognition-laptop6:~/projects/xr_teleoperate/unitree_sdk2_python$ pip install -e .
+
+                # 安装灵巧手程序
+
+                    $ sudo apt update
+                    $ sudo apt install build-essential libeigen3-dev libyaml-cpp-dev libboost-all-dev libspdlog-dev cmake
+
+                    # 要先安装unitree SDK2 到system 目录 (ROS2)
+                        (tv) junweil@precognition-laptop6:~/projects/xr_teleoperate$ git clone https://github.com/unitreerobotics/unitree_sdk2
+
+                        (tv) junweil@precognition-laptop6:~/projects/xr_teleoperate/unitree_sdk2/build$ cmake ..
+
+                        (tv) junweil@precognition-laptop6:~/projects/xr_teleoperate/unitree_sdk2/build$ sudo make install
+
+                    # 还要安装ros2 和ROS2的dds组件
+                        # ubuntu 24.04对应 jazzy: https://docs.ros.org/en/jazzy/Installation.html
+
+                        $ sudo apt install software-properties-common
+                        $ sudo add-apt-repository universe
+                        $ sudo apt update && sudo apt install curl -y
+                        $ export ROS_APT_SOURCE_VERSION=$(curl -s https://api.github.com/repos/ros-infrastructure/ros-apt-source/releases/latest | grep -F "tag_name" | awk -F\" '{print $4}')
+                        $ curl -L -o /tmp/ros2-apt-source.deb "https://github.com/ros-infrastructure/ros-apt-source/releases/download/${ROS_APT_SOURCE_VERSION}/ros2-apt-source_${ROS_APT_SOURCE_VERSION}.$(. /etc/os-release && echo $VERSION_CODENAME)_all.deb" # If using Ubuntu derivates use $UBUNTU_CODENAME
+                        $ sudo dpkg -i /tmp/ros2-apt-source.deb
+                        $ sudo apt update
+                        $ sudo apt install ros-jazzy-desktop
+
+                        $ sudo apt install -y ros-jazzy-rmw-cyclonedds-cpp
+
+                    (tv) junweil@precognition-laptop6:~/projects/xr_teleoperate/h1_inspire_service/build$ cmake .. -DCMAKE_BUILD_TYPE=Release
+
+                    (tv) junweil@precognition-laptop6:~/projects/xr_teleoperate/h1_inspire_service/build$ make -j4
+
+                    # 以下程序应该没有报错
+                        (tv) junweil@precognition-laptop6:~/projects/xr_teleoperate/h1_inspire_service/build$ sudo ./inspire_hand -s /dev/ttyUSB0 --network enp131s0
+                # 设置网络，假设有线连接g1, 无线连学校校园网
+                    $ nmcli connection show
+                    NAME                  UUID                                  TYPE      DEVICE
+                    HKUSTGZ               db9409c0-6844-4608-8331-221f0f2fffbb  wifi      wlp132s0f0
+                    g1_wired              41f76970-8bfd-4c1a-a059-75e169096388  ethernet  enp131s0
+
+                    $ nmcli connection show "HKUSTGZ" | grep ipv4.route-metric
+
+                    sudo nmcli connection modify HKUSTGZ ipv4.route-metric 100
+                    sudo nmcli connection modify g1_wired ipv4.route-metric 200
+
+                # 开始!
+                    0. g1开机，进入主运控
+                    0. 传更新的image_server 代码
+                        (base) junweil@precognition-laptop6:~/projects/xr_teleoperate$ scp -r teleop/image_server/ unitree@192.168.123.164:~/projects/
+                    1. 开启image server
+                        (base) unitree@ubuntu:~/projects/image_server$ python3.8 image_server.py
+                        # 会显示30 fps
+
+                            # 测试image server
+                                (tv) junweil@ai-precognition-laptop6:~/projects/xr_teleoperate/teleop/image_server$ python image_client.py
+
+                                # 这个显示latency 是0， 有点奇怪
+
+                        # image_server要关闭Unit test重新开
+
+                    2. 开始遥操作
+                        # 先开启手部服务 # 注意这里因时灵巧手必须两只手接一个usb口
+                        (base) junweil@ai-precognition-laptop6:~/projects/g1_codes/h1_inspire_service/build$ sudo ./inspire_hand -s /dev/ttyUSB0 --network enp131s0
+
+                        # 先把面前的桌子移开，避免0位时手臂撞到
+
+                        (tv) junweil@ai-precognition-laptop6:~/projects/xr_teleoperate/teleop$ python teleop_hand_and_arm.py --xr-mode=controller  --arm=G1_29 --ee=inspire1 --record --network_interface enp131s0 --motion
+
+
+                        # 这时候G1 会去到零位，因时灵巧手也会张开，终端显示inspire DDS OK
+                        # 可以移动桌子了
+
+                        # 这时可以带上Quest 3开始
+                            # Quest 3 中，先确保脸上了校园网HKUSTGZ，然后浏览器打开
+                                # https://lt6.precognition.team:8012?ws=wss://lt6.precognition.team:8012
+                                # 点击浏览器刷新，确保前面终端显示已连接websocket
+                                # 点击 pass through，开启遥操作数据传输
+                                # 把双手摆好，然后右手 B按键开启程序，这时候机器人应该就响应遥操作了
+                                # 左手x按键开启数据录制，再按x按键一次结束，按了一次可能要等一会儿才能显示save ***/data.json
+                                # 右手A按键结束程序，回零位，这时可以按Meta按键退出VR，再在浏览器上点一次QUIT，就可以摘了
+
+                # 宇树官方把因时的手state获取左右手搞反了
+                    https://github.com/unitreerobotics/xr_teleoperate/issues/121
+
+                # [08/14/2025] TODO
+                    # 1. 图像传输与存储+states/actions的时间校验
+                        # 开机，先确保G1 PC2和遥操作机器的时间同步？
+                    # 2. quest 3 挂脖子
+                    # 3. 加入腰部3自由度控制
+
+
 ```
 

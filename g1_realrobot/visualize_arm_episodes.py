@@ -353,13 +353,17 @@ def show_current_q(vis_model, step_data, hand_type="inspire1"):
     left_arm_pos = step_data["left_arm"]["qpos"]
     right_arm_pos = step_data["right_arm"]["qpos"]
 
+    # 旧版宇树有不同的叫法
+    left_ee_name = "left_ee" if "left_ee" in step_data else "left_hand"
+    right_ee_name = "right_ee" if "right_ee" in step_data else "right_hand"
+
     if hand_type == "inspire1":
 
-        left_ee_pos = np.array(step_data["left_ee"]["qpos"])
+        left_ee_pos = np.array(step_data[left_ee_name]["qpos"])
         denorm_inspire(left_ee_pos) # 先按telop_hand_and_arm.py denorm之后再换成URDF ID
         left_ee_pos = left_ee_pos[left_inspire_api_to_urdf_index]
 
-        right_ee_pos = np.array(step_data["right_ee"]["qpos"])
+        right_ee_pos = np.array(step_data[right_ee_name]["qpos"])
         denorm_inspire(right_ee_pos)
         right_ee_pos = right_ee_pos[right_inspire_api_to_urdf_index]
 
@@ -371,10 +375,10 @@ def show_current_q(vis_model, step_data, hand_type="inspire1"):
         target_q[20:] = right_ee_pos
 
     elif hand_type == "dex3":
-        left_ee_pos = np.array(step_data["left_ee"]["qpos"])
+        left_ee_pos = np.array(step_data[left_ee_name]["qpos"])
         left_ee_pos = left_ee_pos[left_dex3_api_to_urdf_index]
 
-        right_ee_pos = np.array(step_data["right_ee"]["qpos"])
+        right_ee_pos = np.array(step_data[right_ee_name]["qpos"])
         right_ee_pos = right_ee_pos[right_dex3_api_to_urdf_index]
 
 
