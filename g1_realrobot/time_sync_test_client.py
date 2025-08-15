@@ -1,45 +1,46 @@
 import socket
 import time
 import argparse
+import datetime
 
 parser = argparse.ArgumentParser()
 parser.add_argument("server_ip")
-parser.add_argument("--port", default="12346")
+parser.add_argument("--port", type=int, default=12346)
 
 NUM_PINGS = 10
 
-def measure_latency(server_ip, port):
-    latencies = []
+def get_time_difference(server_ip, port):
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        try:
-            s.connect((server_ip, port))
-            print(f"Connected to {server_ip}:{port}")
-            for i in range(NUM_PINGS):
-                start_time = time.time()
-                s.sendall(b"ping") # Send a small packet
-                data = s.recv(1024) # Wait for response
-                end_time = time.time()
+        start_time_client = time.time()
+        s.connect((server_ip, port))
+        end_time_client = time.time()
 
-                rtt = (end_time - start_time) * 1000 # Convert to milliseconds
-                latencies.append(rtt)
-                print(f"Ping {i+1}: {rtt:.2f} ms")
-                time.sleep(0.1) # Wait a bit before next ping
+        # Measure network latency for this specific communication
+        latency = (end_time_client - start_time_client) * 1000 # in milliseconds
 
-            if latencies:
-                avg_latency = sum(latencies) / len(latencies)
-                min_latency = min(latencies)
-                max_latency = max(latencies)
-                print(f"\n--- Latency Statistics ({server_ip}) ---")
-                print(f"Pings sent: {NUM_PINGS}")
-                print(f"Minimum RTT: {min_latency:.2f} ms")
-                print(f"Maximum RTT: {max_latency:.2f} ms")
-                print(f"Average RTT: {avg_latency:.2f} ms")
+        # Send a dummy request to get the server's time
+        s.sendall(b"get_time")
+        server_time_str = s.recv(1024).decode()
+        server_time_utc = float(server_time_str)
 
-        except ConnectionRefusedError:
-            print(f"Connection refused. Make sure the server is running on {server_ip}:{port}")
-        except Exception as e:
-            print(f"An error occurred: {e}")
+        # Estimate the server's time upon arrival at the client
+        # We assume half of the measured latency is for one-way travel
+        estimated_server_time_at_client = server_time_utc + (latency / 2000) # divide by 1000 for ms to seconds, then by 2 for one way
+
+        # Get current client time (UTC)
+        current_client_time_utc = datetime.datetime.utcnow().timestamp()
+
+        # Calculate the difference
+        time_difference = (current_client_time_utc - estimated_server_time_at_client) * 1000 # in milliseconds
+
+        print(f"Network Latency (RTT): {latency:.2f} ms")
+        print(f"Server UTC Timestamp: {datetime.datetime.fromtimestamp(server_time_utc, datetime.timezone.utc)}")
+        print(f"Client UTC Timestamp: {datetime.datetime.fromtimestamp(current_client_time_utc, datetime.timezone.utc)}")
+        print(f"Estimated Time Difference (Client - Server): {time_difference:.2f} ms")
+        print("A positive value means the client's clock is ahead of the server's clock.")
+        print("A negative value means the client's clock is behind the server's clock.")
+
 
 if __name__ == "__main__":
     args = parser.parse_args()
-    measure_latency(args.server_ip, args.port)
+    get_time_difference(args.server_ip, args.port)
