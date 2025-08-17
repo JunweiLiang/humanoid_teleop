@@ -449,7 +449,7 @@ if __name__ == "__main__":
 
                         delay_in_seconds = float(episode["data"][current_step]["delay"])
                         # Add delay text to the resized image
-                        delay_text = f"Delay: {delay * 1000:.2f} ms"
+                        delay_text = f"Delay: {delay_in_seconds * 1000:.2f} ms"
                         cv2.putText(
                             image,
                             delay_text,
