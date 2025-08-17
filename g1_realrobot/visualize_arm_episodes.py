@@ -442,6 +442,24 @@ if __name__ == "__main__":
                 # Load and display image using OpenCV
                 image = cv2.imread(image_file)
                 if image is not None:
+
+
+                    # if the data saved the delay times as well
+                    if "delay" in episode["data"][current_step]:
+
+                        delay_in_seconds = float(episode["data"][current_step]["delay"])
+                        # Add delay text to the resized image
+                        delay_text = f"Delay: {delay * 1000:.2f} ms"
+                        cv2.putText(
+                            image,
+                            delay_text,
+                            (10, 30),
+                            cv2.FONT_HERSHEY_SIMPLEX,
+                            0.8,
+                            (255, 255, 255),
+                            2,
+                            cv2.LINE_AA
+                        )
                     cv2.imshow("Episode Image", image)
                     cv2.waitKey(1) # Refresh image window
 

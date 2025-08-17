@@ -961,12 +961,62 @@ exts."isaacsim.asset.browser".folders = [
                         以上都是lowcmd，有35个自由度的motor cmd (29个是g1的)
                         kTopicLowState = "rt/lowstate"
 
+        # [08/17/2025] 更新后在laptop6测试
+            # 更新Vuer
+                (tv) junweil@precognition-laptop6:~/projects/xr_teleoperate/teleop/televuer$ pip install -e .
 
+            1. 先测试新的image server client
+                # 发送新的代码到G1
+                    (tv) junweil@precognition-laptop6:~/projects/xr_teleoperate$ scp -r teleop/image_server/ unitree@192.168.123.164:~/projects/
+
+                    # 开启g1 server
+                        (base) unitree@ubuntu:~/projects/image_server$ python3.8 image_server_timesync.py
+
+                    # laptop6上测试 (会弹出cv2图像界面)
+                        (tv) junweil@precognition-laptop6:~/projects/xr_teleoperate/teleop/image_server$ python image_client_timesync.py
+
+                        # 测试了两分钟，从delay从3ms涨到7ms
+                        # 有可能出现负的delay，可能是clock drift，都保存下来吧
+
+                2. 开启两只手的controller
+
+                    (base) junweil@precognition-laptop6:~/projects/xr_teleoperate/h1_inspire_service/build$ sudo ./inspire_hand -s /dev/ttyUSB1 --network enp131s0
+
+                    -s /dev/ttyUSB0
+
+                    # 右手食指可能会没响应，这时候需要拔掉手上的线，重新接，重新开controller能恢复
+                        # 把手恢复握拳或者张开状态
+                            (tv) junweil@precognition-laptop6:~/projects/xr_teleoperate$ h1_inspire_service/build/h1_hand_example
+
+                3. 开启遥操作！
+                    # 所以在这个之前，需要在laptop6上开启3个screen
+                        # 第一个连着unitree g1，在上面开image_server
+                        # 第二三在laptop6上直接连着因时手，开controller
+
+                    (tv) junweil@ai-precognition-laptop6:~/projects/xr_teleoperate/teleop$ python teleop_hand_and_arm.py --xr-mode=controller  --arm=G1_29 --ee=inspire1 --record --network_interface enp131s0 --motion
+
+                    # 右手controller现在控制两只手开合
+
+                    # 戴上VR，刷新浏览器，enter passthrough，图像应该在地板上，然后用就可以了
+
+                    # 图像client会做100次handshake，估计的延迟为10ms以内，然后后面平均延迟也是5ms以内
+                        # 存储episode的按钮问题已经解决，按一次3秒不会再触发的。
+                        # 但是存储开始和结束，VR中不会有提示，要看电脑屏幕
+
+                    # 发送episode到office 查看，同时显示delay
+
+            # 挂脖子使用，需要开developer mode，需要建立一个meta账号，使用ipad的horizon app，还要开duo二次验证，然后建立org, org验证还需要上传护照，名字生日要对，等48小时验证。
+                # 然后在Mac OS 安装adb，比较简单
+                    junweiliang@work_laptop:~/Downloads$ wget https://dl.google.com/android/repository/platform-tools-latest-darwin.zip
+
+                    # 解压就能用，直接连接device
+
+                        junweiliang@work_laptop:~/Downloads/platform-tools$ ./adb devices
 
 
 ```
 ## 收集数据训练测试
 ```
-    #对比不同视觉延迟的训练测试效果
+    #对比不同视觉延迟的训练测试效果？没必要，g1分发图像延迟在5ms以内
 ```
 
