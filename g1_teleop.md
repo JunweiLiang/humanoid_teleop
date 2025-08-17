@@ -407,6 +407,8 @@ exts."isaacsim.asset.browser".folders = [
                                         # https://registry.khronos.org/OpenXR/specs/1.1/man/html/openxr.html
                                         # 25个点参考这个图: https://docs.unity.cn/Packages/com.unity.xr.hands@1.2/manual/hand-data/xr-hand-data-model.html
 
+                                    # 25个关节点，是Vuer库的：https://docs.vuer.ai/en/latest/examples/19_hand_tracking.html
+
                                 手部信息在循环中存储到 left_hand_pos_array
                                 然后 Inspire_Controller 以最高100 Hz，获取hand_pos_array，
                                     然后retarget到机器手的这个，因时就是12维度， 6x2
@@ -895,7 +897,7 @@ exts."isaacsim.asset.browser".folders = [
 
                     2. 开始遥操作
                         # 先开启手部服务 # 注意这里因时灵巧手必须两只手接一个usb口
-                        (base) junweil@ai-precognition-laptop6:~/projects/g1_codes/h1_inspire_service/build$ sudo ./inspire_hand -s /dev/ttyUSB0 --network enp131s0
+                        (base) junweil@ai-precognition-laptop6:~/projects/xr_teleoperate/h1_inspire_service/build$ sudo ./inspire_hand -s /dev/ttyUSB0 --network enp131s0
 
                         # 先把面前的桌子移开，避免0位时手臂撞到
 
@@ -919,10 +921,52 @@ exts."isaacsim.asset.browser".folders = [
 
                 # [08/14/2025] TODO
                     # 1. 图像传输与存储+states/actions的时间校验
-                        # 开机，先确保G1 PC2和遥操作机器的时间同步？
+                        # 开机，先确保G1 PC2和遥操作机器的时间同步？-- handshake, 算出时间差
                     # 2. quest 3 挂脖子
                     # 3. 加入腰部3自由度控制
 
 
+                    # 1. timestamp时间问题
+                        两台电脑，即时联网，timestamp是有可能有很大误差的，比如我laptop和office电脑，就有2秒误差
+                            junweiliang@work_laptop:~/Desktop/github_projects/humanoid_teleop$ python g1_realrobot/time_sync_test_client.py office.precognition.team
+                                Network Latency (RTT): 6.48 ms
+                                Server UTC Timestamp: 2025-08-14 21:12:58.341972+00:00
+                                Client UTC Timestamp: 2025-08-14 21:12:56.105529+00:00
+                                Estimated Time Difference (Client - Server): -2239.68 ms
+                                A positive value means the client's clock is ahead of the server's clock.
+                                A negative value means the client's clock is behind the server's clock.
+                        # 所以获取图片不能用timestamp算
+
+                        # teleop_hand_and_arm.py 的loop逻辑
+                            # 会保证不超过 --freq, 默认60 fps
+                            # 单个loop里，获取tele_data之后，控制机械臂和手，也获取当前机械臂和手的状态和action，然后copy当前的image
+                                # 别的进程一直在更新这个image tensor
+                                    # 我需要知道这个image实际延迟有多少
+                                        # 所以teleop开启了image server, image client 先去拿到两个电脑的timestamp差值，
+                                        # 然后每个image就能计算在本地的 实际时间，算出存储的时候慢了多少
+
+                                # 同时会吧这个image tensor发给XR 设备
+
+                                # teleop/televuer/src/televuer/televuer.py 中可以修改图片的显示在VR 中，显示延迟
+                                    # 还修改了VR显示的位置，往下放一点
+                                    # 记得重新pip install -e .
+
+                                # 添加了delay 到data.json的每个item中，的"delay"字段，float 秒，
+
+                        ## save episode，修改成等待把图片所有东西都存完，VR假死，等到存好了再反应
+
+                    # 3. --motion用的是另外的DDS topic for control G1
+                        kTopicLowCommand_Debug  = "rt/lowcmd" -- 调试模式
+                        kTopicLowCommand_Motion = "rt/arm_sdk" --motion
+                        以上都是lowcmd，有35个自由度的motor cmd (29个是g1的)
+                        kTopicLowState = "rt/lowstate"
+
+
+
+
+```
+## 收集数据训练测试
+```
+    #对比不同视觉延迟的训练测试效果
 ```
 

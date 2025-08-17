@@ -5,7 +5,7 @@ import datetime
 
 parser = argparse.ArgumentParser()
 parser.add_argument("server_ip")
-parser.add_argument("--port", type=int, default=12346)
+parser.add_argument("--port", type=int, default=12345)
 
 NUM_PINGS = 10
 
@@ -33,7 +33,7 @@ def get_time_difference(server_ip, port):
         # Calculate the difference
         time_difference = (current_client_time_utc - estimated_server_time_at_client) * 1000 # in milliseconds
 
-        print(f"Network Latency (RTT): {latency:.2f} ms")
+        print(f"Network Latency (RTT): {latency:.2f} ms. (Time spend connected to the server)")
         print(f"Server UTC Timestamp: {datetime.datetime.fromtimestamp(server_time_utc, datetime.timezone.utc)}")
         print(f"Client UTC Timestamp: {datetime.datetime.fromtimestamp(current_client_time_utc, datetime.timezone.utc)}")
         print(f"Estimated Time Difference (Client - Server): {time_difference:.2f} ms")
