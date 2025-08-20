@@ -26,6 +26,7 @@ parser.add_argument("--fps", type=float, default="60", help="the episode is reco
 parser.add_argument("--hand_type", default="inspire1")
 parser.add_argument("--print_urdf_joints", action="store_true")
 parser.add_argument("--use_waist", action="store_true", help="visualize waist data")
+parser.add_argument("--show_states", action="store_true", help="show states instead of actions")
 
 """ # joint id for reduced g1 with inspire hand
 Joint ID 1: left_shoulder_pitch_joint
@@ -92,7 +93,7 @@ Joint ID 28: right_hand_thumb_2_joint
 """
 
 class G1_29_Vis_Episode:
-    def __init__(self, urdf, fps=60, hand_type="inspire1", print_urdf_joints=False, visualize_waist=False):
+    def __init__(self, urdf, fps=60, hand_type="inspire1", print_urdf_joints=False):
 
         np.set_printoptions(precision=5, suppress=True, linewidth=200)
 
@@ -117,7 +118,7 @@ class G1_29_Vis_Episode:
                 "right_ankle_pitch_joint" ,
                 "right_ankle_roll_joint" ,
 
-                # 腰部不要锁，可能有演示
+                # 腰部不要锁，可能有数值
                 #"waist_yaw_joint" ,
                 #"waist_roll_joint" ,
                 #"waist_pitch_joint",
@@ -351,7 +352,7 @@ def get_char_nonblocking():
             return None
     return None
 
-def show_current_q(vis_model, step_data, hand_type="inspire1"):
+def show_current_q(vis_model, step_data, hand_type="inspire1", visualize_waist=False):
     #step_data = episode["data"][current_step]["actions"]
     left_arm_pos = step_data["left_arm"]["qpos"]
     right_arm_pos = step_data["right_arm"]["qpos"]
@@ -359,6 +360,11 @@ def show_current_q(vis_model, step_data, hand_type="inspire1"):
     # 旧版宇树有不同的叫法
     left_ee_name = "left_ee" if "left_ee" in step_data else "left_hand"
     right_ee_name = "right_ee" if "right_ee" in step_data else "right_hand"
+
+    if visualize_waist:
+        waist_q = np.array(step_data["waist"]["qpos"])
+    else:
+        waist_q = np.zeros((3, ), dtype=np.float32)
 
     if hand_type == "inspire1":
 
@@ -371,11 +377,13 @@ def show_current_q(vis_model, step_data, hand_type="inspire1"):
         right_ee_pos = right_ee_pos[right_inspire_api_to_urdf_index]
 
 
-        target_q = np.zeros((26, ), dtype=np.float32)
-        target_q[:7] = left_arm_pos
-        target_q[7:13] = left_ee_pos
-        target_q[13:20] = right_arm_pos
-        target_q[20:] = right_ee_pos
+
+        target_q = np.zeros((29, ), dtype=np.float32)
+        target_q[:3] = waist_q
+        target_q[3:10] = left_arm_pos
+        target_q[10:16] = left_ee_pos
+        target_q[16:23] = right_arm_pos
+        target_q[23:] = right_ee_pos
 
     elif hand_type == "dex3":
         left_ee_pos = np.array(step_data[left_ee_name]["qpos"])
@@ -384,12 +392,12 @@ def show_current_q(vis_model, step_data, hand_type="inspire1"):
         right_ee_pos = np.array(step_data[right_ee_name]["qpos"])
         right_ee_pos = right_ee_pos[right_dex3_api_to_urdf_index]
 
-
-        target_q = np.zeros((28, ), dtype=np.float32)
-        target_q[:7] = left_arm_pos
-        target_q[7:14] = left_ee_pos
-        target_q[14:21] = right_arm_pos
-        target_q[21:] = right_ee_pos
+        target_q = np.zeros((31, ), dtype=np.float32)
+        target_q[:3] = waist_q
+        target_q[:10] = left_arm_pos
+        target_q[10:17] = left_ee_pos
+        target_q[17:24] = right_arm_pos
+        target_q[24:] = right_ee_pos
 
     vis_model.vis.display(target_q)
 
@@ -479,8 +487,13 @@ if __name__ == "__main__":
                         current_step = min(num_data_step - 1, current_step + 10)
                         print(f"\nStepped forward to step {current_step}")
 
-                        step_data = episode["data"][current_step]["actions"]
-                        show_current_q(vis_model, step_data, hand_type=args.hand_type)
+                        if args.show_states:
+                            step_data = episode["data"][current_step]["states"]
+                        else:
+                            step_data = episode["data"][current_step]["actions"]
+                        show_current_q(
+                            vis_model, step_data,
+                            hand_type=args.hand_type, visualize_waist=args.use_waist)
 
                         plus_pressed_handled = True
                 elif char == '.':
@@ -488,8 +501,13 @@ if __name__ == "__main__":
                         current_step = max(0, current_step - 10)
                         print(f"\nStepped back to step {current_step}")
 
-                        step_data = episode["data"][current_step]["actions"]
-                        show_current_q(vis_model, step_data, hand_type=args.hand_type)
+                        if args.show_states:
+                            step_data = episode["data"][current_step]["states"]
+                        else:
+                            step_data = episode["data"][current_step]["actions"]
+                        show_current_q(
+                            vis_model, step_data,
+                            hand_type=args.hand_type, visualize_waist=args.use_waist)
 
                         minus_pressed_handled = True
                 # Handle Ctrl+C (ASCII 3) or Ctrl+D (ASCII 4) to exit cleanly
@@ -517,8 +535,13 @@ if __name__ == "__main__":
                         f"\rTime: {current_episode_time:.2f}s | Step ID: {current_step}/{num_data_step-1}")
                 sys.stdout.flush() # Ensure it's written immediately
 
-                step_data = episode["data"][current_step]["actions"]
-                show_current_q(vis_model, step_data, hand_type=args.hand_type)
+                if args.show_states:
+                    step_data = episode["data"][current_step]["states"]
+                else:
+                    step_data = episode["data"][current_step]["actions"]
+                show_current_q(
+                    vis_model, step_data,
+                    hand_type=args.hand_type, visualize_waist=args.use_waist)
                 current_step += 1
 
             # Ensure consistent frame rate
