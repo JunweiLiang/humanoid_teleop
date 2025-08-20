@@ -56,6 +56,8 @@
     $ git clone https://github.com/JunweiLiang/xr_teleoperate
     $ conda create -n tv python=3.10 pinocchio=3.1.0 numpy=1.26.4 -c conda-forge
 
+    $ pip install opencv-python==4.10.0.84
+
     xr_teleoperate/teleop/televuer$ pip install -e .
     xr_teleoperate/teleop/televuer$ openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout key.pem -out cert.pem
 
@@ -65,7 +67,7 @@
 
     xr_teleoperate$ pip install -r requirements.txt
 
-    # 安装仿真测试环境叫unitree_sim_env
+    # 安装仿真测试环境叫unitree_sim_env (直接跑实机遥操作可不需要安装这个)
     $ conda create -n unitree_sim_env python=3.10
     $ pip install torch==2.7.0 torchvision==0.22.0 --index-url https://download.pytorch.org/whl/cu128 --extra-index-url https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple
 
@@ -79,10 +81,7 @@
 
     xr_teleoperate/unitree_sdk2_python$ pip install -e .
 
-    # episode 重看环境叫g1
-    $ conda create -n g1 python=3.10 pinocchio=3.1.0 numpy=1.26.4 -c conda-forge
-    $ pip install meshcat
-    $ pip install casadi
+    # episode 重看环境用tv环境即可
 ```
 
 2. 用仿真验证遥操作
@@ -117,6 +116,117 @@
             (g1) humanoid_teleop$ python g1_realrobot/visualize_arm_episodes.py episode_0022/data.json assets/g1/g1_body29_hand14.urdf --hand_type dex3 --fps 60
 ```
 
-3. 实机验证遥操作
+3. 实机遥操作
 ```
+    0. 安装灵巧手程序，可在G1的PC2 (jetson环境) 或者laptop6 Ubuntu环境安装，以下以laptop6为例子
+        $ sudo apt update
+        $ sudo apt install build-essential libeigen3-dev libyaml-cpp-dev libboost-all-dev libspdlog-dev cmake
+
+        # 要先安装unitree SDK2 到system 目录 (ROS2)
+            (tv) junweil@precognition-laptop6:~/projects/xr_teleoperate$ git clone https://github.com/unitreerobotics/unitree_sdk2
+
+            (tv) junweil@precognition-laptop6:~/projects/xr_teleoperate/unitree_sdk2/build$ cmake ..
+
+            (tv) junweil@precognition-laptop6:~/projects/xr_teleoperate/unitree_sdk2/build$ sudo make install
+
+        # 还要安装ros2 和ROS2的dds组件
+            # ubuntu 24.04对应 jazzy: https://docs.ros.org/en/jazzy/Installation.html
+
+            $ sudo apt install software-properties-common
+            $ sudo add-apt-repository universe
+            $ sudo apt update && sudo apt install curl -y
+            $ export ROS_APT_SOURCE_VERSION=$(curl -s https://api.github.com/repos/ros-infrastructure/ros-apt-source/releases/latest | grep -F "tag_name" | awk -F\" '{print $4}')
+            $ curl -L -o /tmp/ros2-apt-source.deb "https://github.com/ros-infrastructure/ros-apt-source/releases/download/${ROS_APT_SOURCE_VERSION}/ros2-apt-source_${ROS_APT_SOURCE_VERSION}.$(. /etc/os-release && echo $VERSION_CODENAME)_all.deb" # If using Ubuntu derivates use $UBUNTU_CODENAME
+            $ sudo dpkg -i /tmp/ros2-apt-source.deb
+            $ sudo apt update
+            $ sudo apt install ros-jazzy-desktop
+
+            $ sudo apt install -y ros-jazzy-rmw-cyclonedds-cpp
+
+        (tv) junweil@precognition-laptop6:~/projects/xr_teleoperate/h1_inspire_service/build$ cmake .. -DCMAKE_BUILD_TYPE=Release
+
+        (tv) junweil@precognition-laptop6:~/projects/xr_teleoperate/h1_inspire_service/build$ make -j4
+
+        # 以下程序应该没有报错
+            (tv) junweil@precognition-laptop6:~/projects/xr_teleoperate/h1_inspire_service/build$ sudo ./inspire_hand -s /dev/ttyUSB0 --network enp131s0
+
+        # 设置网络，假设有线连接g1, 无线连学校校园网
+            $ nmcli connection show
+            NAME                  UUID                                  TYPE      DEVICE
+            HKUSTGZ               db9409c0-6844-4608-8331-221f0f2fffbb  wifi      wlp132s0f0
+            g1_wired              41f76970-8bfd-4c1a-a059-75e169096388  ethernet  enp131s0
+
+            $ nmcli connection show "HKUSTGZ" | grep ipv4.route-metric
+
+            sudo nmcli connection modify HKUSTGZ ipv4.route-metric 100
+            sudo nmcli connection modify g1_wired ipv4.route-metric 200
+    1. 开始！
+        1.0. 更新Vuer
+            (tv) junweil@precognition-laptop6:~/projects/xr_teleoperate/teleop/televuer$ pip install -e .
+
+        1.1 g1开机，进入主运控
+        1.2 传更新好的image_server 代码
+            (tv) junweil@precognition-laptop6:~/projects/xr_teleoperate$ scp -r teleop/image_server/ unitree@192.168.123.164:~/projects/
+
+        1.3 开启g1 image server，更高效、回传时间戳的版本
+            (base) unitree@ubuntu:~/projects/image_server$ python3.8 image_server_timesync.py
+
+            # laptop6上测试 (会弹出cv2图像界面)
+                (tv) junweil@precognition-laptop6:~/projects/xr_teleoperate/teleop/image_server$ python image_client_timesync.py
+
+                # 测试了两分钟，从delay从3ms涨到7ms
+                # fps 30
+
+       1.4. 开启两只手的controller
+
+            (base) junweil@precognition-laptop6:~/projects/xr_teleoperate/h1_inspire_service/build$ sudo ./inspire_hand --serial_left /dev/ttyUSB1 --serial_right /dev/ttyUSB0 --network enp131s0
+
+            # 右手食指可能会没响应，这时候需要拔掉手上的线，重新接，重新开controller能恢复
+                # 把手恢复握拳或者张开状态
+                    (tv) junweil@precognition-laptop6:~/projects/xr_teleoperate$ h1_inspire_service/build/h1_hand_example
+
+        1.5. 开启遥操作！
+            # 所以在这个之前，需要在laptop6上开启2个screen
+                # 第一个连着unitree g1，在上面开image_server
+                # 第二在laptop6上直接连着因时手，开controller
+
+            (tv) junweil@ai-precognition-laptop6:~/projects/xr_teleoperate/teleop$ python teleop_hand_and_arm.py --xr-mode=controller  --arm=G1_29 --ee=inspire1 --record --network_interface enp131s0 --motion
+
+                # 显示图像延迟还是可能是负的，不知道为啥
+                # 100次handshake，计算出RTT是15ms左右，后面延迟就是负的
+                # 计算出是10ms以内，后面延迟就是正的看起来正常
+
+            # 戴上VR，刷新浏览器，enter passthrough，图像应该在地板上，这时图像就是实际的图像
+                # 虽然延迟可能看起来只有10几ms，在VR中至少有1秒，那是因为图像是laptop分发到wifi，wifi再给VR. 延迟算的是g1到laptop
+
+                # passthrough之后，Quest 3 会生成一个安全区域，你应该不能离开这里
+
+                # 然后可以开始挂脖子，
+                # 一定要尽量把VR挂脖子挂正，VR朝向前方，要挺胸。
+                # 手要放低一点，不然待会G1就会一下子高举手
+
+                # 原理就是，这里还是假设VR在头上，算的手controller到头的相对距离作为ee
+
+                # 准备好，就可以按右手 B按键开始了，准备好左手摇杆控制机器人走动，因为手伸长可能导致机器人不平衡
+
+                # 开始之后，laptop上也有个cv2图像，显示FPS 60左右
+
+                # 按键左手x开始录制，然后再按结束录制，结束时terminal有提示saved **data.json
+
+
+            # 发送episode到office 查看，同时显示delay
+
+                (tv) junweil@office-precognition:~/projects/humanoid_teleop$ python g1_realrobot/visualize_arm_episodes.py ~/Downloads/episode_0014/data.json assets/g1/g1_body29_inspired_hand.urdf --fps 60 --image_path /home/junweil/Downloads/episode_0014/colors/
+
+            # 本次测试的视频记录
+                # 挂脖子_遥操作_VR和手部初始位置 推荐(./Quest3挂脖子_遥操作_VR和手部初始位置.png)
+                # 挂脖子_motion_遥操作
+                    https://drive.google.com/file/d/1hCdykq-uBqPRdp3XcUvjPylPYShVLrxO/view?usp=drive_link
+                # 挂脖子_motion_出现重心失衡
+                    https://drive.google.com/file/d/1FyvRNyYs1ElXgOtgQ7miPv58fGufbS9O/view?usp=drive_link
+                # replay记录
+                    https://drive.google.com/file/d/1bJEhA-KcAKJhdJigO7RFXePcQ2NJexHW/view?usp=drive_link
+
+    2. 用宇树三指手
+
 ```

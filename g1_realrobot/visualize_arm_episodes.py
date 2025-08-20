@@ -25,6 +25,7 @@ parser.add_argument("--image_path", default=None, help="add this to visualize im
 parser.add_argument("--fps", type=float, default="60", help="the episode is recored in this fps, so we play in this fps")
 parser.add_argument("--hand_type", default="inspire1")
 parser.add_argument("--print_urdf_joints", action="store_true")
+parser.add_argument("--use_waist", action="store_true", help="visualize waist data")
 
 """ # joint id for reduced g1 with inspire hand
 Joint ID 1: left_shoulder_pitch_joint
@@ -91,7 +92,7 @@ Joint ID 28: right_hand_thumb_2_joint
 """
 
 class G1_29_Vis_Episode:
-    def __init__(self, urdf, fps=60, hand_type="inspire1", print_urdf_joints=False):
+    def __init__(self, urdf, fps=60, hand_type="inspire1", print_urdf_joints=False, visualize_waist=False):
 
         np.set_printoptions(precision=5, suppress=True, linewidth=200)
 
@@ -115,9 +116,11 @@ class G1_29_Vis_Episode:
                 "right_knee_joint" ,
                 "right_ankle_pitch_joint" ,
                 "right_ankle_roll_joint" ,
-                "waist_yaw_joint" ,
-                "waist_roll_joint" ,
-                "waist_pitch_joint",
+
+                # 腰部不要锁，可能有演示
+                #"waist_yaw_joint" ,
+                #"waist_roll_joint" ,
+                #"waist_pitch_joint",
 
 
                 # 单手URDF里，12个自由度，4个手指每个2个所以8个，剩4个自由度在拇指
@@ -176,9 +179,9 @@ class G1_29_Vis_Episode:
                 "right_knee_joint" ,
                 "right_ankle_pitch_joint" ,
                 "right_ankle_roll_joint" ,
-                "waist_yaw_joint" ,
-                "waist_roll_joint" ,
-                "waist_pitch_joint",
+                #"waist_yaw_joint" ,
+                #"waist_roll_joint" ,
+                #"waist_pitch_joint",
 
                 # 用的宇树三指手的URDF，每个7自由度，都不用锁
 

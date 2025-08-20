@@ -1005,18 +1005,246 @@ exts."isaacsim.asset.browser".folders = [
 
                     # 发送episode到office 查看，同时显示delay
 
-            # 挂脖子使用，需要开developer mode，需要建立一个meta账号，使用ipad的horizon app，还要开duo二次验证，然后建立org, org验证还需要上传护照，名字生日要对，等48小时验证。
-                # 然后在Mac OS 安装adb，比较简单
-                    junweiliang@work_laptop:~/Downloads$ wget https://dl.google.com/android/repository/platform-tools-latest-darwin.zip
+                        (tv) junweil@office-precognition:~/projects/humanoid_teleop$ python g1_realrobot/visualize_arm_episodes.py ~/Downloads/episode_0012/data.json assets/g1/g1_body29_inspired_hand.urdf --fps 60 --image_path /home/junweil/Downloads/episode_0012/colors/
 
-                    # 解压就能用，直接连接device
 
-                        junweiliang@work_laptop:~/Downloads/platform-tools$ ./adb devices
+    # [已解决] 挂脖子使用，需要开developer mode，需要建立一个meta账号，使用ipad的horizon app，还要开duo二次验证，然后建立org, org验证还需要上传护照，名字生日要对，等48小时验证。
+        # https://www.reddit.com/r/OculusQuest/comments/17sa8n6/tutorial_quest_3_developer_mode_4_easy_steps/
+        # 好像不需要上传护照就行 账号 junweiliang1114@gmail.com ok
+            # 在horizon app上开启developer mode
 
+        # 然后在Mac OS 安装adb，比较简单
+            junweiliang@work_laptop:~/Downloads$ wget https://dl.google.com/android/repository/platform-tools-latest-darwin.zip
+
+            # 解压就能用，直接连接usb-c连接quest 3
+
+                junweiliang@work_laptop:~/Downloads/platform-tools$ ./adb devices
+
+                List of devices attached
+                2G97C5ZH3701J1  unauthorized
+                # 需要在VR里点Allow
+
+                junweiliang@work_laptop:~/Downloads/platform-tools$ ./adb devices
+                List of devices attached
+                2G97C5ZH3701J1  device
+
+                # 关闭识别不到脑袋会休眠
+                junweiliang@work_laptop:~/Downloads/platform-tools$ ./adb shell am broadcast -a com.oculus.vrpowermanager.prox_close
+                    Broadcasting: Intent { act=com.oculus.vrpowermanager.prox_close flg=0x400000 }
+                    Broadcast completed: result=0
+
+                # 这下quest 3放下台面，还会一直显示的，所以后面要一直插着电
+
+                    # 开启?
+                        junweiliang@work_laptop:~/Downloads/platform-tools$ ./adb shell am broadcast -a com.oculus.vrpowermanager.automation_disable
+                            Broadcasting: Intent { act=com.oculus.vrpowermanager.automation_disable flg=0x400000 }
+                            Broadcast completed: result=0
+        # 现在可以了，会一直亮屏幕
+        # 平时不用，可以按一下电源键，休眠，然后再按一次唤醒，应该没关机的。不用要一直插着电充电
+
+    # [已解决][08/18/2025] 解决因时左右手状态、动作问题，问官方
+        https://github.com/unitreerobotics/xr_teleoperate/issues/46
+        # 已更新C++程序，解决了！！
+            https://github.com/JunweiLiang/xr_teleoperate/tree/main/h1_inspire_service
+
+        # 两个485 USB模块，可以插到一个usb转usbc hub。确保先插右手那就是/dev/ttyUSB0，插上485模块会亮一个绿灯，开启下面服务会有两个绿灯
+
+        (base) junweil@precognition-laptop6:~/projects/xr_teleoperate/h1_inspire_service/build$ sudo ./inspire_hand --serial_left /dev/ttyUSB1 --serial_right /dev/ttyUSB0
+
+        # 测试双手开合，状态获取
+
+
+    # [08/18/2025] 更新后在laptop6测试,挂脖子，双手灵巧手
+            0. 更新Vuer
+                (tv) junweil@precognition-laptop6:~/projects/xr_teleoperate/teleop/televuer$ pip install -e .
+
+            1. 先测试新的image server client
+                # 发送新的代码到G1
+                    (tv) junweil@precognition-laptop6:~/projects/xr_teleoperate$ scp -r teleop/image_server/ unitree@192.168.123.164:~/projects/
+
+                    # 开启g1 server
+                        (base) unitree@ubuntu:~/projects/image_server$ python3.8 image_server_timesync.py
+
+                    # laptop6上测试 (会弹出cv2图像界面)
+                        (tv) junweil@precognition-laptop6:~/projects/xr_teleoperate/teleop/image_server$ python image_client_timesync.py
+
+                        # 测试了两分钟，从delay从3ms涨到7ms
+                        # fps 30
+
+
+                2. 开启两只手的controller
+
+                    # 如果两只手连PC2的话
+                        # 发新代码过去
+                            (base) junweil@precognition-laptop6:~/projects/xr_teleoperate$ scp -r h1_inspire_service/ unitree@192.168.123.164:~/projects/
+                        # 安装 (如果装过了可以跳过)
+                            $ sudo apt install libfmt-dev
+                            (base) unitree@ubuntu:~/projects/h1_inspire_service/build$ cmake .. -DCMAKE_BUILD_TYPE=Release
+
+                            (base) unitree@ubuntu:~/projects/h1_inspire_service/build$ make -j4
+
+                        # 开启controller
+                            # 先确认左右手连着那个 ttyUSB
+                            # 宇树的485转usb模块，有4个口
+                                (base) unitree@ubuntu:~/projects/h1_inspire_service/build$ ls /dev/ttyUSB*
+                                /dev/ttyUSB0  /dev/ttyUSB1  /dev/ttyUSB2  /dev/ttyUSB3
+                            # 好像没有办法。插的是USB1, USB2
+                                # 4个口，0-3，
+                            # 宇树有线端口是eth0
+
+                            (base) unitree@ubuntu:~/projects/h1_inspire_service/build$ sudo ./inspire_hand --serial_left /dev/ttyUSB2 --serial_right /dev/ttyUSB1 --network eth0
+
+                            # [08/20/2025] 用./h1_hand_example测试，手能持续开合，但是状态获取延迟很高，基本数字10秒更新一次
+
+                            # 这个应该是宇树的线的问题，换成下面单口485的线，正常
+                            # 我们目前还是用下面连laptop6的方案吧
+
+                            # 查看该DDS话题
+                            (base) unitree@ubuntu:~$ cyclonedds subscribe rt/inspire/state
+                            # 对应ROS2话题是 没有 rt
+
+                    # 如果两只手外接到laptop6:
+                        (base) junweil@precognition-laptop6:~/projects/xr_teleoperate/h1_inspire_service/build$ sudo ./inspire_hand --serial_left /dev/ttyUSB0 --serial_right /dev/ttyUSB1 --network enp131s0
+
+                        # 右手食指可能会没响应，这时候需要拔掉手上的线，重新接，重新开controller能恢复
+                            # 把手恢复握拳或者张开状态
+                                (tv) junweil@precognition-laptop6:~/projects/xr_teleoperate$ h1_inspire_service/build/h1_hand_example
+
+                        # 如果确保USB0是左手？从usbc hub上拔掉两个485模块，先插左手的，就一定是USB0
+
+
+                3. 开启遥操作！
+                    # 所以在这个之前，需要在laptop6上开启2个screen
+                        # 第一个连着unitree g1，在上面开image_server
+                        # 第二个连着unitree g1，在上面开hand controller
+                            #在laptop6上直接连着因时手，开controller
+
+                    (tv) junweil@ai-precognition-laptop6:~/projects/xr_teleoperate/teleop$ python teleop_hand_and_arm.py --xr-mode=controller  --arm=G1_29 --ee=inspire1 --record --network_interface enp131s0 --motion
+
+                        # 显示图像延迟还是可能是负的，不知道为啥
+                        # 100次handshake，计算出RTT是15ms左右，后面延迟就是负的
+                        # 计算出是10ms以内，后面延迟就是正的看起来正常
+
+                    # 戴上VR，刷新浏览器，enter passthrough，图像应该在地板上，这时图像就是实际的图像
+                        # 虽然延迟可能看起来只有10几ms，在VR中至少有1秒，那是因为图像是laptop分发到wifi，wifi再给VR. 延迟算的是g1到laptop
+
+                        # passthrough之后，Quest 3 会生成一个安全区域，你应该不能离开这里
+
+                        # 然后可以开始挂脖子，
+                        # 一定要尽量把VR挂脖子挂正，VR朝向前方，要挺胸。
+                        # 手要放低一点，不然待会G1就会一下子高举手
+
+                        # 原理就是，这里还是假设VR在头上，算的手controller到头的相对距离作为ee
+
+                        # 准备好，就可以按右手 B按键开始了，准备好左手摇杆控制机器人走动，因为手伸长可能导致机器人不平衡
+
+                        # 开始之后，laptop上也有个cv2图像，显示FPS 60左右
+
+                        # 按键左手x开始录制，然后再按结束录制，结束时terminal有提示saved **data.json
+
+
+                    # 发送episode到office 查看，同时显示delay
+
+                        (tv) junweil@office-precognition:~/projects/humanoid_teleop$ python g1_realrobot/visualize_arm_episodes.py ~/Downloads/episode_0014/data.json assets/g1/g1_body29_inspired_hand.urdf --fps 60 --image_path /home/junweil/Downloads/episode_0014/colors/
+
+                    # 本次测试的视频记录
+                        # 挂脖子_遥操作_VR和手部初始位置 推荐(./Quest3挂脖子_遥操作_VR和手部初始位置.png)
+                        # 挂脖子_motion_遥操作
+                            https://drive.google.com/file/d/1hCdykq-uBqPRdp3XcUvjPylPYShVLrxO/view?usp=drive_link
+                        # 挂脖子_motion_出现重心失衡
+                            https://drive.google.com/file/d/1FyvRNyYs1ElXgOtgQ7miPv58fGufbS9O/view?usp=drive_link
+                        # replay记录
+                            https://drive.google.com/file/d/1bJEhA-KcAKJhdJigO7RFXePcQ2NJexHW/view?usp=drive_link
+
+    # [已解决] 添加腰部自由度
+        # 0. 查看g1-29dof腰部自由度
+
+            junweiliang@work_laptop:~/Desktop/github_projects/xr_teleoperate/assets/g1$ python ~/Desktop/github_projects/humanoid_teleop/g1_realrobot/urdf_viewer.py g1_body29_hand14.urdf
+            id 从0开始, 以下id和宇树的arm7 sdk example一致
+            joint id: 12, name: waist_yaw_joint, limits: [-2.618, 2.618]
+                # 正的弧度是上往下看(z轴方向往回看)，逆时针，也就是左转腰
+                # 感觉 +- 0.6够了，不然就吓人了
+            joint id: 13, name: waist_roll_joint, limits: [-0.520, 0.520]
+                # 正的弧度是，腰往机器人的右摆， 从x轴的方向（朝前）往机器人看，逆时针转
+            joint id: 14, name: waist_pitch_joint, limits: [-0.520, 0.520]
+                # 正的弧度是，腰往前磕头， 从y轴的方向（朝机器人左手）往机器人看，逆时针转
+
+            # pitch 和roll特别容易失衡。设置为 +- 0.05就还行。所以干脆就不要了，只保留yaw
+
+        # 1. 先解锁腰部
+            https://support.unitree.com/home/zh/G1_developer/waist_fastener
+            # 需要手机app连接设置腰部解锁
+
+            # 还要全身标定！不然重启后亮红灯
+                https://support.unitree.com/home/zh/G1_developer/quick_start
+
+            # 标定完，腰部应该还是歪的，可以在正常运控下，手机APP里，给腰部横滚、俯仰电机加偏置，我加了4度3度，步态正常了
+
+            # 宇树建议，全身标定的时候，还是要把腰部固定件弄上去
+
+            # 还是重新再标定了，装上腰部固定件标定电机，然后再拆下来，这下一开始腰就正常了，不需要加电机偏移量
+
+        # 2. 开启遥操作，和之前的一样，添加 --use_waist即可
+
+            # 同时也可以不解锁腰部，这样就只能yaw
+
+            # 我们一定是--motion的方式才能控腰部
+            # 开启程序前，主运控模式，先让G1走出龙门架，卸下安全绳
+
+            # 确保开始之前，VR一定要水平于地面！！
+            # 现在我直接吧pitch roll都设置成0了，腰部只保留左右转
+
+            #  要操作过程中遇到失衡，右手controller按A退出程序，就应该回位了，别慌
+
+
+        # 3. replay 带上腰部的episode
+
+        # 4. replay 状态而不是action
 
 ```
 ## 收集数据训练测试
 ```
     #对比不同视觉延迟的训练测试效果？没必要，g1分发图像延迟在5ms以内
+
+    # 使用抓红鸟数据集 812_data
+        (base) junweil@ai-precog-machine1:/mnt$ tar -zcvf nvme1/junweil/812_data.tgz 812_data/
+        (base) junweil@ai-precog-machine1:/mnt$ scp nvme1/junweil/812_data.tgz junweil@office.precognition.team:~/Downloads/
+
+        (tv) junweil@office-precognition:/mnt/ssd1/junweil/embodied_ai/imitation_learning$ tar -zxvf ~/Downloads/812_data.tgz
+
+    # repo
+        (base) junweil@office-precognition:/mnt/ssd1/junweil/embodied_ai/imitation_learning$ git clone https://github.com/precognitionlab/Unitree_IL_lerobot unitree_il_lerobot_precognitionlab
+
+        # dependency
+            # 可能和之前的tv环境不太兼容的
+            (tv) junweil@office-precognition:/mnt/ssd1/junweil/embodied_ai/imitation_learning/unitree_il_lerobot_precognitionlab/unitree_lerobot/lerobot$ pip install -e .
+
+            git submodule update --init --recursive?
+
+    # 处理数据
+        (tv) junweil@office-precognition:/mnt/ssd1/junweil/embodied_ai/imitation_learning/unitree_il_lerobot_precognitionlab$ python unitree_lerobot/utils/convert_unitree_json_to_lerobot.py --raw-dir ../812_data/ --repo-id g1/grab_red_bird --robot_type Unitree_G1_Dex3
+
+            # 处理成video?
+            # 119 episode，每个七八秒，大概二十分钟搞掂
+
+            # default path saved to
+
+                $ ls ~/.cache/huggingface/lerobot/g1/
+                grad_red_bird
+
+    # 训练
+        # 可能需要huggingface-cli login，需要下载一些与训练模型
+        (tv) junweil@office-precognition:/mnt/ssd1/junweil/embodied_ai/imitation_learning/unitree_il_lerobot_precognitionlab/unitree_lerobot/lerobot$ python lerobot/scripts/train.py --dataset.repo_id=g1/grab_red_bird --policy.type=act
+            # 默认用batch_size=64, 10万step，训了11小时，200step 大概一分20秒, 17GB显存, 最后loss 0.038, CPU利用率40%, GPU 100%
+
+            # batch_size=128, 35GB显存， 200 step: 2分52秒
+
+            # [TODO] check why L40 is slow
+
+        # [TODO]训练优化，加tensorboard，数据集如何分割，训练同时validate，等, FP8, DDP等
+            # https://github.com/huggingface/lerobot/pull/1246
+
+
+
 ```
 
