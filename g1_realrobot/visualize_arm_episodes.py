@@ -550,8 +550,8 @@ if __name__ == "__main__":
             sleep_time = max(0, (1 / args.fps) - time_elapsed)
             time.sleep(sleep_time)
 
-    except Exception as e:
-        print(f"\nAn error occurred: {e}")
+    #except Exception as e:
+    #    print(f"\nAn error occurred: {e}")
     finally:
         # Always restore terminal settings before exiting
         restore_terminal_settings()

@@ -1192,6 +1192,8 @@ exts."isaacsim.asset.browser".folders = [
             # 开启程序前，主运控模式，先让G1走出龙门架，卸下安全绳
 
             # 确保开始之前，VR一定要水平于地面！！
+            # 挂脖子后，双手放到尽量靠近身体的左右两侧开始。我总是开始的时候G1手就伸长了
+
             # 现在我直接吧pitch roll都设置成0了，腰部只保留左右转
 
             #  要操作过程中遇到失衡，右手controller按A退出程序，就应该回位了，别慌
@@ -1199,7 +1201,15 @@ exts."isaacsim.asset.browser".folders = [
 
         # 3. replay 带上腰部的episode
 
+            (tv) junweil@office-precognition:~/projects/humanoid_teleop$ python g1_realrobot/visualize_arm_episodes.py ~/Downloads/episode_0016/data.json assets/g1/g1_body29_inspired_hand.urdf --fps 60 --image_path /home/junweil/Downloads/episode_0016/colors/ --use_waist
+
+
         # 4. replay 状态而不是action
+
+            (tv) junweil@office-precognition:~/projects/humanoid_teleop$ python g1_realrobot/visualize_arm_episodes.py ~/Downloads/episode_0014/data.json assets/g1/g1_body29_inspired_hand.urdf --fps 60 --image_path /home/junweil/Downloads/episode_0014/colors/ --show_states
+
+            # 因时手的states 好像很有问题，都是超过限位的值
+            # 身体其他关节states正常
 
 ```
 ## 收集数据训练测试
