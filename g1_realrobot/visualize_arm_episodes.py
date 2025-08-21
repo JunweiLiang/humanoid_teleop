@@ -394,7 +394,7 @@ def show_current_q(vis_model, step_data, hand_type="inspire1", visualize_waist=F
 
         target_q = np.zeros((31, ), dtype=np.float32)
         target_q[:3] = waist_q
-        target_q[:10] = left_arm_pos
+        target_q[3:10] = left_arm_pos
         target_q[10:17] = left_ee_pos
         target_q[17:24] = right_arm_pos
         target_q[24:] = right_ee_pos
