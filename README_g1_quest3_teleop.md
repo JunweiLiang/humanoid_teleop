@@ -17,7 +17,7 @@
 
 ### 环境安装
 
-需要两个代码库 \[TODO\]: 换到实验室的org下方便大家一起编辑更新
+需要两个代码库
 + 主要代码: `https://github.com/JunweiLiang/xr_teleoperate`
 + EP快速可视化工具等: `https://github.com/JunweiLiang/humanoid_teleop`
 
@@ -84,39 +84,7 @@
     # episode 重看环境用tv环境即可
 ```
 
-2. 用仿真验证遥操作
-```
-    # 1. Quest 3 controller 控制5指手 inspire1
-        # 1.0 开启对应的机器人的仿真
-            (unitree_sim_env) xr_teleoperate/unitree_sim_isaaclab$ python sim_main.py --device cpu  --enable_cameras  --task  Isaac-PickPlace-RedBlock-G129-Inspire-Joint    --enable_inspire_dds --robot_type g129
-
-        # 1.1 开启遥操作
-            (tv) xr_teleoperate/teleop$ python teleop_hand_and_arm.py --xr-mode=controller  --arm=G1_29 --ee=inspire1 --sim --record
-
-            # 确保Quest 3和电脑都连上了学校校园网
-            # 看到 'r'提示后就可以带上头显了，拿起controller
-                # 浏览器打开https://lt4.precognition.team:8012?ws=wss://lt4.precognition.team:8012
-                # 或点击浏览器刷新，确保前面终端显示已连接websocket
-                # 点击 pass through，开启遥操作数据传输
-                # 把双手摆好，然后右手 B按键开启程序，这时候机器人应该就响应遥操作了
-                # 左手x按键开启数据录制，再按x按键一次结束，按了一次可能要等一会儿才能显示save ***/data.json
-                # 右手A按键结束程序，回零位，这时可以按Meta按键退出VR，再在浏览器上点一次QUIT，就可以摘了
-
-        # 1.2 可视化刚刚录制的EP， 按s开始暂停， ,.前后10step看
-            (g1) humanoid_teleop$ python g1_realrobot/visualize_arm_episodes.py episode_0014/data.json assets/g1/g1_body29_inspired_hand.urdf --fps 60
-
-    # 2. Quest 3 controller 控制3指手 dex3
-        # 2.0 开启对应机器人的仿真
-            (unitree_sim_env) xr_teleoperate/unitree_sim_isaaclab$ python sim_main.py --device cpu  --enable_cameras  --task  Isaac-PickPlace-RedBlock-G129-Dex3-Joint    --enable_dex3_dds --robot_type g129
-
-        # 2.1 开启遥操作
-            (tv) xr_teleoperate/teleop$ python teleop_hand_and_arm.py --xr-mode=controller  --arm=G1_29 --ee=dex3 --sim --record
-
-        # 2.2 可视化刚刚录制的EP， 按s开始暂停， ,.前后10step看
-            (g1) humanoid_teleop$ python g1_realrobot/visualize_arm_episodes.py episode_0022/data.json assets/g1/g1_body29_hand14.urdf --hand_type dex3 --fps 60
-```
-
-3. 实机遥操作
+2. 实机遥操作
 ```
     0. 安装灵巧手程序，可在G1的PC2 (jetson环境) 或者laptop6 Ubuntu环境安装，以下以laptop6为例子
         $ sudo apt update
@@ -233,3 +201,35 @@
     2. 用宇树三指手
 
 ```
+3. 用仿真验证遥操作 (备用)
+```
+    # 1. Quest 3 controller 控制5指手 inspire1
+        # 1.0 开启对应的机器人的仿真
+            (unitree_sim_env) xr_teleoperate/unitree_sim_isaaclab$ python sim_main.py --device cpu  --enable_cameras  --task  Isaac-PickPlace-RedBlock-G129-Inspire-Joint    --enable_inspire_dds --robot_type g129
+
+        # 1.1 开启遥操作
+            (tv) xr_teleoperate/teleop$ python teleop_hand_and_arm.py --xr-mode=controller  --arm=G1_29 --ee=inspire1 --sim --record
+
+            # 确保Quest 3和电脑都连上了学校校园网
+            # 看到 'r'提示后就可以带上头显了，拿起controller
+                # 浏览器打开https://lt4.precognition.team:8012?ws=wss://lt4.precognition.team:8012
+                # 或点击浏览器刷新，确保前面终端显示已连接websocket
+                # 点击 pass through，开启遥操作数据传输
+                # 把双手摆好，然后右手 B按键开启程序，这时候机器人应该就响应遥操作了
+                # 左手x按键开启数据录制，再按x按键一次结束，按了一次可能要等一会儿才能显示save ***/data.json
+                # 右手A按键结束程序，回零位，这时可以按Meta按键退出VR，再在浏览器上点一次QUIT，就可以摘了
+
+        # 1.2 可视化刚刚录制的EP， 按s开始暂停， ,.前后10step看
+            (g1) humanoid_teleop$ python g1_realrobot/visualize_arm_episodes.py episode_0014/data.json assets/g1/g1_body29_inspired_hand.urdf --fps 60
+
+    # 2. Quest 3 controller 控制3指手 dex3
+        # 2.0 开启对应机器人的仿真
+            (unitree_sim_env) xr_teleoperate/unitree_sim_isaaclab$ python sim_main.py --device cpu  --enable_cameras  --task  Isaac-PickPlace-RedBlock-G129-Dex3-Joint    --enable_dex3_dds --robot_type g129
+
+        # 2.1 开启遥操作
+            (tv) xr_teleoperate/teleop$ python teleop_hand_and_arm.py --xr-mode=controller  --arm=G1_29 --ee=dex3 --sim --record
+
+        # 2.2 可视化刚刚录制的EP， 按s开始暂停， ,.前后10step看
+            (g1) humanoid_teleop$ python g1_realrobot/visualize_arm_episodes.py episode_0022/data.json assets/g1/g1_body29_hand14.urdf --hand_type dex3 --fps 60
+```
+
