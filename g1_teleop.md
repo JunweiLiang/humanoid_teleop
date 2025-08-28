@@ -1211,7 +1211,15 @@ exts."isaacsim.asset.browser".folders = [
             # 因时手的states 好像很有问题，都是超过限位的值
             # 身体其他关节states正常
 
+            # [08/22/2025]宇树说，他们的 API有问题，用这个更新的：https://github.com/unitreerobotics/DFX_inspire_service
+
 ```
+## 添加Homie底层控制+腰部遥操作
+```
+    # Homie 的指令input: Vx, Vy + 转向角速度 (yaw) + 身体高度 (0.74m以下，)，4D；输出12 DoF脚 Joint Pos
+        # 观测输入:
+```
+
 ## 收集数据训练测试
 ```
     #对比不同视觉延迟的训练测试效果？没必要，g1分发图像延迟在5ms以内
