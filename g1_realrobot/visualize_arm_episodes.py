@@ -93,7 +93,7 @@ Joint ID 28: right_hand_thumb_2_joint
 """
 
 class G1_29_Vis_Episode:
-    def __init__(self, urdf, fps=60, hand_type="inspire1", print_urdf_joints=False):
+    def __init__(self, urdf, hand_type="inspire1", print_urdf_joints=False):
 
         np.set_printoptions(precision=5, suppress=True, linewidth=200)
 
@@ -219,7 +219,6 @@ class G1_29_Vis_Episode:
 
             print("reduced_robot.model.nq:%s" % self.reduced_robot.model.nq)
             sys.exit()
-
 
 
         self.init_data = np.zeros(self.reduced_robot.model.nq)
@@ -236,7 +235,7 @@ class G1_29_Vis_Episode:
         self.vis.display(pin.neutral(self.reduced_robot.model))
 
 class G1_29_Vis_WholeBody:
-    def __init__(self, urdf, fps=60, hand_type="inspire1", print_urdf_joints=False):
+    def __init__(self, urdf, hand_type="inspire1", print_urdf_joints=False):
 
         np.set_printoptions(precision=5, suppress=True, linewidth=200)
 
@@ -247,25 +246,6 @@ class G1_29_Vis_WholeBody:
 
         if hand_type == "inspire1":
             self.mixed_jointsToLockIDs = [
-                # 固定下半身
-                "left_hip_pitch_joint" ,
-                "left_hip_roll_joint" ,
-                "left_hip_yaw_joint" ,
-                "left_knee_joint" ,
-                "left_ankle_pitch_joint" ,
-                "left_ankle_roll_joint" ,
-                "right_hip_pitch_joint" ,
-                "right_hip_roll_joint" ,
-                "right_hip_yaw_joint" ,
-                "right_knee_joint" ,
-                "right_ankle_pitch_joint" ,
-                "right_ankle_roll_joint" ,
-
-                # 腰部不要锁，可能有数值
-                #"waist_yaw_joint" ,
-                #"waist_roll_joint" ,
-                #"waist_pitch_joint",
-
 
                 # 单手URDF里，12个自由度，4个手指每个2个所以8个，剩4个自由度在拇指
                 # 实机单手只有6自由度，每个手指一个，拇指2个
@@ -310,27 +290,10 @@ class G1_29_Vis_WholeBody:
         elif hand_type == "dex3":
 
             self.mixed_jointsToLockIDs = [
-                # 固定下半身
-                "left_hip_pitch_joint" ,
-                "left_hip_roll_joint" ,
-                "left_hip_yaw_joint" ,
-                "left_knee_joint" ,
-                "left_ankle_pitch_joint" ,
-                "left_ankle_roll_joint" ,
-                "right_hip_pitch_joint" ,
-                "right_hip_roll_joint" ,
-                "right_hip_yaw_joint" ,
-                "right_knee_joint" ,
-                "right_ankle_pitch_joint" ,
-                "right_ankle_roll_joint" ,
-                #"waist_yaw_joint" ,
-                #"waist_roll_joint" ,
-                #"waist_pitch_joint",
 
                 # 用的宇树三指手的URDF，每个7自由度，都不用锁
 
             ]
-
 
         # https://docs.ros.org/en/kinetic/api/pinocchio/html/classpinocchio_1_1robot__wrapper_1_1RobotWrapper.html#aef341b27b4709b03c93d66c8c196bc0f
         # the above joint will be locked, at 0.0
@@ -363,12 +326,9 @@ class G1_29_Vis_WholeBody:
             print("reduced_robot.model.nq:%s" % self.reduced_robot.model.nq)
             sys.exit()
 
-
-
         self.init_data = np.zeros(self.reduced_robot.model.nq)
 
         self.current_q = np.zeros(self.reduced_robot.model.nq) # used to save the current q
-
 
         # Initialize the Meshcat visualizer for visualization
         self.vis = MeshcatVisualizer(
@@ -564,7 +524,7 @@ def denormalize(normalized_val, min_val, max_val):
 if __name__ == "__main__":
     args = parser.parse_args()
 
-    vis_model = G1_29_Vis_Episode(urdf=args.urdf, fps=args.fps, hand_type=args.hand_type, print_urdf_joints=args.print_urdf_joints)
+    vis_model = G1_29_Vis_Episode(urdf=args.urdf, hand_type=args.hand_type, print_urdf_joints=args.print_urdf_joints)
 
     episode = json.load(open(args.episode_json))
     num_data_step = len(episode["data"])

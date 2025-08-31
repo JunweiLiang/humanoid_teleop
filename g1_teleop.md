@@ -1302,6 +1302,7 @@ exts."isaacsim.asset.browser".folders = [
             # 开启motion control sim (Isaac Sim 5.0)
                 (unitree_sim5.0_env) junweil@office-precognition:~/projects/unitree_sim_5.0/unitree_sim_isaaclab$ python sim_main.py --device cpu  --enable_cameras  --task Isaac-Move-Cylinder-G129-Dex3-Wholebody --enable_dex3_dds --robot_type g129
 
+                    # teminal 中ctr + C结束，不要点Isaac Sim 叉
                 # 机器人会自动往前走
                 # 开个键盘控制：
                     (tv) junweil@office-precognition:~/projects/unitree_sim_5.0/unitree_sim_isaaclab$ python send_commands_keyboard.py
@@ -1318,6 +1319,45 @@ exts."isaacsim.asset.browser".folders = [
                      🚨 No types could be discovered over XTypes, no dynamic subsciption possible
 
                 # 写代码吧
+
+                    1. 先开启仿真DDS
+
+                        (unitree_sim5.0_env) junweil@office-precognition:~/projects/unitree_sim_5.0/unitree_sim_isaaclab$ python sim_main.py --device cpu  --enable_cameras  --task Isaac-Move-Cylinder-G129-Dex3-Wholebody --enable_dex3_dds --robot_type g129
+
+                    2. 开启状态读取
+                        (tv) junweil@office-precognition:~/projects/humanoid_teleop$ python g1_realrobot/check_g1_states.py --sim --hand_type dex3 --max_freq 60
+
+                        # 打印在command line
+                            kRightShoulderPitch : q =   0.0211, dq =  -0.0107
+                            kRightShoulderRoll  : q =   0.0333, dq =   0.0462
+                            kRightShoulderYaw   : q =   0.0809, dq =  -0.0201
+                            kRightElbow         : q =   0.0480, dq =   0.0548
+                            kRightWristRoll     : q =   0.0130, dq =   0.0286
+                            kRightWristPitch    : q =   0.0213, dq =   0.0205
+                            kRightWristYaw      : q =   0.0256, dq =   0.0130
+
+                            --- Left Hand (dex3) ---
+                            kLeftHandThumb0     : q =  -0.0000
+                            kLeftHandThumb1     : q =   0.0001
+                            kLeftHandThumb2     : q =   0.0000
+                            kLeftHandMiddle0    : q =  -0.0000
+                            kLeftHandMiddle1    : q =  -0.0000
+                            kLeftHandIndex0     : q =  -0.0000
+                            kLeftHandIndex1     : q =  -0.0000
+
+                            --- Right Hand (dex3) ---
+                            kRightHandThumb0    : q =  -0.0000
+                            kRightHandThumb1    : q =  -0.0001
+                            kRightHandThumb2    : q =  -0.0000
+                            kRightHandIndex0    : q =  -0.0000
+                            kRightHandIndex1    : q =  -0.0000
+
+                        # 加上浏览器meshcat可视化
+
+
+
+                    3. 可以使用键盘 控制一下机器人改变一下
+                        (tv) junweil@office-precognition:~/projects/unitree_sim_5.0/unitree_sim_isaaclab$ python send_commands_keyboard.py
 
 
             # 以后想再unitree sim中加底层运控:

@@ -17,10 +17,8 @@ from unitree_sdk2py.idl.unitree_hg.msg.dds_ import ( LowCmd_  as hg_LowCmd, LowS
 from unitree_sdk2py.idl.unitree_hg.msg.dds_ import HandState_
 from unitree_sdk2py.idl.unitree_go.msg.dds_ import MotorStates_
 
-
-import pinocchio as pin
-from pinocchio.robot_wrapper import RobotWrapper
-from pinocchio.visualize import MeshcatVisualizer
+# for  web browser visualization
+from visualize_arm_episode import G1_29_Vis_WholeBody
 
 # define the DDS topic names
 Dex3_Num_Motors = 7
@@ -318,6 +316,9 @@ if __name__ == "__main__":
 
     g1_watcher = G1_29_Hand_Watcher(simulation_mode=args.sim, network_interface=args.network_interface, hand_type=args.hand_type)
 
+    if args.visualize:
+        g1_visualizer = G1_29_Vis_WholeBody(urdf=args.urdf, hand_type=args.hand_type, print_urdf_joints=True)
+
     while True:
         start_time = time.time()
 
@@ -331,7 +332,7 @@ if __name__ == "__main__":
             time.sleep(0.01)
             continue
 
-        # print out the g1 motor states and the hand states in the terminial on multiple lines and refresh in place
+        # print out the g1 motor states and the hand states in the terminal on multiple lines and refresh in place
         output_string = get_inline_print(g1_state, left_hand_state, right_hand_state, hand_type=args.hand_type)
 
         # Print the entire formatted string at once to the terminal
