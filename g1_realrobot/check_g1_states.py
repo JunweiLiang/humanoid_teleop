@@ -310,6 +310,7 @@ def get_inline_print(g1_state, left_hand_state, right_hand_state, hand_type):
             joint_name = joint_names[idx].name
             q = right_hand_state.motor_state[idx].q
             output_string += f"{joint_name:<25}: q = {q:8.4f}\n"
+    return output_string
 
 if __name__ == "__main__":
 
