@@ -16,13 +16,14 @@
 + (08/2025) 修改图传代码，用多线程提高效率，同时显示图传服务器和接收器的延迟（通过初始100次handshake预计网络延迟和对齐时间戳）；延迟记录入数据采集中，未来可以统一时间戳，标准化数据采集
 + (08/2025) 修改Vuer代码，在VR眼睛中图像也显示图像延迟，并把图像固定地板上，保证操作者安全，passthrough可见环境
 + (08/2025) 使用VR头部pose的旋转矩阵，和世界坐标系原点pose对比，作为腰部3自由度的控制。目前只开放了yaw
++ (08/2025) 提供完整的数据replay系统，可以迅速查看数据采集质量，包括states/actions是否正确，图像是否同步，如[replay记录](https://drive.google.com/file/d/1bJEhA-KcAKJhdJigO7RFXePcQ2NJexHW/view?usp=drive_link)
 + (TODO) 添加更稳的locomotion policy，并且能下蹲，腰有两个自由度，实现整身控制遥操作(脚板朝向是否作为参考？)
 
 ## 环境安装
 
 需要两个代码库
-+ 主要代码基于宇树的修改: `https://github.com/precognitionlab/xr_teleoperate_precognitionlab`
-+ EP快速可视化工具URDF等: `https://github.com/precognitionlab/humanoid_teleop_precognitionlab`
++ 主要代码基于宇树的修改: `https://github.com/hkustgz-hw/xr_teleoperate_hkustgz-hw`
++ EP快速可视化工具URDF等: `https://github.com/hkustgz-hw/humanoid_teleop_hkustgz-hw`
 
 ## 0. Quest 3初次配置
 ```
@@ -160,6 +161,17 @@
 
             sudo nmcli connection modify HKUSTGZ ipv4.route-metric 100
             sudo nmcli connection modify g1_wired ipv4.route-metric 200
+
+        # [08/30/2025] 此步骤，更改为在G1 PC2上运行更新的因时灵巧手controller，状态获取bug已修复(controller只能在jetson编译)
+            # 先发送最新的代码去PC2
+                (base) junweil@precognition-laptop6:~/projects/xr_teleoperate$ scp -r g1_inspire_service/ unitree@192.168.123.164:~/projects/
+            # PC2上开screen开启controller
+                # 先确保，左手线接到ttyUSB1, 右手接到ttyUSB2
+
+                (base) unitree@ubuntu:~/projects/g1_inspire_service/build$ sudo ./inspire_g1_junwei --serial_left /dev/ttyUSB1 --serial_right /dev/ttyUSB2
+
+                # 小测试，手应该会开合，读取状态值左右手都为0-1之间
+                    (base) unitree@ubuntu:~/projects/g1_inspire_service/build$ ./hand_example
     1. 开始！
         1.0. 更新Vuer
             (tv) junweil@precognition-laptop6:~/projects/xr_teleoperate/teleop/televuer$ pip install -e .
@@ -179,16 +191,21 @@
 
        1.4. 开启两只手的controller
 
-            (base) junweil@precognition-laptop6:~/projects/xr_teleoperate/h1_inspire_service/build$ sudo ./inspire_hand --serial_left /dev/ttyUSB1 --serial_right /dev/ttyUSB0 --network enp131s0
+            # [08/30/2025] 此步骤，更改为在G1 PC2上运行更新的因时灵巧手controller，状态获取bug已修复
+            # 先发送最新的代码去PC2
+                (base) junweil@precognition-laptop6:~/projects/xr_teleoperate$ scp -r g1_inspire_service/ unitree@192.168.123.164:~/projects/
+            # PC2上开screen开启controller
+                # 先确保，左手线接到ttyUSB1, 右手接到ttyUSB2
 
-            # 右手食指可能会没响应，这时候需要拔掉手上的线，重新接，重新开controller能恢复
-                # 把手恢复握拳或者张开状态
-                    (tv) junweil@precognition-laptop6:~/projects/xr_teleoperate$ h1_inspire_service/build/h1_hand_example
+                (base) unitree@ubuntu:~/projects/g1_inspire_service/build$ sudo ./inspire_g1_junwei --serial_left /dev/ttyUSB1 --serial_right /dev/ttyUSB2
+
+                # 小测试，手应该会开合，读取状态值左右手都为0-1之间
+                    (base) unitree@ubuntu:~/projects/g1_inspire_service/build$ ./hand_example
 
         1.5. 开启遥操作！
-            # 所以在这个之前，需要在laptop6上开启2个screen
-                # 第一个连着unitree g1，在上面开image_server
-                # 第二在laptop6上直接连着因时手，开controller
+            # 所以在这个之前，需要在PC2上开启2个screen
+                # 第一个在上面开image_server
+                # 第二个连着因时手，开controller
 
             (tv) junweil@ai-precognition-laptop6:~/projects/xr_teleoperate/teleop$ python teleop_hand_and_arm.py --xr-mode=controller  --arm=G1_29 --ee=inspire1 --record --network_interface enp131s0 --motion
 
@@ -217,6 +234,9 @@
                 # 开始之后，laptop上也有个cv2图像，显示FPS 60左右
 
                 # 按键左手x开始录制，然后再按结束录制，结束时terminal有提示saved **data.json
+
+                # 下半身可以用quest 3 摇杆控制，左手前进后退左平移右平移，右手转向
+                    # 注意用quest 3 的摇杆，你感觉的前进方向，可能不对；方向就是不太准，所以速度调低了
 
 
             # 发送episode到office 查看，同时显示delay
@@ -276,7 +296,7 @@
             # laptop4上测试 (会弹出cv2图像界面)
                 (tv) junweil@precognition-laptop4:~/projects/xr_teleoperate/teleop/image_server$ python image_client_timesync.py
 
-                # 测试了两分钟，从delay从3ms涨到7ms
+                # 测试了两分钟，delay从3ms涨到7ms
                 # fps 30
 
         1.4. 开启遥操作！
@@ -306,6 +326,9 @@
                 # 开始之后，laptop上也有个cv2图像，显示FPS 60左右
 
                 # 按键左手x开始录制，然后再按结束录制，结束时terminal有提示saved **data.json
+
+                # 下半身可以用quest 3 摇杆控制，左手前进后退左平移右平移，右手转向
+                    # 注意用quest 3 的摇杆，你感觉的前进方向，可能不对；方向就是不太准，所以速度调低了
 
 
             # 在laptop4上查看刚刚的episode

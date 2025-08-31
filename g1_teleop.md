@@ -1213,11 +1213,99 @@ exts."isaacsim.asset.browser".folders = [
 
             # [08/22/2025]宇树说，他们的 API有问题，用这个更新的：https://github.com/unitreerobotics/DFX_inspire_service
 
+    # [08/30/2025] 更新因时API
+        # 官方的还是有问题，需要fork之后修改 https://github.com/JunweiLiang/DFX_inspire_service/blob/master/include/SerialPort.h
+            send函数添加
+             tcflush(fd_, TCIFLUSH); tcdrain(fd_);
+
+             # 更新到 https://github.com/JunweiLiang/DFX_inspire_service [Done]
+                # 这个库只能在 arm64 Jetson上编译
+             # 测试左右手
+                # 拔掉一只然后看左右手状态输出
+                    (base) unitree@ubuntu:~/projects/DFX_inspire_service/build$ sudo ./inspire_g1_junwei --serial_left /dev/ttyUSB1 --serial_right /dev/ttyUSB2
+
+                    (base) unitree@ubuntu:~/projects/DFX_inspire_service/build$ ./hand_example
+
+                    # 宇树的板子，usbc口放右边，电子元件面朝上，usb口上往下0->3
+
+             # 整合到 xr_teleop [Done]
+
+             # 安装2号机，重新测试遥操作，replay看states
+                # 先发送最新的代码去PC2
+                    (base) junweil@precognition-laptop6:~/projects/xr_teleoperate$ scp -r g1_inspire_service/ unitree@192.168.123.164:~/projects/
+                # PC2上开screen开启controller
+                    # 先确保，左手线接到ttyUSB1, 右手接到ttyUSB2
+
+                    (base) unitree@ubuntu:~/projects/g1_inspire_service/build$ sudo ./inspire_g1_junwei --serial_left /dev/ttyUSB1 --serial_right /dev/ttyUSB2
+
+                    # 小测试，手应该会开合，读取状态值左右手都为0-1之间
+                        (base) unitree@ubuntu:~/projects/g1_inspire_service/build$ ./hand_example
+
+             (tv) junweil@ai-precognition-laptop6:~/projects/xr_teleoperate/teleop$ python teleop_hand_and_arm.py --xr-mode=controller  --arm=G1_29 --ee=inspire1 --record --network_interface enp131s0 --motion --use_waist
+
+             # 宇树原版的摇杆motion control速度是对的。注意用quest 3 的摇杆，你感觉的前进方向，可能不对
+                # https://github.com/unitreerobotics/xr_teleoperate/issues/135
+
 ```
 ## 添加Homie底层控制+腰部遥操作
 ```
     # Homie 的指令input: Vx, Vy + 转向角速度 (yaw) + 身体高度 (0.74m以下，)，4D；输出12 DoF脚 Joint Pos
         # 观测输入:
+
+    # [08/28/2025] 使用宇树最新的 Isaac lab 环境，看看DDS的话题发布如何
+        # 之前在office电脑安装过(unitree_sim_env)环境，需要重新安装环境Sim 5.0：
+            # IsaacSim 4.5 出现 [carb.graphics-vulkan.plugin] VkResult: ERROR_OUT_OF_HOST_MEMORY
+                https://github.com/unitreerobotics/unitree_sim_isaaclab/issues/25#issuecomment-3204764808
+
+            (base) junweil@office-precognition:~/projects/unitree_sim_5.0/unitree_sim_isaaclab$ conda create -n unitree_sim5.0_env python=3.11
+
+            # 根据：https://github.com/unitreerobotics/unitree_sim_isaaclab/blob/main/doc/isaacsim5.0_install.md
+
+            (unitree_sim5.0_env) junweil@office-precognition:~/projects/unitree_sim_5.0$ git clone https://github.com/eclipse-cyclonedds/cyclonedds
+
+            cyclonedds$ git checkout 0.10.2
+            cyclonedds/build$ cmake ..
+            cyclonedds/build$ cmake --build .
+            cyclonedds/build$ sudo cmake --build . --target install
+
+            export CYCLONEDDS_HOME=/usr/local/
+
+            # 然后再安装unitree_sdk_python2
+
+            $ pip install onnxruntime
+            $ sudo apt install git-lfs
+
+                # 出现
+                    OSError: /home/junweil/anaconda3/envs/unitree_sim5.0_env/bin/../lib/libstdc++.so.6: version `GLIBCXX_3.4.30' not found (required by /home/junweil/anaconda3/envs/unitree_sim5.0_env/lib/python3.11/site-packages/omni/libcarb.so)
+
+
+                (base) junweil@office-precognition:~/projects/unitree_sim_5.0/unitree_sim_isaaclab$ cd /home/junweil/anaconda3/envs/unitree_sim5.0_env/bin/../lib/
+                (base) junweil@office-precognition:~/anaconda3/envs/unitree_sim5.0_env/lib$ cp /usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.33 .
+                (base) junweil@office-precognition:~/anaconda3/envs/unitree_sim5.0_env/lib$ rm libstdc++.so.6
+                (base) junweil@office-precognition:~/anaconda3/envs/unitree_sim5.0_env/lib$ ln -s libstdc++.so.6.0.33 libstdc++.so.6
+
+
+                conda install -c conda-forge libgcc-ng libstdcxx-ng
+
+            # 1. 下载模型！！
+
+                (unitree_sim5.0_env) junweil@office-precognition:~/projects/unitree_sim_5.0/unitree_sim_isaaclab$ bash fetch_assets.sh
+
+                [08/29/2025]确实这个，临时解决：
+                (base) junweil@office-precognition:~/projects/unitree_sim_5.0/unitree_sim_isaaclab/assets/model$ cp policy1.onnx policy2.onnx
+
+            # 开启motion control sim (Isaac Sim 5.0)
+                (unitree_sim5.0_env) junweil@office-precognition:~/projects/unitree_sim_5.0/unitree_sim_isaaclab$ python sim_main.py --device cpu  --enable_cameras  --task Isaac-Move-Cylinder-G129-Dex3-Wholebody --enable_dex3_dds --robot_type g129
+
+                # 机器人会自动往前走
+
+            # 2. 检查DDS发布
+
+
+            # 以后想再unitree sim中加底层运控:
+                https://github.com/unitreerobotics/unitree_sim_isaaclab/blob/main/action_provider/action_provider_wh_dds.py
+                https://github.com/unitreerobotics/unitree_sim_isaaclab/issues/40
+
 ```
 
 ## 收集数据训练测试
