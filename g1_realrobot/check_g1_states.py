@@ -18,7 +18,7 @@ from unitree_sdk2py.idl.unitree_hg.msg.dds_ import HandState_
 from unitree_sdk2py.idl.unitree_go.msg.dds_ import MotorStates_
 
 # for  web browser visualization
-from visualize_arm_episode import G1_29_Vis_WholeBody
+from visualize_arm_episodes import G1_29_Vis_WholeBody
 
 # define the DDS topic names
 Dex3_Num_Motors = 7
