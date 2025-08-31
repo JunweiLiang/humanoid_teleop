@@ -1212,6 +1212,7 @@ exts."isaacsim.asset.browser".folders = [
             # 身体其他关节states正常
 
             # [08/22/2025]宇树说，他们的 API有问题，用这个更新的：https://github.com/unitreerobotics/DFX_inspire_service
+            # [08/31/2025]我们修复了：https://github.com/precognitionlab/xr_teleoperate_precognitionlab/blob/main/g1_inspire_service/inspire_g1_junwei.cpp
 
     # [08/30/2025] 更新因时API
         # 官方的还是有问题，需要fork之后修改 https://github.com/JunweiLiang/DFX_inspire_service/blob/master/include/SerialPort.h
@@ -1245,6 +1246,10 @@ exts."isaacsim.asset.browser".folders = [
 
              # 宇树原版的摇杆motion control速度是对的。注意用quest 3 的摇杆，你感觉的前进方向，可能不对
                 # https://github.com/unitreerobotics/xr_teleoperate/issues/135
+
+                # replay 刚刚因时的states，没问题了，states和图像完全同步，action会meshcat更快
+
+                (tv) junweil@office-precognition:~/projects/humanoid_teleop$ python g1_realrobot/visualize_arm_episodes.py ~/Downloads/episode_0019/data.json assets/g1/g1_body29_inspired_hand.urdf --fps 60 --image_path /home/junweil/Downloads/episode_0019/colors/ --show_states
 
 ```
 ## 添加Homie底层控制+腰部遥操作
@@ -1298,14 +1303,41 @@ exts."isaacsim.asset.browser".folders = [
                 (unitree_sim5.0_env) junweil@office-precognition:~/projects/unitree_sim_5.0/unitree_sim_isaaclab$ python sim_main.py --device cpu  --enable_cameras  --task Isaac-Move-Cylinder-G129-Dex3-Wholebody --enable_dex3_dds --robot_type g129
 
                 # 机器人会自动往前走
+                # 开个键盘控制：
+                    (tv) junweil@office-precognition:~/projects/unitree_sim_5.0/unitree_sim_isaaclab$ python send_commands_keyboard.py
+
 
             # 2. 检查DDS发布
+
+                # 直接用cyclonedds 读不到任何话题
+                    (tv) junweil@office-precognition:~/projects/unitree_sim_5.0/unitree_sim_isaaclab$ DDS_DOMAIN_ID=1 cyclonedds ls
+
+                    (tv) junweil@office-precognition:~/projects/unitree_sim_5.0/unitree_sim_isaaclab$ cyclonedds subscribe rt/lowstate
+
+
+                     🚨 No types could be discovered over XTypes, no dynamic subsciption possible
+
+                # 写代码吧
 
 
             # 以后想再unitree sim中加底层运控:
                 https://github.com/unitreerobotics/unitree_sim_isaaclab/blob/main/action_provider/action_provider_wh_dds.py
                 https://github.com/unitreerobotics/unitree_sim_isaaclab/issues/40
 
+                # 他们好像 直接用isaac sim去读机器人的状态，不是用rt/这些DDS的
+
+                # 仿真中，从Isaaclab里读机器人状态，写到DDS rt/lowstate
+                    https://github.com/unitreerobotics/unitree_sim_isaaclab/blob/f56158f1a18cec783a8d0f863f2871757b8b2fe9/dds/g1_robot_dds.py#L72
+
+```
+## 换成双目相机
+```
+    # 双目相机，宇树官方说用的下面链接，用125度无畸变镜头，30fps或者60fps都可以，60fps的贵一倍
+        # 【淘宝】7天无理由退货 https://e.tb.cn/h.hCJBMeIjD9yKba5?tk=022k4ocp2ja HU108 「200万像素彩色全局曝光双1080P双目同步相机60帧USB2.0测距摄像头」
+
+    # 原理就是，直接能读到 3840x1080 的图像，直接把两张图拼一起。teleop_hand_and_arm.py BINOCULAR的判断，直接从分辨率判断，存图片的时候会存成两个camera 的image
+
+    # 测试遥操作again!!
 ```
 
 ## 收集数据训练测试
