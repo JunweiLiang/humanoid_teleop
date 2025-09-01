@@ -337,7 +337,102 @@ class G1_29_Vis_WholeBody:
         self.vis.loadViewerModel("pinocchio")
 
         self.vis.display(pin.neutral(self.reduced_robot.model))
+"""
+for dex3 whole  body
+Joints in Reduced Robot:
+Joint ID 0: universe
+Joint ID 1: left_hip_pitch_joint
+Joint ID 2: left_hip_roll_joint
+Joint ID 3: left_hip_yaw_joint
+Joint ID 4: left_knee_joint
+Joint ID 5: left_ankle_pitch_joint
+Joint ID 6: left_ankle_roll_joint
+Joint ID 7: right_hip_pitch_joint
+Joint ID 8: right_hip_roll_joint
+Joint ID 9: right_hip_yaw_joint
+Joint ID 10: right_knee_joint
+Joint ID 11: right_ankle_pitch_joint
+Joint ID 12: right_ankle_roll_joint
+Joint ID 13: waist_yaw_joint
+Joint ID 14: waist_roll_joint
+Joint ID 15: waist_pitch_joint
+Joint ID 16: left_shoulder_pitch_joint
+Joint ID 17: left_shoulder_roll_joint
+Joint ID 18: left_shoulder_yaw_joint
+Joint ID 19: left_elbow_joint
+Joint ID 20: left_wrist_roll_joint
+Joint ID 21: left_wrist_pitch_joint
+Joint ID 22: left_wrist_yaw_joint
+Joint ID 23: left_hand_index_0_joint
+Joint ID 24: left_hand_index_1_joint
+Joint ID 25: left_hand_middle_0_joint
+Joint ID 26: left_hand_middle_1_joint
+Joint ID 27: left_hand_thumb_0_joint
+Joint ID 28: left_hand_thumb_1_joint
+Joint ID 29: left_hand_thumb_2_joint
+Joint ID 30: right_shoulder_pitch_joint
+Joint ID 31: right_shoulder_roll_joint
+Joint ID 32: right_shoulder_yaw_joint
+Joint ID 33: right_elbow_joint
+Joint ID 34: right_wrist_roll_joint
+Joint ID 35: right_wrist_pitch_joint
+Joint ID 36: right_wrist_yaw_joint
+Joint ID 37: right_hand_index_0_joint
+Joint ID 38: right_hand_index_1_joint
+Joint ID 39: right_hand_middle_0_joint
+Joint ID 40: right_hand_middle_1_joint
+Joint ID 41: right_hand_thumb_0_joint
+Joint ID 42: right_hand_thumb_1_joint
+Joint ID 43: right_hand_thumb_2_joint
+reduced_robot.model.nq:43
 
+for inspire1 whole body
+Joints in Reduced Robot:
+Joint ID 0: universe
+Joint ID 1: left_hip_pitch_joint
+Joint ID 2: left_hip_roll_joint
+Joint ID 3: left_hip_yaw_joint
+Joint ID 4: left_knee_joint
+Joint ID 5: left_ankle_pitch_joint
+Joint ID 6: left_ankle_roll_joint
+Joint ID 7: right_hip_pitch_joint
+Joint ID 8: right_hip_roll_joint
+Joint ID 9: right_hip_yaw_joint
+Joint ID 10: right_knee_joint
+Joint ID 11: right_ankle_pitch_joint
+Joint ID 12: right_ankle_roll_joint
+Joint ID 13: waist_yaw_joint
+Joint ID 14: waist_roll_joint
+Joint ID 15: waist_pitch_joint
+Joint ID 16: left_shoulder_pitch_joint
+Joint ID 17: left_shoulder_roll_joint
+Joint ID 18: left_shoulder_yaw_joint
+Joint ID 19: left_elbow_joint
+Joint ID 20: left_wrist_roll_joint
+Joint ID 21: left_wrist_pitch_joint
+Joint ID 22: left_wrist_yaw_joint
+Joint ID 23: L_index_proximal_joint
+Joint ID 24: L_middle_proximal_joint
+Joint ID 25: L_pinky_proximal_joint
+Joint ID 26: L_ring_proximal_joint
+Joint ID 27: L_thumb_proximal_yaw_joint
+Joint ID 28: L_thumb_proximal_pitch_joint
+Joint ID 29: right_shoulder_pitch_joint
+Joint ID 30: right_shoulder_roll_joint
+Joint ID 31: right_shoulder_yaw_joint
+Joint ID 32: right_elbow_joint
+Joint ID 33: right_wrist_roll_joint
+Joint ID 34: right_wrist_pitch_joint
+Joint ID 35: right_wrist_yaw_joint
+Joint ID 36: R_index_proximal_joint
+Joint ID 37: R_middle_proximal_joint
+Joint ID 38: R_pinky_proximal_joint
+Joint ID 39: R_ring_proximal_joint
+Joint ID 40: R_thumb_proximal_yaw_joint
+Joint ID 41: R_thumb_proximal_pitch_joint
+reduced_robot.model.nq:41
+
+"""
 
 # Global variable to store old terminal settings
 old_terminal_settings = None

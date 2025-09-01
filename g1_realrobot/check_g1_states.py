@@ -266,6 +266,128 @@ class G1_29_JointIndex(IntEnum):
     kNotUsedJoint4 = 33
     kNotUsedJoint5 = 34
 
+# the following has the same list as the reduced_model when loaded URDF into Meshcat  visualizer
+# usage:
+# for joint in G1_29_Inspire_JointIndex:
+#    print(f"Name: {joint.name}, Index: {joint.value}")
+# G1_29_Dex3_JointIndex[joint.name].value
+class G1_29_Dex3_JointIndex(IntEnum):
+    """Enumeration for the joint indices of the G1_29_Dex3 robot."""
+    # Left leg
+    kLeftHipPitch = 0
+    kLeftHipRoll = 1
+    kLeftHipYaw = 2
+    kLeftKnee = 3
+    kLeftAnklePitch = 4
+    kLeftAnkleRoll = 5
+
+    # Right leg
+    kRightHipPitch = 6
+    kRightHipRoll = 7
+    kRightHipYaw = 8
+    kRightKnee = 9
+    kRightAnklePitch = 10
+    kRightAnkleRoll = 11
+
+    # Waist
+    kWaistYaw = 12
+    kWaistRoll = 13
+    kWaistPitch = 14
+
+    # Left arm
+    kLeftShoulderPitch = 15
+    kLeftShoulderRoll = 16
+    kLeftShoulderYaw = 17
+    kLeftElbow = 18
+    kLeftWristRoll = 19
+    kLeftWristPitch = 20
+    kLeftWristYaw = 21
+
+    # Left hand
+    kLeftHandIndex0 = 22
+    kLeftHandIndex1 = 23
+    kLeftHandMiddle0 = 24
+    kLeftHandMiddle1 = 25
+    kLeftHandThumb0 = 26
+    kLeftHandThumb1 = 27
+    kLeftHandThumb2 = 28
+
+    # Right arm
+    kRightShoulderPitch = 29
+    kRightShoulderRoll = 30
+    kRightShoulderYaw = 31
+    kRightElbow = 32
+    kRightWristRoll = 33
+    kRightWristPitch = 34
+    kRightWristYaw = 35
+
+    # Right hand
+    kRightHandIndex0 = 36
+    kRightHandIndex1 = 37
+    kRightHandMiddle0 = 38
+    kRightHandMiddle1 = 39
+    kRightHandThumb0 = 40
+    kRightHandThumb1 = 41
+    kRightHandThumb2 = 42
+
+class G1_29_Inspire_JointIndex(IntEnum):
+    """Enumeration for the joint indices of the G1_29_Inspire robot."""
+    # Left leg
+    kLeftHipPitch = 0
+    kLeftHipRoll = 1
+    kLeftHipYaw = 2
+    kLeftKnee = 3
+    kLeftAnklePitch = 4
+    kLeftAnkleRoll = 5
+
+    # Right leg
+    kRightHipPitch = 6
+    kRightHipRoll = 7
+    kRightHipYaw = 8
+    kRightKnee = 9
+    kRightAnklePitch = 10
+    kRightAnkleRoll = 11
+
+    # Waist
+    kWaistYaw = 12
+    kWaistRoll = 13
+    kWaistPitch = 14
+
+    # Left arm
+    kLeftShoulderPitch = 15
+    kLeftShoulderRoll = 16
+    kLeftShoulderYaw = 17
+    kLeftElbow = 18
+    kLeftWristRoll = 19
+    kLeftWristPitch = 20
+    kLeftWristYaw = 21
+
+    # Left hand
+    kLeftHandIndex = 22
+    kLeftHandMiddle = 23
+    kLeftHandPinky = 24
+    kLeftHandRing = 25
+    kLeftHandThumbRotation = 26
+    kLeftHandThumbBend = 27
+
+    # Right arm
+    kRightShoulderPitch = 28
+    kRightShoulderRoll = 29
+    kRightShoulderYaw = 30
+    kRightElbow = 31
+    kRightWristRoll = 32
+    kRightWristPitch = 33
+    kRightWristYaw = 34
+
+    # Right hand
+    kRightHandIndex = 35
+    kRightHandMiddle = 36
+    kRightHandPinky = 37
+    kRightHandRing = 38
+    kRightHandThumbRotation = 39
+    kRightHandThumbBend = 40
+
+
 
 def get_inline_print(g1_state, left_hand_state, right_hand_state, hand_type):
 
@@ -310,6 +432,41 @@ def get_inline_print(g1_state, left_hand_state, right_hand_state, hand_type):
             output_string += f"{joint_name:<25}: q = {q:8.4f}\n"
     return output_string
 
+def show_current_q(g1_visualizer, g1_state, left_hand_state, right_hand_state, hand_type):
+    # see visualize_arm_episodes for joint ID list
+    # we map the joint states from DDS to the visualization platform (URDF/Meshcat/Pin)
+    current_q = np.zeros(g1_visualizer.reduced_robot.model.nq, dtype=np.float32) # 43 or 41
+    if hand_type == "dex3":
+        for joint in Dex3_1_Left_JointIndex:
+            q = left_hand_state.motor_state[joint.value].q
+            current_q[G1_29_Dex3_JointIndex[joint.name].value] = q
+        for joint in Dex3_1_Right_JointIndex:
+            q = right_hand_state.motor_state[joint.value].q
+            current_q[G1_29_Dex3_JointIndex[joint.name].value] = q
+    elif hand_type == "inspire1":
+        joint_names = list(Inspire_Left_Hand_JointIndex)
+        for idx in range(Inspire_Num_Motors):
+            joint_name = joint_names[idx].name
+            q = left_hand_state.motor_state[idx].q
+            current_q[G1_29_Dex3_JointIndex[joint_name].value] = q
+        joint_names = list(Inspire_Right_Hand_JointIndex)
+        for idx in range(Inspire_Num_Motors):
+            joint_name = joint_names[idx].name
+            q = right_hand_state.motor_state[idx].q
+            current_q[G1_29_Dex3_JointIndex[joint_name].value] = q
+    else:
+        raise Exception("show current q unknown hand_type %s" % hand_type)
+
+    for joint in G1_29_JointIndex:
+        # Skip unused joints for a cleaner output
+        if "NotUsed" in joint.name:
+            continue
+        q = g1_state.motor_state[joint.value].q
+        current_q[G1_29_Dex3_JointIndex[joint.name].value] = q
+
+    g1_visualizer.vis.display(current_q)
+
+
 if __name__ == "__main__":
 
     args = parser.parse_args()
@@ -317,6 +474,7 @@ if __name__ == "__main__":
     g1_watcher = G1_29_Hand_Watcher(simulation_mode=args.sim, network_interface=args.network_interface, hand_type=args.hand_type)
 
     if args.visualize:
+        # initialize web browser
         g1_visualizer = G1_29_Vis_WholeBody(urdf=args.urdf, hand_type=args.hand_type, print_urdf_joints=True)
 
     while True:
@@ -337,6 +495,9 @@ if __name__ == "__main__":
 
         # Print the entire formatted string at once to the terminal
         print(output_string, end="")
+
+        if args.visualize:
+            show_current_q(g1_visualizer, g1_state, left_hand_state, right_hand_state, hand_type=args.hand_type)
 
         # Ensure consistent frame rate
         current_time = time.time()

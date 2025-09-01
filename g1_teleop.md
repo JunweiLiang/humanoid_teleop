@@ -1324,6 +1324,10 @@ exts."isaacsim.asset.browser".folders = [
 
                         (unitree_sim5.0_env) junweil@office-precognition:~/projects/unitree_sim_5.0/unitree_sim_isaaclab$ python sim_main.py --device cpu  --enable_cameras  --task Isaac-Move-Cylinder-G129-Dex3-Wholebody --enable_dex3_dds --robot_type g129
 
+                        # 因时手
+                            (unitree_sim5.0_env) junweil@office-precognition:~/projects/unitree_sim_5.0/unitree_sim_isaaclab$ python sim_main.py --device cpu  --enable_cameras  --task Isaac-Move-Cylinder-G129-Inspire-Wholebody --enable_inspire_dds --robot_type g129
+
+
                     2. 开启状态读取
                         (tv) junweil@office-precognition:~/projects/humanoid_teleop$ python g1_realrobot/check_g1_states.py --sim --hand_type dex3 --max_freq 60
 
@@ -1353,6 +1357,10 @@ exts."isaacsim.asset.browser".folders = [
                             kRightHandIndex1    : q =  -0.0000
 
                         # 加上浏览器meshcat可视化
+                            # 因时手
+
+                            (tv) junweil@office-precognition:~/projects/humanoid_teleop$ python g1_realrobot/check_g1_states.py --sim --hand_type inspire1 --max_freq 60 --urdf assets/g1/g1_body29_inspired_hand.urdf --visualize
+
 
 
 
