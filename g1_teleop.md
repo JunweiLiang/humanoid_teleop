@@ -1296,7 +1296,7 @@ exts."isaacsim.asset.browser".folders = [
 
                 (unitree_sim5.0_env) junweil@office-precognition:~/projects/unitree_sim_5.0/unitree_sim_isaaclab$ bash fetch_assets.sh
 
-                [08/29/2025]确实这个，临时解决：
+                [08/29/2025]缺失这个，临时解决：
                 (base) junweil@office-precognition:~/projects/unitree_sim_5.0/unitree_sim_isaaclab/assets/model$ cp policy1.onnx policy2.onnx
 
             # 开启motion control sim (Isaac Sim 5.0)
