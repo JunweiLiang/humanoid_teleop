@@ -448,12 +448,12 @@ def show_current_q(g1_visualizer, g1_state, left_hand_state, right_hand_state, h
         for idx in range(Inspire_Num_Motors):
             joint_name = joint_names[idx].name
             q = left_hand_state.motor_state[idx].q
-            current_q[G1_29_Dex3_JointIndex[joint_name].value] = q
+            current_q[G1_29_Inspire_JointIndex[joint_name].value] = q
         joint_names = list(Inspire_Right_Hand_JointIndex)
         for idx in range(Inspire_Num_Motors):
             joint_name = joint_names[idx].name
             q = right_hand_state.motor_state[idx].q
-            current_q[G1_29_Dex3_JointIndex[joint_name].value] = q
+            current_q[G1_29_Inspire_JointIndex[joint_name].value] = q
     else:
         raise Exception("show current q unknown hand_type %s" % hand_type)
 
