@@ -432,6 +432,17 @@ def get_inline_print(g1_state, left_hand_state, right_hand_state, hand_type):
             output_string += f"{joint_name:<25}: q = {q:8.4f}\n"
     return output_string
 
+def denorm_inspire(q, idx):
+    def denormalize(normalized_val, min_val, max_val):
+        return max_val - (normalized_val * (max_val - min_val))
+    if idx <= 3:
+        q = denormalize(q, 0.0, 1.7)
+    elif idx == 4:
+        q = denormalize(q, 0.0, 0.5)
+    elif idx == 5:
+        q = denormalize(q, -0.1, 1.3)
+    return q
+
 def show_current_q(g1_visualizer, g1_state, left_hand_state, right_hand_state, hand_type):
     # see visualize_arm_episodes for joint ID list
     # we map the joint states from DDS to the visualization platform (URDF/Meshcat/Pin)
@@ -445,14 +456,18 @@ def show_current_q(g1_visualizer, g1_state, left_hand_state, right_hand_state, h
             current_q[G1_29_Dex3_JointIndex[joint.name].value] = q
     elif hand_type == "inspire1":
         joint_names = list(Inspire_Left_Hand_JointIndex)
+        # the states from inspire hand are normalized from 0 to 1, 1 for open
+        # so to visualize correctly in URDF in radians, we need to denorm
         for idx in range(Inspire_Num_Motors):
             joint_name = joint_names[idx].name
             q = left_hand_state.motor_state[idx].q
+            q = denorm_inspire(q, idx)
             current_q[G1_29_Inspire_JointIndex[joint_name].value] = q
         joint_names = list(Inspire_Right_Hand_JointIndex)
         for idx in range(Inspire_Num_Motors):
             joint_name = joint_names[idx].name
             q = right_hand_state.motor_state[idx].q
+            q = denorm_inspire(q, idx)
             current_q[G1_29_Inspire_JointIndex[joint_name].value] = q
     else:
         raise Exception("show current q unknown hand_type %s" % hand_type)
