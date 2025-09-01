@@ -475,7 +475,7 @@ if __name__ == "__main__":
 
     if args.visualize:
         # initialize web browser
-        g1_visualizer = G1_29_Vis_WholeBody(urdf=args.urdf, hand_type=args.hand_type, print_urdf_joints=True)
+        g1_visualizer = G1_29_Vis_WholeBody(urdf=args.urdf, hand_type=args.hand_type, print_urdf_joints=False)
 
     while True:
         start_time = time.time()
