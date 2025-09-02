@@ -1252,7 +1252,7 @@ exts."isaacsim.asset.browser".folders = [
                 (tv) junweil@office-precognition:~/projects/humanoid_teleop$ python g1_realrobot/visualize_arm_episodes.py ~/Downloads/episode_0019/data.json assets/g1/g1_body29_inspired_hand.urdf --fps 60 --image_path /home/junweil/Downloads/episode_0019/colors/ --show_states
 
                 # replay video:
-
+                    https://drive.google.com/file/d/1NcZwwz5QGL_tXFJnFkHAeQEQkGaGe7-I/view?usp=sharing
 
 ```
 ## 换成双目相机
@@ -1272,6 +1272,12 @@ exts."isaacsim.asset.browser".folders = [
         Quest 3中看到的是双目影像。已修改televuer双目放地上
 
         # replay
+
+            (tv) junweil@office-precognition:~/projects/humanoid_teleop$ python g1_realrobot/visualize_arm_episodes.py ~/Downloads/episode_0020/data.json assets/g1/g1_body29_inspired_hand.urdf --fps 60 --image_path /home/junweil/Downloads/episode_0020/colors/ --show_states --bino
+
+            # video:
+                https://drive.google.com/file/d/1FCq3VrqFD7ZqAbCGKYQuz9zdaDi43Xp8/view?usp=sharing
+
 ```
 ## 添加Homie底层控制+腰部遥操作
 ```
