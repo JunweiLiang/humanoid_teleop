@@ -615,6 +615,40 @@ def denorm_inspire(normed_ee_pos):
 def denormalize(normalized_val, min_val, max_val):
     return max_val - (normalized_val * (max_val - min_val))
 
+def resize_image_to_width(image, target_width):
+    """
+    Resizes an image to a target width while maintaining the aspect ratio.
+
+    Args:
+        image (np.ndarray): The input image as a NumPy array.
+        target_width (int): The desired width of the resized image.
+
+    Returns:
+        np.ndarray: The resized image.
+    """
+    # Get the original dimensions of the image
+    original_height, original_width = image.shape[:2]
+
+    # If the image is already the target width, no need to resize
+    if original_width == target_width:
+        return image
+
+    # Calculate the aspect ratio
+    aspect_ratio = original_height / original_width
+
+    # Calculate the new height based on the target width and aspect ratio
+    target_height = int(target_width * aspect_ratio)
+
+    # New dimensions tuple
+    new_dimensions = (target_width, target_height)
+
+    # Resize the image using the calculated dimensions
+    # cv2.INTER_AREA is generally recommended for shrinking images
+    resized_image = cv2.resize(image, new_dimensions, interpolation=cv2.INTER_AREA)
+
+    return resized_image
+
+
 if __name__ == "__main__":
     args = parser.parse_args()
 
@@ -685,6 +719,10 @@ if __name__ == "__main__":
                             2,
                             cv2.LINE_AA
                         )
+                    # bino image might be too wide, resize
+                    if args.bino:
+                        image = resize_image_to_width(image, 1920)
+
                     cv2.imshow("Episode Image", image)
                     cv2.waitKey(1) # Refresh image window
 

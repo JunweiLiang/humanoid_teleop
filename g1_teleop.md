@@ -1251,6 +1251,27 @@ exts."isaacsim.asset.browser".folders = [
 
                 (tv) junweil@office-precognition:~/projects/humanoid_teleop$ python g1_realrobot/visualize_arm_episodes.py ~/Downloads/episode_0019/data.json assets/g1/g1_body29_inspired_hand.urdf --fps 60 --image_path /home/junweil/Downloads/episode_0019/colors/ --show_states
 
+                # replay video:
+
+
+```
+## 换成双目相机
+```
+    # 双目相机，宇树官方说用的下面链接，用125度无畸变镜头，30fps或者60fps都可以，60fps的贵一倍
+        # 【淘宝】7天无理由退货 https://e.tb.cn/h.hCJBMeIjD9yKba5?tk=022k4ocp2ja HU108 「200万像素彩色全局曝光双1080P双目同步相机60帧USB2.0测距摄像头」
+
+    # 原理就是，直接能读到 3840x1080 的图像，直接把两张图拼一起。teleop_hand_and_arm.py BINOCULAR的判断，直接从分辨率判断，存图片的时候会存成两个camera 的image
+
+    # 测试遥操作again!!
+        # 使用2560x720
+        (base) unitree@ubuntu:~/projects/image_server$ python3.8 image_server_timesync.py --bino
+
+        # 好像只有10  fps
+
+        teleop 也加 --bino即可，会存两张图片。
+        Quest 3中看到的是双目影像。已修改televuer双目放地上
+
+        # replay
 ```
 ## 添加Homie底层控制+腰部遥操作
 ```
@@ -1378,24 +1399,7 @@ exts."isaacsim.asset.browser".folders = [
                     https://github.com/unitreerobotics/unitree_sim_isaaclab/blob/f56158f1a18cec783a8d0f863f2871757b8b2fe9/dds/g1_robot_dds.py#L72
 
 ```
-## 换成双目相机
-```
-    # 双目相机，宇树官方说用的下面链接，用125度无畸变镜头，30fps或者60fps都可以，60fps的贵一倍
-        # 【淘宝】7天无理由退货 https://e.tb.cn/h.hCJBMeIjD9yKba5?tk=022k4ocp2ja HU108 「200万像素彩色全局曝光双1080P双目同步相机60帧USB2.0测距摄像头」
 
-    # 原理就是，直接能读到 3840x1080 的图像，直接把两张图拼一起。teleop_hand_and_arm.py BINOCULAR的判断，直接从分辨率判断，存图片的时候会存成两个camera 的image
-
-    # 测试遥操作again!!
-        # 使用2560x720
-        (base) unitree@ubuntu:~/projects/image_server$ python3.8 image_server_timesync.py --bino
-
-        # 好像只有10  fps
-
-        teleop 也加 --bino即可，会存两张图片。
-        Quest 3中看到的是双目影像。已修改televuer双目放地上
-
-        # replay
-```
 
 ## 收集数据训练测试
 ```
