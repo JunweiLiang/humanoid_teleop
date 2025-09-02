@@ -1386,6 +1386,15 @@ exts."isaacsim.asset.browser".folders = [
     # 原理就是，直接能读到 3840x1080 的图像，直接把两张图拼一起。teleop_hand_and_arm.py BINOCULAR的判断，直接从分辨率判断，存图片的时候会存成两个camera 的image
 
     # 测试遥操作again!!
+        # 使用2560x720
+        (base) unitree@ubuntu:~/projects/image_server$ python3.8 image_server_timesync.py --bino
+
+        # 好像只有10  fps
+
+        teleop 也加 --bino即可，会存两张图片。
+        Quest 3中看到的是双目影像。已修改televuer双目放地上
+
+        # replay
 ```
 
 ## 收集数据训练测试

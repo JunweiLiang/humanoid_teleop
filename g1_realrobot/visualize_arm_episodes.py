@@ -25,6 +25,7 @@ parser.add_argument("--image_path", default=None, help="add this to visualize im
 parser.add_argument("--fps", type=float, default="60", help="the episode is recored in this fps, so we play in this fps")
 parser.add_argument("--hand_type", default="inspire1")
 parser.add_argument("--print_urdf_joints", action="store_true")
+parser.add_argument("--bino", action="store_true", help="visualize binocular images")
 parser.add_argument("--use_waist", action="store_true", help="visualize waist data")
 parser.add_argument("--show_states", action="store_true", help="show states instead of actions")
 
@@ -575,8 +576,6 @@ def show_current_q(vis_model, step_data, hand_type="inspire1", visualize_waist=F
         denorm_inspire(right_ee_pos)
         right_ee_pos = right_ee_pos[right_inspire_api_to_urdf_index]
 
-
-
         target_q = np.zeros((29, ), dtype=np.float32)
         target_q[:3] = waist_q
         target_q[3:10] = left_arm_pos
@@ -641,22 +640,37 @@ if __name__ == "__main__":
         show_image = True
         # episode_0001/colors
         # 000825_color_0.jpg # images as many as steps
-
+        # if binocular,
+        # there are also 000825_color_1.jpg
     try:
         while current_step < num_data_step:
             start_time = time.time()
             if show_image:
-                image_file_name = "%06d_color_0.jpg" % current_step
-                image_file = os.path.join(args.image_path, image_file_name)
-                assert os.path.exists(image_file)
-                # Load and display image using OpenCV
-                image = cv2.imread(image_file)
+                image = None
+                if args.bino:
+                    # Load and display binocular images
+                    image_file_name_left = "%06d_color_0.jpg" % current_step
+                    image_file_name_right = "%06d_color_1.jpg" % current_step
+                    image_file_left = os.path.join(args.image_path, image_file_name_left)
+                    image_file_right = os.path.join(args.image_path, image_file_name_right)
+
+                    if os.path.exists(image_file_left) and os.path.exists(image_file_right):
+                        image_left = cv2.imread(image_file_left)
+                        image_right = cv2.imread(image_file_right)
+                        if image_left is not None and image_right is not None:
+                            image = cv2.hconcat([image_left, image_right])
+                            image_file_name_info = f"{image_file_name_left}, {image_file_name_right}"
+                else:
+                    # Load and display single image
+                    image_file_name = "%06d_color_0.jpg" % current_step
+                    image_file = os.path.join(args.image_path, image_file_name)
+                    if os.path.exists(image_file):
+                        image = cv2.imread(image_file)
+                        image_file_name_info = image_file_name
+
                 if image is not None:
-
-
                     # if the data saved the delay times as well
                     if "delay" in episode["data"][current_step]:
-
                         delay_in_seconds = float(episode["data"][current_step]["delay"])
                         # Add delay text to the resized image
                         delay_text = f"Delay: {delay_in_seconds * 1000:.2f} ms"
