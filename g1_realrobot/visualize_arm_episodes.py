@@ -645,6 +645,7 @@ if __name__ == "__main__":
     try:
         while current_step < num_data_step:
             start_time = time.time()
+            image_file_name_info = "" # To store image name for printing
             if show_image:
                 image = None
                 if args.bino:
@@ -742,7 +743,7 @@ if __name__ == "__main__":
                 # Use sys.stdout.write for finer control and avoid print's buffering issues
                 if show_image:
                     sys.stdout.write(
-                        f"\rTime: {current_episode_time:.2f}s | Step ID: {current_step}/{num_data_step-1} | Image {image_file_name}")
+                        f"\rTime: {current_episode_time:.2f}s | Step ID: {current_step}/{num_data_step-1} | Image {image_file_name_info}")
                 else:
                     sys.stdout.write(
                         f"\rTime: {current_episode_time:.2f}s | Step ID: {current_step}/{num_data_step-1}")
