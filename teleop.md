@@ -1285,6 +1285,11 @@ exts."isaacsim.asset.browser".folders = [
             # video:
                 https://drive.google.com/file/d/1FCq3VrqFD7ZqAbCGKYQuz9zdaDi43Xp8/view?usp=sharing
 
+    # 双目相机60fps降速慢动作效果
+        (tv) junweil@precognition-laptop6:~/projects/humanoid_teleop$ python g1_realrobot/save_video_high_speed_cam.py --cam 4 --fps 60 --h 720 --w 2560 --save_video --write_video_fps 15 --write_video_path ~/Downloads/bino_test_video.mp4
+
+        # 亮度够了，网球自由落体还是略有重影
+            https://drive.google.com/file/d/1wPgpKeWCHWoakl0P4H713gwwgQ8QTXty/view?usp=drive_link
 ```
 ## 添加Homie底层控制+腰部遥操作
 ```
