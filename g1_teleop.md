@@ -1401,7 +1401,7 @@ exts."isaacsim.asset.browser".folders = [
                     3. 可以使用键盘 控制一下机器人改变一下
                         (tv) junweil@office-precognition:~/projects/unitree_sim_5.0/unitree_sim_isaaclab$ python send_commands_keyboard.py
 
-                # 实机获取states
+                # 实机获取state
 
 
             # 以后想再unitree sim中加底层运控:
