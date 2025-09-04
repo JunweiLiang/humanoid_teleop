@@ -1263,10 +1263,17 @@ exts."isaacsim.asset.browser".folders = [
     # 原理就是，直接能读到 3840x1080 的图像，直接把两张图拼一起。teleop_hand_and_arm.py BINOCULAR的判断，直接从分辨率判断，存图片的时候会存成两个camera 的image
 
     # 测试遥操作again!!
+        # 发代码到pc2
+            scp -r teleop/image_server/ unitree@192.168.123.164:~/projects/
+
         # 使用2560x720
         (base) unitree@ubuntu:~/projects/image_server$ python3.8 image_server_timesync.py --bino
 
-        # 好像只有10  fps
+        # laptop上subscribe 检查一下
+            # 好像只有12fps
+            (tv) junweil@precognition-laptop6:~/projects/xr_teleoperate/teleop/image_server$ python image_client_timesync.py
+            # 和摄像头厂家问了知道是摄像头没有锁定帧率，把灯光开最猛之后，2560x720可以达到30fps
+            # 后续全部摄像头都让厂家锁帧了
 
         teleop 也加 --bino即可，会存两张图片。
         Quest 3中看到的是双目影像。已修改televuer双目放地上
@@ -1393,6 +1400,8 @@ exts."isaacsim.asset.browser".folders = [
 
                     3. 可以使用键盘 控制一下机器人改变一下
                         (tv) junweil@office-precognition:~/projects/unitree_sim_5.0/unitree_sim_isaaclab$ python send_commands_keyboard.py
+
+                # 实机获取states
 
 
             # 以后想再unitree sim中加底层运控:
