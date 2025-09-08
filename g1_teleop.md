@@ -1280,7 +1280,7 @@ exts."isaacsim.asset.browser".folders = [
 
         # replay
 
-            (tv) junweil@office-precognition:~/projects/humanoid_teleop$ python g1_realrobot/visualize_arm_episodes.py ~/Downloads/episode_0020/data.json assets/g1/g1_body29_inspired_hand.urdf --fps 60 --image_path /home/junweil/Downloads/episode_0020/colors/ --show_states --bino
+            (tv) junweil@office-precognition:~/projects/humanoid_teleop$ python g1_realrobot/visualize_arm_episodes.py ~/Downloads/episode_0020/data.json assets/g1/g1_body29_inspired_hand.urdf --fps 60 --image_path /home/junweil/Downloads/episode_0020/colors/ --show_states --bino --use_waist
 
             # video:
                 https://drive.google.com/file/d/1FCq3VrqFD7ZqAbCGKYQuz9zdaDi43Xp8/view?usp=sharing
@@ -1290,6 +1290,43 @@ exts."isaacsim.asset.browser".folders = [
 
         # 亮度够了，网球自由落体还是略有重影
             https://drive.google.com/file/d/1wPgpKeWCHWoakl0P4H713gwwgQ8QTXty/view?usp=drive_link
+```
+## 录取上半身动作后，实机replay
+```
+    # 右手指引右边走
+        # 先通过replay确认 开始step结束step
+
+            (tv) junweil@office-precognition:~/projects/humanoid_teleop$ python g1_realrobot/visualize_arm_episodes.py ~/Downloads/episode_0021/data.json assets/g1/g1_body29_inspired_hand.urdf --fps 60 --image_path /home/junweil/Downloads/episode_0021/colors/ --show_states --bino --use_waist
+
+        # 开始65， 结束516
+        # 录屏：https://drive.google.com/file/d/1hlDVXzAboo24zmspZlIdaFzTn9Lr40Zp/view?usp=drive_link
+
+    # 左手指引左边走
+        # replay
+            (tv) junweil@office-precognition:~/projects/humanoid_teleop$ python g1_realrobot/visualize_arm_episodes.py ~/Downloads/episode_0022/data.json assets/g1/g1_body29_inspired_hand.urdf --fps 60 --image_path /home/junweil/Downloads/episode_0022/colors/ --show_states --bino --use_waist
+
+            # 开始40 结束439
+
+        # 新手势数据存储，以及预定义一个dict
+            junweiliang@work_laptop:~/Downloads$ scp junweil@office.precognition.team:~/Downloads/episode_0022/data.json 0022_data.json
+            junweiliang@work_laptop:~/Downloads$ mv 002*.json ~/Desktop/github_projects/large_models/gesture_data
+
+            custom_action = {"left_welcome": {
+                "json_name": "0022_data.json",
+                "start": 40,
+                "end": 439
+            },
+            "right_welcome": {
+                "json_name": "0021_data.json",
+                "start": 65,
+                "end": 516
+            }}
+    # large_models 里添加 robot_arm_high_level_v3.py
+    # 测试代码，包括测试宇树自带的手势arm service，以及自定义的arm_sdk控制的手势序列
+
+    # 代码和gesture data也放到g1_teleop
+
+
 ```
 ## 添加Homie底层控制+腰部遥操作
 ```
@@ -1407,6 +1444,11 @@ exts."isaacsim.asset.browser".folders = [
                         (tv) junweil@office-precognition:~/projects/unitree_sim_5.0/unitree_sim_isaaclab$ python send_commands_keyboard.py
 
                 # 实机获取state
+
+                    (tv) junweil@precognition-laptop6:~/projects/humanoid_teleop$ python g1_realrobot/check_g1_states.py --hand_type inspire1 --max_freq 60 --urdf assets/g1/g1_body29_inspired_hand.urdf --visualize --network enp131s0
+
+                    # 2号机的右手肘怎么状态不对。
+                        视频：https://drive.google.com/file/d/1QWdw0RAkEyE58QR3lO3y4-d6Jh0RVf4T/view?usp=drive_link
 
 
             # 以后想再unitree sim中加底层运控:

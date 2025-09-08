@@ -1,7 +1,7 @@
 # coding=utf-8
 # this code reads the rt/audio_msg from the robots using DDS
 # G1 has ASR running:  https://support.unitree.com/home/zh/G1_developer/VuiClient_Service
-
+# [09/05/2025]  宇树官方告知，这个API其实还没有实现.这个代码先搁置
 
 import numpy as np
 import threading
