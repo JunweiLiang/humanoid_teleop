@@ -1321,10 +1321,36 @@ exts."isaacsim.asset.browser".folders = [
                 "start": 65,
                 "end": 516
             }}
+
     # large_models 里添加 robot_arm_high_level_v3.py
+        # 注意需要给腰比较大的 kp和kd，否则转身的时候容易被重心压弯腰
+
     # 测试代码，包括测试宇树自带的手势arm service，以及自定义的arm_sdk控制的手势序列
 
     # 代码和gesture data也放到g1_teleop
+
+        (agent_api) junweil@precognition-laptop6:~/projects/speechvla/MLLMs$ python test_g1_high_level.py gesture_data/ enp131s0
+            21:11:02:426099 INFO     loaded custom gesture left_welcome with 399 steps                                         robot_arm_high_level_v3.py:104
+            21:11:02:435973 INFO     loaded custom gesture right_welcome with 451 steps                                        robot_arm_high_level_v3.py:104
+            21:11:04:063601 INFO     [G1_29_ArmController] Subscribe dds ok.                                                   robot_arm_high_level_v3.py:136
+            21:11:04:063793 INFO     setting walk mode..                                                                             test_g1_high_level.py:37
+            21:11:04:064915 INFO     set walk mode returned                                                                          test_g1_high_level.py:40
+            confirm g1 low wave..
+            21:11:10:567136 INFO     starting g1 low wave..                                                                          test_g1_high_level.py:44
+            21:11:15:400721 INFO     Low wave returned.                                                                              test_g1_high_level.py:46
+            confirm g1 custom gesture
+            21:11:28:192109 INFO     trying custom gesture                                                                           test_g1_high_level.py:50
+            21:11:35:511202 INFO     arm sdk released!                                                                         robot_arm_high_level_v3.py:237
+            21:11:35:611524 INFO     left welcome exited.                                                                            test_g1_high_level.py:52
+            confirm g1 low wave..
+            21:11:38:125462 INFO     starting g1 low wave..                                                                          test_g1_high_level.py:56
+            21:11:42:965985 INFO     Low wave returned.                                                                              test_g1_high_level.py:58
+            21:11:43:967221 INFO     setting run walk mode..                                                                         test_g1_high_level.py:61
+            21:11:43:968340 INFO     set run walk mode returned                                                                      test_g1_high_level.py:63
+            confirm g1 turn left
+            21:11:48:352592 INFO     starting g1 turn left..                                                                         test_g1_high_level.py:67
+            21:11:48:353774 INFO     g1 turn left returned.                                                                          test_g1_high_level.py:69
+            21:11:48:353807 INFO     whole test exited
 
 
 ```
