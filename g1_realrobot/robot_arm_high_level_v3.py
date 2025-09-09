@@ -104,6 +104,7 @@ class G1_Highlevel_Controller:
             logger_mp.info("loaded custom gesture %s with %s steps" % (gesture, len(self.custom_action_data[gesture])))
 
         ChannelFactoryInitialize(0, network_name)
+        self.crc = CRC()
 
         # v1.4.0固件更新后，arm和loco 分开
         # 具体看https://github.com/JunweiLiang/unitree_sdk2_python/blob/master/example/g1/high_level/note_junwei.md
@@ -116,10 +117,10 @@ class G1_Highlevel_Controller:
         # simply register APIs
         self.sport_client.Init()
 
-
         # for self-defined  arm  sequence
         self.lowcmd_publisher = ChannelPublisher("rt/arm_sdk", LowCmd_)
         self.lowcmd_publisher.Init()
+
         # create subscriber #
         self.lowstate_subscriber = ChannelSubscriber("rt/lowstate", LowState_)
         self.lowstate_subscriber.Init()
@@ -154,7 +155,6 @@ class G1_Highlevel_Controller:
 
     def _ctr_arm_waist_given_seq(self, seq):
         # initialize hg's lowcmd msg
-        crc = CRC()
         msg = unitree_hg_msg_dds__LowCmd_() # 默认的 lowcmd，全部零位
 
         # https://support.unitree.com/home/zh/G1_developer/joint_motor_sequence
@@ -211,7 +211,7 @@ class G1_Highlevel_Controller:
                 msg.motor_cmd[id].dq = 0.
                 msg.motor_cmd[id].tau = 0.
 
-            msg.crc = crc.Crc(msg)
+            msg.crc = self.crc.Crc(msg)
             self.lowcmd_publisher.Write(msg)
 
             current_time = time.time()

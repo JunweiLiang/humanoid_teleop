@@ -57,6 +57,35 @@ network:
         # 宇树官方一般用 nomachine 可视化连接PC2
 
         # PC2一开始默认wifi驱动没有。需要安装：
-            # https://github.com/morrownr/rtl8852bu-20240418用这里面的方法装也行
+            # https://github.com/morrownr/rtl8852bu-20240418 用这里面的方法装也行
             # 不用dpkg了
+
+            (base) junweil@lt5:~/Downloads$ git clone https://github.com/morrownr/rtl8852bu-20240418
+            (base) junweil@lt5:~/Downloads$ scp -r rtl8852bu-20240418/ unitree@192.168.123.164:~/Downloads/
+
+            # 安装
+                unitree@ubuntu:~/Downloads/rtl8852bu-20240418$ sudo ./install-driver.sh
+                # 没报错, 安装完ifconfig就有wlan0了
+
+            # 重启后，
+                # 列出所有wifi
+                unitree@ubuntu:~$ nmcli device wifi list
+
+                # 连接HKUSTGZ wifi
+                unitree@ubuntu:~$ sudo nmcli connection add type wifi con-name "HKUSTGZ-Profile" ifname wlan0 ssid "HKUSTGZ" -- wifi-sec.key-mgmt wpa-eap 802-1x.eap peap 802-1x.phase2-auth mschapv2 802-1x.identity "junweiliang" 802-1x.password "****"
+
+                    Connection 'HKUSTGZ-Profile' (7e12262e-1a0b-4ffb-91fb-c616dfcaa99a) successfully added.
+                unitree@ubuntu:~$ sudo nmcli connection up "HKUSTGZ-Profile"
+                    Connection successfully activated (D-Bus active path: /org/freedesktop/NetworkManager/ActiveConnection/3)
+
+                # 设置自动连接
+                unitree@ubuntu:~$ sudo nmcli connection modify "HKUSTGZ-Profile" connection.autoconnect yes
+
+            # 设置对时钟，不然外网连不上
+                $ sudo date -s '2025-09-09 04:45:00'
+                $ sudo timedatectl set-ntp on
+
+                # 这样这些就能work了
+                $ sudo apt update
+                $ python3 -m pip install nvitop
 ```
