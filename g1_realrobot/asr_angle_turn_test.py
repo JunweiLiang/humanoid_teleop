@@ -154,7 +154,7 @@ if __name__ == "__main__":
 
     if args.enable_robot_ctr:
         highlevel_ctr = G1_Highlevel_Controller(
-            args.network_interface)
+            args.network_interface, no_dds_init=True) # 前面channelfactory已经init
         print_with_time("setting walk mode..")
         highlevel_ctr.set_run_walk()  # 走跑运控
         #highlevel_ctr.set_normal_walk() # 主运控，更稳一点，但是走路不拟人

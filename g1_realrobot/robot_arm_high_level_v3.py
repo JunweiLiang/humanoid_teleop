@@ -80,7 +80,7 @@ class G1_29_LowState:
 
 
 class G1_Highlevel_Controller:
-    def __init__(self, network_name, custom_data_path=None):
+    def __init__(self, network_name, custom_data_path=None, no_dds_init=False):
 
         # 用偏低的位置和速度系数，避免大扭矩输出
         self.kp = 40.0 # 60.0
@@ -104,7 +104,9 @@ class G1_Highlevel_Controller:
                 self.custom_action_data[gesture] = episode["data"][start:end]
                 logger_mp.info("loaded custom gesture %s with %s steps" % (gesture, len(self.custom_action_data[gesture])))
 
-        ChannelFactoryInitialize(0, network_name)
+        if not no_dds_init:
+            # 有可能这个前面已经执行过了
+            ChannelFactoryInitialize(0, network_name)
         self.crc = CRC()
 
         # v1.4.0固件更新后，arm和loco 分开
