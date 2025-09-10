@@ -9,6 +9,7 @@ import argparse
 import json
 from datetime import datetime
 import random
+import sys
 
 from unitree_sdk2py.core.channel import ChannelPublisher, ChannelSubscriber, ChannelFactoryInitialize # dds
 
@@ -204,8 +205,9 @@ if __name__ == "__main__":
                                     # 表示 绕 Z 轴逆时针旋转 rad 弧度（从上往下看），
                                     self.sport_client.SetVelocity(0, 0, rad, 1.6)
                             """
-                            random_reply_text = random.choice(response_texts)
-                            tts_agent.send_non_block(random_reply_text)
+                            if args.enable_tts:
+                                random_reply_text = random.choice(response_texts)
+                                tts_agent.send_non_block(random_reply_text)
                             robot_turn_rad = compute_optimal_turn(new_angle)
                             highlevel_ctr.move_turn_rad(robot_turn_rad)
                             last_ctr_time = time.time() # Update the time of the last command
