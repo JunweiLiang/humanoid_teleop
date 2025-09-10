@@ -140,13 +140,16 @@ if __name__ == "__main__":
     highlevel_ctr = None
     tts_client = None
     if args.enable_tts:
+        # pip install sounddevice requests
         from tts_class import TTSAgent
         tts_agent = TTSAgent(api_url_port=args.tts_api_url_port)
 
         tts_agent.send_non_block("我准备好了")
 
-        time.sleep(10)
-        sys.exit()
+        print_with_time("waitting for TTS to be ready..")
+        time.sleep(5)
+        print_with_time("Done.")
+
 
 
     if args.enable_robot_ctr:
@@ -155,9 +158,9 @@ if __name__ == "__main__":
         print_with_time("setting walk mode..")
         highlevel_ctr.set_run_walk()  # 走跑运控
         #highlevel_ctr.set_normal_walk() # 主运控，更稳一点，但是走路不拟人
-        print_with_time("set walk mode returned")# 马上返回
-        time.sleep(1)
-
+        # 马上返回
+        time.sleep(2)
+        print_with_time("set walk mode returned.")
 
     # Variable to store the last message to check for changes
     last_asr_message = None
@@ -209,7 +212,7 @@ if __name__ == "__main__":
                                 random_reply_text = random.choice(response_texts)
                                 tts_agent.send_non_block(random_reply_text)
                             robot_turn_rad = compute_optimal_turn(new_angle)
-                            highlevel_ctr.move_turn_rad(robot_turn_rad)
+                            #highlevel_ctr.move_turn_rad(robot_turn_rad, speed=1.0)
                             last_ctr_time = time.time() # Update the time of the last command
 
                 except json.JSONDecodeError:
