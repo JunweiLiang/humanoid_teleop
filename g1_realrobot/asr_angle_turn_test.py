@@ -24,7 +24,7 @@ parser.add_argument("--network_interface", default=None)
 parser.add_argument("--max_freq", default=50.0, type=float)
 parser.add_argument("--enable_robot_ctr", action="store_true", help="enable robot control")
 parser.add_argument("--enable_tts", action="store_true", help="enable speaking")
-parser.add_argument("--tts_url", default="office.precognition.team:50000")
+parser.add_argument("--tts_api_url_port", default="office.precognition.team:50000")
 
 class DataBuffer:
     def __init__(self):
