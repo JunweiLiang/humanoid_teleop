@@ -95,13 +95,14 @@ class G1_Highlevel_Controller:
         # load the custom data first
 
         self.custom_action_data = {}
-        for gesture in custom_action:
-            episode_file = os.path.join(custom_data_path, custom_action[gesture]["json_name"])
-            episode = json.load(open(episode_file, "r"))
-            start = custom_action[gesture]["start"]
-            end = custom_action[gesture]["end"]
-            self.custom_action_data[gesture] = episode["data"][start:end]
-            logger_mp.info("loaded custom gesture %s with %s steps" % (gesture, len(self.custom_action_data[gesture])))
+        if custom_data_path is not None:
+            for gesture in custom_action:
+                episode_file = os.path.join(custom_data_path, custom_action[gesture]["json_name"])
+                episode = json.load(open(episode_file, "r"))
+                start = custom_action[gesture]["start"]
+                end = custom_action[gesture]["end"]
+                self.custom_action_data[gesture] = episode["data"][start:end]
+                logger_mp.info("loaded custom gesture %s with %s steps" % (gesture, len(self.custom_action_data[gesture])))
 
         ChannelFactoryInitialize(0, network_name)
         self.crc = CRC()
