@@ -230,7 +230,7 @@ class G1_Highlevel_Controller:
             ratio = np.clip(elapsed_time / release_duration, 0.0, 1.0)
 
             msg.motor_cmd[G1_29_JointIndex.kNotUsedJoint0].q = 1 - ratio;
-            msg.crc = crc.Crc(msg)
+            msg.crc = self.crc.Crc(msg)
             self.lowcmd_publisher.Write(msg)
             # Sleep for a short duration to control the update rate (e.g., 100Hz)
             time.sleep(0.01)
@@ -316,7 +316,12 @@ class G1_Highlevel_Controller:
         # 表示 绕 Z 轴逆时针旋转 90°（从上往下看），也就是说：机器人往左转
         self.sport_client.SetVelocity(0, 0, -1.0, 1.6)
 
-
+    def move_turn_rad(self, rad, speed=1.0):
+        # vx: float, vy: float, vyaw: float, duration
+        # g1的原点在骨盆pelvis 关节，x往前，y往左手，z往上
+        # Yaw = rad（正方向）
+        # 表示 绕 Z 轴逆时针旋转 rad 弧度（从上往下看），
+        self.sport_client.SetVelocity(0, 0, rad, speed)
 
 
 class G1_29_JointArmIndex(IntEnum):
