@@ -212,7 +212,7 @@ if __name__ == "__main__":
                                 random_reply_text = random.choice(response_texts)
                                 tts_agent.send_non_block(random_reply_text)
                             robot_turn_rad = compute_optimal_turn(new_angle)
-                            #highlevel_ctr.move_turn_rad(robot_turn_rad, speed=1.0)
+                            highlevel_ctr.move_turn_rad(robot_turn_rad, speed=1.0)
                             last_ctr_time = time.time() # Update the time of the last command
 
                 except json.JSONDecodeError:
