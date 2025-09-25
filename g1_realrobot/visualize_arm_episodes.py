@@ -23,7 +23,7 @@ parser.add_argument("episode_json")
 parser.add_argument("urdf")
 parser.add_argument("--image_path", default=None, help="add this to visualize image at the same time")
 parser.add_argument("--fps", type=float, default="60", help="the episode is recored in this fps, so we play in this fps")
-parser.add_argument("--hand_type", default="inspire1")
+parser.add_argument("--hand_type", default="dex3")
 parser.add_argument("--print_urdf_joints", action="store_true")
 parser.add_argument("--bino", action="store_true", help="visualize binocular images")
 parser.add_argument("--use_waist", action="store_true", help="visualize waist data")
@@ -726,11 +726,11 @@ if __name__ == "__main__":
                         trigger_text = f"Trigger value, l: {left_trigger_value:.2f}, r: {right_trigger_value:.2f}"
                         cv2.putText(
                             image,
-                            delay_text,
-                            (40, 30),
+                            trigger_text,
+                            (10, 60),
                             cv2.FONT_HERSHEY_SIMPLEX,
                             0.8,
-                            (255, 255, 255),
+                            (255, 0, 255),
                             2,
                             cv2.LINE_AA
                         )

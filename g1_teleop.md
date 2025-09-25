@@ -1341,6 +1341,8 @@ exts."isaacsim.asset.browser".folders = [
 
         # 3. 仿真replay确认数据质量, 可以查看单双目RGB、收集的states/actions、trigger value
 
+            (tv) junweil@office-precognition:~/projects/humanoid_teleop$ python g1_realrobot/visualize_arm_episodes.py ~/Downloads/data/can_sorting/episode_0001/data.json assets/g1/g1_body29_hand14.urdf --fps 60 --image_path /home/junweil/Downloads/data/can_sorting/episode_0001/colors/ --use_waist
+
 
     # 用Quest 3s/Quest 3均可 [整身动作, 一共收集手臂14+手2+腿12+腰1=共29自由度]
 
