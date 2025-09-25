@@ -3,7 +3,6 @@
 import argparse
 import time
 from robot_arm_high_level_v3 import G1_Highlevel_Controller
-from unitree_sdk2py.g1.arm.g1_arm_action_client import G1ArmActionClient
 import logging_mp
 logger_mp = logging_mp.get_logger(__name__)
 logging_mp.basic_config(level=logging_mp.INFO)

@@ -719,6 +719,21 @@ if __name__ == "__main__":
                             2,
                             cv2.LINE_AA
                         )
+                    # show the trigger value if any
+                    if "left_trigger" in episode["data"][current_step]["actions"]:
+                        left_trigger_value = float(episode["data"][current_step]["actions"]["left_trigger"])
+                        right_trigger_value = float(episode["data"][current_step]["actions"]["right_trigger"])
+                        trigger_text = f"Trigger value, l: {left_trigger_value:.2f}, r: {right_trigger_value:.2f}"
+                        cv2.putText(
+                            image,
+                            delay_text,
+                            (40, 30),
+                            cv2.FONT_HERSHEY_SIMPLEX,
+                            0.8,
+                            (255, 255, 255),
+                            2,
+                            cv2.LINE_AA
+                        )
                     # bino image might be too wide, resize
                     if args.bino:
                         image = resize_image_to_width(image, 1920)

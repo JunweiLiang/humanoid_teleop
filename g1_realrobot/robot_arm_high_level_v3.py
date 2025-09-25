@@ -21,7 +21,21 @@ import logging_mp
 import numpy as np
 import json
 import os
+import random
 logger_mp = logging_mp.get_logger(__name__)
+
+from datetime import datetime
+
+
+def print_with_time(*args, **kwargs):
+    timestamp = datetime.now().strftime("[%Y-%m-%d %H:%M:%S]")
+    print(timestamp, *args, **kwargs)
+
+# v3 添加语音方位角状态识别
+from unitree_sdk2py.idl.std_msgs.msg.dds_ import String_
+
+# define the DDS topic names
+angle_topic_name = "rt/speaker_angle" # 类型: std_msgs::msg::dds_::String_
 
 # action map from
 action_map = {
@@ -77,6 +91,172 @@ G1_29_Num_Motors = 35
 class G1_29_LowState:
     def __init__(self):
         self.motor_state = [MotorState() for _ in range(G1_29_Num_Motors)]
+
+
+
+class G1_29_ASR_360_Wakeup:
+    def __init__(self,
+            network_interface=None,
+            no_dds_init=False,
+            # 需要语音生成agent+ g1_highlevel配合，如果要响应唤醒
+            tts_agent=None,
+            g1_ctr=None
+        ):
+
+        if not no_dds_init:
+            # 有可能这个前面已经执行过了
+            ChannelFactoryInitialize(0, network_interface)
+
+        # start getting hand states
+        self.asr_msg = DataBuffer()
+
+        self.ASR_subscriber = ChannelSubscriber(angle_topic_name, String_)
+        self.ASR_subscriber.Init()
+
+        self.subscribe_asr_thread = threading.Thread(target=self._subscribe_asr)
+        self.subscribe_asr_thread.daemon = True
+        self.subscribe_asr_thread.start()
+
+        while not self.asr_msg.GetData():
+            time.sleep(0.01)
+            print("Waiting to subscribe angle ASR dds...")
+        print("Subscribe angle ASR dds ok.")
+
+        # 方位角唤醒参数
+        # remember the time when issued  a turn signal, avoid turning  continuously
+        self.last_ctr_time = time.time()
+        self.ctr_gap = 3. # seconds # 最少间隔这个时间才转向
+        # 执行最多这么久之前的角度命令, 因为可能有信息延误的情况
+        self.message_old_time = 10.  # seconds
+        self.check_freq = 50.0 # max freq to check for ASR angle
+
+        # 收到方位指令后马上回应
+        self.response_texts = [
+            "怎么了？",
+            "你叫我吗？",
+            "干嘛？",
+            "你好呀。",
+            "在的。",
+            "收到。"
+        ]
+
+        # 设置了True才会发出控制命令
+        self.enable_flag = False
+        self.tts_agent = tts_agent
+        self.g1_ctr = g1_ctr
+
+        # 开启监听方位角信息，
+        self.check_asr_thread = threading.Thread(target=self._check_asr)
+        self.check_asr_thread.daemon = True
+        self.check_asr_thread.start()
+
+
+    def _subscribe_asr(self):
+        while True:
+            msg = self.ASR_subscriber.Read()
+            if msg is not None:
+                asr_data_string = msg.data
+                self.asr_msg.SetData(asr_data_string)
+            time.sleep(0.01) # 100 Hz to sync the asr angle message
+
+
+    def get_current_asr_string(self):
+        return self.asr_msg.GetData()
+
+    def set_ctr_flag(self, ctr_flag=False):
+        self.enable_flag = ctr_flag
+
+    def _check_asr(self):
+        last_asr_message = None
+        while True:
+            start_time = time.time()
+
+            # Get the latest ASR message string
+            current_asr_message = self.get_current_asr_string()
+
+            # avoid freq orders
+            if self.enable_flag and current_asr_message is not None and current_asr_message != last_asr_message and start_time - self.last_ctr_time > self.ctr_gap:
+
+                last_asr_message = current_asr_message # 确保一个新的方位角指令只执行一次
+
+                angle_data = json.loads(current_asr_message)
+
+                # 0 - 360 degree. 6个麦克风。机器人面前中央，靠右手边第一个麦克风0度，上往下看顺时针到360度
+                new_angle = int(angle_data["angle"])
+                # 发生指令的时间
+                timestamp = float(angle_data["timestamp"])
+
+
+
+
+                if new_angle != 0 and start_time - timestamp < self.message_old_time:
+                    # 发送机器人转身命令。
+                    # 机器人正前方是自己的0度，麦克风new_angle应该对应 -30度。
+                    """
+                        def move_turn_rad(self, rad):
+                            # vx: float, vy: float, vyaw: float, duration
+                            # g1的原点在骨盆pelvis 关节，x往前，y往左手，z往上
+                            # Yaw = rad（正方向）
+                            # 表示 绕 Z 轴逆时针旋转 rad 弧度（从上往下看），
+                            self.sport_client.SetVelocity(0, 0, rad, 1.6)
+                    """
+                    random_reply_text = random.choice(self.response_texts)
+                    self.tts_agent.send_non_block(random_reply_text)
+                    robot_turn_rad = self.compute_optimal_turn(new_angle)
+                    self.g1_ctr.move_turn_rad(robot_turn_rad, speed=1.0)
+                    self.last_ctr_time = time.time() # Update the time of the last command
+
+            # Ensure consistent frame rate
+            current_time = time.time()
+            time_elapsed = current_time - start_time
+            sleep_time = max(0, (1 / self.check_freq) - time_elapsed)
+            time.sleep(sleep_time)
+
+    def compute_optimal_turn(self, new_angle_deg):
+        """
+        Computes the optimal turning angle in radians for the robot to face the sound source.
+
+        This function accounts for the microphone array's offset and coordinate system.
+
+        Args:
+            new_angle_deg (int): The angle of the sound source from the ASR system,
+                               in degrees (0-360). This angle is measured clockwise
+                               relative to the forward-right microphone (Mic 0).
+
+        Returns:
+            float: The shortest angle for the robot to turn, in radians.
+                   A positive value indicates a counter-clockwise (left) turn.
+                   A negative value indicates a clockwise (right) turn.
+        """
+        # From the code comments, we know:
+        # 1. Mic 0 is at -30 degrees relative to the robot's front (to the right).
+        # 2. The ASR angle (`new_angle_deg`) increases clockwise (CW).
+        # 3. The robot's turn command (`rad`) is positive for a counter-clockwise (CCW) turn.
+
+        # Step 1: Calculate the target angle relative to the robot's front.
+        # We start with the offset of Mic 0 (-30 deg) and subtract the ASR angle
+        # because it's measured in the opposite (CW) direction of the robot's yaw.
+        target_angle_deg = -30.0 - new_angle_deg
+
+        # Step 2: Normalize the angle to the range [-180, 180] to find the shortest turn.
+        # The modulo operator (%) gives a result in [0, 360) for a positive divisor.
+        normalized_angle = target_angle_deg % 360
+
+        # If the normalized angle is > 180 degrees, turning in the negative
+        # direction is shorter.
+        if normalized_angle > 180.0:
+            optimal_turn_deg = normalized_angle - 360.0
+        else:
+            optimal_turn_deg = normalized_angle
+
+        # Step 3: Convert the final turning angle from degrees to radians.
+        optimal_turn_rad = np.deg2rad(optimal_turn_deg)
+
+        #print_with_time(f"ASR angle: {new_angle_deg}°, Robot target: {target_angle_deg:.1f}°, Optimal turn: {optimal_turn_deg:.1f}°, Radians: {optimal_turn_rad:.2f}")
+
+        return optimal_turn_rad
+
+
 
 
 class G1_Highlevel_Controller:
@@ -136,7 +316,7 @@ class G1_Highlevel_Controller:
 
         while not self.lowstate_buffer.GetData():
             time.sleep(0.1)
-            logger_mp.warning("[G1_29_ArmController] Waiting to subscribe dds...")
+            logger_mp.info("[G1_29_ArmController] Waiting to subscribe dds...")
         logger_mp.info("[G1_29_ArmController] Subscribe dds ok.")
 
         self.control_dt = 1.0 / 60.0 # 60.0 fps
@@ -268,6 +448,11 @@ class G1_Highlevel_Controller:
     def shake_hand_up(self):
         self.arm_client.ExecuteAction(action_map.get("shake hand"))
 
+    def shake_hand_up_and_down(self, down_in_seconds=6.):
+        self.arm_client.ExecuteAction(action_map.get("shake hand"))
+        time.sleep(down_in_seconds)
+        self.arm_client.ExecuteAction(action_map.get("release arm"))
+
     def release_arm(self):
         self.arm_client.ExecuteAction(action_map.get("release arm"))
 
@@ -279,6 +464,12 @@ class G1_Highlevel_Controller:
 
     def hand_up(self):
         self.arm_client.ExecuteAction(action_map.get("right hand up"))
+
+    def hand_up_and_down(self, down_in_seconds=4.):
+        self.arm_client.ExecuteAction(action_map.get("right hand up"))
+        time.sleep(down_in_seconds)
+        self.arm_client.ExecuteAction(action_map.get("release arm"))
+
 
     # 走跑运控
     def set_run_walk(self):

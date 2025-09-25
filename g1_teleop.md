@@ -1291,6 +1291,66 @@ exts."isaacsim.asset.browser".folders = [
         # 亮度够了，网球自由落体还是略有重影
             https://drive.google.com/file/d/1wPgpKeWCHWoakl0P4H713gwwgQ8QTXty/view?usp=drive_link
 ```
+## 更新三指手开合，测试Quest 3s
+```
+    # 更新开合数值，不然抓不了瓶子
+    如[图](./g1_hand14_open_09212025.png)
+    如[图](./g1_hand14_close_09212025.png)
+    # 添加了三指手 stop_and_go_home()函数，停止的时候手指要回到安全位置以免蹭到大腿
+
+    # Quest 3s与Quest 3对比，
+        # Quest 3s是更新的版本，且更便宜 (4k vs. 2.5k RMB含税)。
+        # 没有脑门识别，所以可以一直亮着屏幕无需开发者模式才能挂脖子；
+        # 手部追踪号称是一样的，3s有红外所以光线暗的时候还会更好；外部摄像头一样的
+        # 里面的镜片，比Quest 3差，必须某个角度才会不糊
+        # 电池、内存容量就无所谓了
+
+    # Quest 3s配置
+        # 设备初始化，以下方法还是连接不上学校wifi。我还是用我的iphone开热点（可以直接连外网），quest3s直接可以更新，需要二十分钟
+            # HKUST(GZ)  需要选择PEAP, M**v2, 然后选择use system certificate, 域名输入nce.hkust-gz.edu.cn, identity输入用户名，匿名框留空，然后输入密码，即可。
+        # 设备连上外网更新后，还是需要我的美区iPad的Meta Horizon APP,连接同样的手机热点，配对。
+        # 搞完更新、初始tutorial后，进入正常的界面，可以连接HKUSTGZ的wifi了，
+
+        # 然后我设置4小时没识别到头部运动才关闭电源（默认一分钟），这个 就一直亮屏幕了，不需要开发者模式adb关闭额头识别
+            # 按一下电源进入休眠。最好插着电源
+
+            # 再按一下电源键就启动回来了，同样的浏览器可以拿来做遥操作了
+
+```
+## 录取单手，双手，整身任务, 然后 可视化
+```
+    # 更新代码，需要预先在episode_writer.py 定义好任务描述
+        --task_dir 放nvme
+        --task_name can_inserting/can_sorting/unloading/towel_folding/twist_off_bottle_cap
+        # 同步任务描述在notion: https://www.notion.so/242b5be14e8280759dfbff089cd6a9c3?source=copy_link#257b5be14e82804390ade8976afe5257
+
+    # 用Quest 3s/Quest 3均可 [上肢动作, 一共收集手臂14+手2+腰1=共17自由度]
+        # image_server_timesync.py改成realsense 640x480分辨率, 更新宇树G1 PC2上的代码
+
+        # 0. 开启G1，三指灵巧手会开机自检，张开然后握拳，如果有任意一只手没动，就需要重启/拆背板重新插拔手的线，直到都没问题； 进入主运控，走到桌子旁边;结束退出前需要后退一下以免手撞到桌子。有第二个人帮忙就更好
+            # 右手B开启遥操作，A结束遥操作(手臂、手指都会自动复位)
+            # 左手遥杆控制行走,注意轻轻推！推一下就复位，以免走太多太快失去平衡
+            # 左手 x按键是开启结束episode录制
+        # 1. 开启unitree image server
+        # 2. 开启遥操作
+
+            (tv) junweil@precognition-laptop6:~/projects/xr_teleoperate/teleop$ python teleop_hand_and_arm.py --xr-mode=controller  --arm=G1_29 --ee=dex3 --record --network_interface enp131s0 --motion --use_waist --task_name can_sorting --task_dir ../data/can_sorting
+
+            # 数据存储到 ../data/can_sorting/episode_0001
+                # 包含各个关节状态、action数据，RGB数据，以及trigger 的原始value
+
+        # 3. 仿真replay确认数据质量, 可以查看单双目RGB、收集的states/actions、trigger value
+
+
+    # 用Quest 3s/Quest 3均可 [整身动作, 一共收集手臂14+手2+腿12+腰1=共29自由度]
+
+        # 宇树主运控
+
+        # homie运控
+
+        #  整身仿真replay
+
+```
 ## 录取上半身动作后，实机replay
 ```
     # 右手指引右边走
@@ -1351,8 +1411,6 @@ exts."isaacsim.asset.browser".folders = [
             21:11:48:352592 INFO     starting g1 turn left..                                                                         test_g1_high_level.py:67
             21:11:48:353774 INFO     g1 turn left returned.                                                                          test_g1_high_level.py:69
             21:11:48:353807 INFO     whole test exited
-
-
 ```
 ## 添加Homie底层控制+腰部遥操作
 ```
@@ -1394,7 +1452,7 @@ exts."isaacsim.asset.browser".folders = [
 
                 conda install -c conda-forge libgcc-ng libstdcxx-ng
 
-            # 1. 下载模型！！
+            # 1. 下载模型！！locomotion模型
 
                 (unitree_sim5.0_env) junweil@office-precognition:~/projects/unitree_sim_5.0/unitree_sim_isaaclab$ bash fetch_assets.sh
 
@@ -1491,7 +1549,7 @@ exts."isaacsim.asset.browser".folders = [
 
 ## 收集数据训练测试
 ```
-    #对比不同视觉延迟的训练测试效果？没必要，g1分发图像延迟在5ms以内
+    # 对比不同视觉延迟的训练测试效果？没必要，g1分发图像延迟在5ms以内
 
     # 使用抓红鸟数据集 812_data
         (base) junweil@ai-precog-machine1:/mnt$ tar -zcvf nvme1/junweil/812_data.tgz 812_data/
