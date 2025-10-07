@@ -310,8 +310,8 @@ class G1_Control_Agent():
                 # default low state
                 lowstate = unitree_hg_msg_dds__LowState_()
                 # 确认是否需要copy
-                lowstate.motor_state = msg.motor_state.copy() # 0-28 is for G1
-                lowstate.imu_state = msg.imu_state.copy()
+                lowstate.motor_state = copy.deepcopy(msg.motor_state) # 0-28 is for G1
+                lowstate.imu_state = copy.deepcopy(msg.imu_state)
                 self.lowstate_buffer.SetData(lowstate)
             time.sleep(0.002)
 
