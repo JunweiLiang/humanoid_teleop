@@ -42,7 +42,8 @@ class LocoMotionInference:
 
         self.device = device
         self.show_freq = show_freq
-        if not control_g1:
+        self.control_g1 = control_g1
+        if not self.control_g1:
             self.g1_visualizer = G1_29_Vis_WholeBody(urdf=urdf, hand_type=hand_type)
             self.hand_type = hand_type
 
