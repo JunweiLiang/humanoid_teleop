@@ -378,7 +378,8 @@ class G1_Control_Agent():
 
     def _get_robot_states(self):
         lowstate = self.lowstate_buffer.GetData()
-        motor_state = lowstate.motor_state[self.joint_idxs]
+        #motor_state = lowstate.motor_state[self.joint_idxs]
+        motor_state = [lowstate.motor_state[idx] for idx in self.joint_idxs]
 
         joint_pos = np.zeros(len(self.joint_idxs))
         joint_vel = np.zeros(len(self.joint_idxs))
