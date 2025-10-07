@@ -426,8 +426,9 @@ class G1_Control_Agent():
         self.gravity_vector = gravity_vector
 
         # 上一次的actions
+        # 为啥是15不是12?
         actions =  torch.cat(
-            (self.actions.reshape(1, -1).to(),
+            (self.actions.reshape(1, -1).to(self.device),
              torch.zeros(1, 15).to(self.device)), dim=-1).to(self.device)
 
 
