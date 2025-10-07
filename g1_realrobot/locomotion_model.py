@@ -296,7 +296,7 @@ class G1_Control_Agent():
         wrist_motors = [
             G1_29_JointIndex.kLeftWristRoll.value,
             G1_29_JointIndex.kLeftWristPitch.value,
-            G1_29_JointIndex.kLeftWristyaw.value,
+            G1_29_JointIndex.kLeftWristYaw.value,
             G1_29_JointIndex.kRightWristRoll.value,
             G1_29_JointIndex.kRightWristPitch.value,
             G1_29_JointIndex.kRightWristYaw.value,
