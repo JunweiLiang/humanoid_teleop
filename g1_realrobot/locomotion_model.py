@@ -72,7 +72,7 @@ class LocoMotionInference:
         # 让机器人回到零位
         self.control_agent_with_history.get_obs()
         # 当前joint pos
-        joint_pos = self.control_agent_with_history.joint_pos[:self.num_lower_dofs] # 12 lower body
+        joint_pos = self.control_agent_with_history.joint_pos[:self.control_agent_with_history.num_lower_dofs] # 12 lower body
         final_goal = np.array(
             [-0.1000,  0.0000,  0.0000,  0.3000, -0.2000,  0.0000,
             -0.1000,  0.0000, 0.0000,  0.3000, -0.2000,  0.0000], dtype=float)
