@@ -37,7 +37,8 @@ class LocoMotionInference:
             device="cuda:0", urdf=None, hand_type=None,
             use_waist3=False,
             control_g1=True,
-            show_freq=True):
+            show_freq=True,
+            max_freq=60.0):
 
         self.device = device
         self.show_freq = show_freq
@@ -56,7 +57,7 @@ class LocoMotionInference:
             device=device, control_g1=control_g1)
         # add obs
         self.control_agent_with_history = HistoryWrapper(self.control_agent)
-        self.ctr_max_freq = 50.0 # 控制频率 Hz
+        self.ctr_max_freq = max_freq # 控制频率 Hz
 
     def _load_loco_policy(self, path):
         loco_model = ort.InferenceSession(path)
@@ -855,6 +856,7 @@ if __name__ == "__main__":
         device="cuda:0", urdf=args.urdf, hand_type=args.hand_type,
         use_waist3=args.use_waist3,
         control_g1=not args.sim,
-        show_freq=True)
+        show_freq=True,
+        max_freq=args.max_freq)
     # this will block until keyboard interrupt
     locomotion_controller.run()
