@@ -275,8 +275,8 @@ class G1_Control_Agent():
             # create publisher #
             self.lowcmd_publisher = ChannelPublisher("rt/lowcmd", LowCmd_)
             self.lowcmd_publisher.Init()
-            # 默认命令
-            self.low_cmd = unitree_hg_msg_dds__LowCmd_()
+        # 默认命令
+        self.low_cmd = unitree_hg_msg_dds__LowCmd_()
 
     def _get_default_arm_cmd(self):
         # 与teleop的robot_arm.py同样设置，获取零位的手臂+腰的kp kd的默认cmd
