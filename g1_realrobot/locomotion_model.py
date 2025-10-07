@@ -431,7 +431,7 @@ class G1_Control_Agent():
             (self.actions.reshape(1, -1).to(self.device),
              torch.zeros(1, 15).to(self.device)), dim=-1).to(self.device)
 
-
+        print(cmds.shape, body_angular_vel.shape, self.gravity_vector.shape, joint_pos.shape, actions.shape)
         ob = np.concatenate((cmds, # 4
                              body_angular_vel.reshape(1, -1) * 0.5, # 3 # Homie为啥乘0.5?
                              self.gravity_vector.reshape(1, -1), # 3
