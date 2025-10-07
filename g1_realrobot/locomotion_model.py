@@ -72,13 +72,14 @@ class LocoMotionInference:
         # 让机器人回到零位
         self.control_agent_with_history.get_obs()
         # 当前joint pos
-        joint_pos = self.control_agent_with_history.joint_pos[:self.control_agent_with_history.num_lower_dofs] # 12 lower body
+        num_lower_dofs = self.control_agent_with_history.num_lower_dofs # 12 lower body
+        joint_pos = self.control_agent_with_history.joint_pos[:num_lower_dofs]
         final_goal = np.array(
             [-0.1000,  0.0000,  0.0000,  0.3000, -0.2000,  0.0000,
             -0.1000,  0.0000, 0.0000,  0.3000, -0.2000,  0.0000], dtype=float)
         print("starting to calibrate...")
         target = joint_pos
-        cal_action = np.zeros((1, self.control_agent_with_history.num_lower_dofs))
+        cal_action = np.zeros((1, num_lower_dofs))
         # 获取 一系列 PD动作目标
         target_sequence = []
         while np.max(np.abs(target - final_goal)) > 0.01:
