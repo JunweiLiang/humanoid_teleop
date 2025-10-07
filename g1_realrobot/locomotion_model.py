@@ -75,7 +75,7 @@ class LocoMotionInference:
         joint_pos = self.control_agent_with_history.joint_pos[:self.num_lower_dofs] # 12 lower body
         final_goal = np.array(
             [-0.1000,  0.0000,  0.0000,  0.3000, -0.2000,  0.0000,
-            -0.1000,  0.0000, 0.0000,  0.3000, -0.2000,  0.0000], dtype=np.float)
+            -0.1000,  0.0000, 0.0000,  0.3000, -0.2000,  0.0000], dtype=float)
         print("starting to calibrate...")
         target = joint_pos
         cal_action = np.zeros((1, self.control_agent_with_history.num_lower_dofs))
@@ -140,7 +140,7 @@ class LocoMotionInference:
     def _show_current_targets(self, low_cmd):
         # see visualize_arm_episodes for joint ID list
         # we map the joint states from DDS to the visualization platform (URDF/Meshcat/Pin)
-        current_q = np.zeros(self.g1_visualizer.reduced_robot.model.nq, dtype=np.float32) # 43 or 41
+        current_q = np.zeros(self.g1_visualizer.reduced_robot.model.nq, dtype=float) # 43 or 41
 
         for joint in G1_29_JointIndex:
             # Skip unused joints for a cleaner output
@@ -179,7 +179,7 @@ class G1_Control_Agent():
             [-0.1000,  0.0000,  0.0000,  0.3000, -0.2000,  0.0000, -0.1000,  0.0000,
             0.0000,  0.3000, -0.2000,  0.0000,  0.0000,  0.0000,  0.0000,  0.0000,
             0.0000,  0.0000,  0.0000,  0.0000,  0.0000, 0.0000,  0.0000,  0.0000,
-            0.0000,  0.0000,  0.0000], dtype=np.float)
+            0.0000,  0.0000,  0.0000], dtype=float)
         # 我们训练了新的
         if use_waist3:
             self.joint_idxs = range(29)
@@ -187,7 +187,7 @@ class G1_Control_Agent():
                 [-0.1000,  0.0000,  0.0000,  0.3000, -0.2000,  0.0000, -0.1000,  0.0000,
                 0.0000,  0.3000, -0.2000,  0.0000,  0.0000,  0.0000,  0.0000,  0.0000,
                 0.0000,  0.0000,  0.0000,  0.0000,  0.0000, 0.0000,  0.0000,  0.0000,
-                0.0000,  0.0000,  0.0000, 0.0000,  0.0000], dtype=np.float)
+                0.0000,  0.0000,  0.0000, 0.0000,  0.0000], dtype=float)
         # 关节电机pd参数代码位于在“HomieDeploy/unitree_sdk2unitree_sdk2/g1_control.cpp”下的第85行
         self.Kp = [
             150, 150, 150, 300, 40, 40,      #// legs

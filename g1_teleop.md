@@ -1528,11 +1528,16 @@ exts."isaacsim.asset.browser".folders = [
         # 文昊的Homie解释：https://github.com/precognitionlab/HomieDeploy?tab=readme-ov-file#%E6%9C%BA%E5%99%A8%E4%BA%BA%E7%8A%B6%E6%80%81%E6%95%B0%E6%8D%AE%E5%90%8E%E5%A4%84%E7%90%86
         # homie官方是要跑在Jetson PC2上的，要在Jetson上安装pytorch
 
+            # dependencies
+                pip install onnxruntime-gpu
+
         # 1. 先跑起来模型inference仿真测试
 
             # 开启仿真
                 (unitree_sim5.0_env) junweil@office-precognition:~/projects/unitree_sim_5.0/unitree_sim_isaaclab$ python sim_main.py --device cpu  --enable_cameras  --task Isaac-Move-Cylinder-G129-Dex3-Wholebody --enable_dex3_dds --robot_type g129
+
             # 开启模型推理加可视化
+                (tv) junweil@office-precognition:~/projects/humanoid_teleop$ python g1_realrobot/locomotion_model.py --model_path homie_deploy_official.onnx --urdf  assets/g1/g1_body29_hand14.urdf --sim --hand_type dex3 --max_freq 60.0
 
             #可以使用键盘 控制一下机器人改变一下
                 (tv) junweil@office-precognition:~/projects/unitree_sim_5.0/unitree_sim_isaaclab$ python send_commands_keyboard.py
