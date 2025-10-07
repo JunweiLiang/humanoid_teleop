@@ -348,6 +348,32 @@
                 --use_waist 显示腰
                 --show_states 显示状态而不是actions
 
+    ## [09/2025] 录制5个桌面任务经验
+        # 更新代码，需要预先在episode_writer.py 定义好任务描述
+            --task_dir 放nvme
+            --task_name can_inserting/can_sorting/unloading/towel_folding/twist_off_bottle_cap
+            # 同步任务描述在notion: https://www.notion.so/242b5be14e8280759dfbff089cd6a9c3?source=copy_link#257b5be14e82804390ade8976afe5257
+
+        # 用Quest 3s/Quest 3均可 [上肢动作, 一共收集手臂14+手2+腰1=共17自由度]
+            # image_server_timesync.py改成realsense 640x480分辨率, 更新宇树G1 PC2上的代码
+
+            # 0. 开启G1，三指灵巧手会开机自检，张开然后握拳，如果有任意一只手没动，就需要重启/拆背板重新插拔手的线，直到都没问题； 进入主运控，走到桌子旁边;结束退出前需要后退一下以免手撞到桌子。有第二个人帮忙就更好
+                # 右手B开启遥操作，A结束遥操作(手臂、手指都会自动复位)
+                # 左手遥杆控制行走,注意轻轻推！推一下就复位，以免走太多太快失去平衡
+                # 左手 x按键是开启结束episode录制
+            # 1. 开启unitree image server
+            # 2. 开启遥操作
+
+                (tv) junweil@precognition-laptop6:~/projects/xr_teleoperate/teleop$ python teleop_hand_and_arm.py --xr-mode=controller  --arm=G1_29 --ee=dex3 --record --network_interface enp131s0 --motion --use_waist --task_name can_sorting --task_dir ../data/can_sorting
+
+                # 数据存储到 ../data/can_sorting/episode_0001
+                    # 包含各个关节状态、action数据，RGB数据，以及trigger 的原始value
+
+            # 3. 仿真replay确认数据质量, 可以查看单双目RGB、收集的states/actions、trigger value
+                # 注意，trigger value为1.，手不一定完全合上，尤其是抓住东西的时候
+
+                (tv) junweil@office-precognition:~/projects/humanoid_teleop$ python g1_realrobot/visualize_arm_episodes.py ~/Downloads/data/can_sorting/episode_0001/data.json assets/g1/g1_body29_hand14.urdf --fps 60 --image_path /home/junweil/Downloads/data/can_sorting/episode_0001/colors/ --use_waist --hand_type dex3
+
 ```
 4. 用仿真验证遥操作
 ```

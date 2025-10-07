@@ -1340,8 +1340,9 @@ exts."isaacsim.asset.browser".folders = [
                 # 包含各个关节状态、action数据，RGB数据，以及trigger 的原始value
 
         # 3. 仿真replay确认数据质量, 可以查看单双目RGB、收集的states/actions、trigger value
+            # 注意，trigger value为1.，手不一定完全合上，尤其是抓住东西的时候
 
-            (tv) junweil@office-precognition:~/projects/humanoid_teleop$ python g1_realrobot/visualize_arm_episodes.py ~/Downloads/data/can_sorting/episode_0001/data.json assets/g1/g1_body29_hand14.urdf --fps 60 --image_path /home/junweil/Downloads/data/can_sorting/episode_0001/colors/ --use_waist
+            (tv) junweil@office-precognition:~/projects/humanoid_teleop$ python g1_realrobot/visualize_arm_episodes.py ~/Downloads/data/can_sorting/episode_0001/data.json assets/g1/g1_body29_hand14.urdf --fps 60 --image_path /home/junweil/Downloads/data/can_sorting/episode_0001/colors/ --use_waist --hand_type dex3
 
 
     # 用Quest 3s/Quest 3均可 [整身动作, 一共收集手臂14+手2+腿12+腰1=共29自由度]
@@ -1392,33 +1393,10 @@ exts."isaacsim.asset.browser".folders = [
     # 代码和gesture data也放到g1_teleop
 
         (agent_api) junweil@precognition-laptop6:~/projects/speechvla/MLLMs$ python test_g1_high_level.py gesture_data/ enp131s0
-            21:11:02:426099 INFO     loaded custom gesture left_welcome with 399 steps                                         robot_arm_high_level_v3.py:104
-            21:11:02:435973 INFO     loaded custom gesture right_welcome with 451 steps                                        robot_arm_high_level_v3.py:104
-            21:11:04:063601 INFO     [G1_29_ArmController] Subscribe dds ok.                                                   robot_arm_high_level_v3.py:136
-            21:11:04:063793 INFO     setting walk mode..                                                                             test_g1_high_level.py:37
-            21:11:04:064915 INFO     set walk mode returned                                                                          test_g1_high_level.py:40
-            confirm g1 low wave..
-            21:11:10:567136 INFO     starting g1 low wave..                                                                          test_g1_high_level.py:44
-            21:11:15:400721 INFO     Low wave returned.                                                                              test_g1_high_level.py:46
-            confirm g1 custom gesture
-            21:11:28:192109 INFO     trying custom gesture                                                                           test_g1_high_level.py:50
-            21:11:35:511202 INFO     arm sdk released!                                                                         robot_arm_high_level_v3.py:237
-            21:11:35:611524 INFO     left welcome exited.                                                                            test_g1_high_level.py:52
-            confirm g1 low wave..
-            21:11:38:125462 INFO     starting g1 low wave..                                                                          test_g1_high_level.py:56
-            21:11:42:965985 INFO     Low wave returned.                                                                              test_g1_high_level.py:58
-            21:11:43:967221 INFO     setting run walk mode..                                                                         test_g1_high_level.py:61
-            21:11:43:968340 INFO     set run walk mode returned                                                                      test_g1_high_level.py:63
-            confirm g1 turn left
-            21:11:48:352592 INFO     starting g1 turn left..                                                                         test_g1_high_level.py:67
-            21:11:48:353774 INFO     g1 turn left returned.                                                                          test_g1_high_level.py:69
-            21:11:48:353807 INFO     whole test exited
+
 ```
 ## 添加Homie底层控制+腰部遥操作
 ```
-    # Homie 的指令input: Vx, Vy + 转向角速度 (yaw) + 身体高度 (0.74m以下，)，4D；输出12 DoF脚 Joint Pos
-        # 观测输入:
-
     # [08/28/2025] 使用宇树最新的 Isaac lab 环境，看看DDS的话题发布如何
         # 之前在office电脑安装过(unitree_sim_env)环境，需要重新安装环境Sim 5.0：
             # IsaacSim 4.5 出现 [carb.graphics-vulkan.plugin] VkResult: ERROR_OUT_OF_HOST_MEMORY
@@ -1525,7 +1503,6 @@ exts."isaacsim.asset.browser".folders = [
 
 
 
-
                     3. 可以使用键盘 控制一下机器人改变一下
                         (tv) junweil@office-precognition:~/projects/unitree_sim_5.0/unitree_sim_isaaclab$ python send_commands_keyboard.py
 
@@ -1546,6 +1523,19 @@ exts."isaacsim.asset.browser".folders = [
                 # 仿真中，从Isaaclab里读机器人状态，写到DDS rt/lowstate
                     https://github.com/unitreerobotics/unitree_sim_isaaclab/blob/f56158f1a18cec783a8d0f863f2871757b8b2fe9/dds/g1_robot_dds.py#L72
 
+    # Homie 的指令input: Vx, Vy + 转向角速度 (yaw) + 身体高度 (0.74m以下，)，4D；输出12 DoF脚 Joint Pos
+        # 观测输入: 身体角速度、重力向量，全身关节位置，全身关节速度，还有上一步action
+        # 文昊的Homie解释：https://github.com/precognitionlab/HomieDeploy?tab=readme-ov-file#%E6%9C%BA%E5%99%A8%E4%BA%BA%E7%8A%B6%E6%80%81%E6%95%B0%E6%8D%AE%E5%90%8E%E5%A4%84%E7%90%86
+        # homie官方是要跑在Jetson PC2上的，要在Jetson上安装pytorch
+
+        # 1. 先跑起来模型inference仿真测试
+
+            # 开启仿真
+                (unitree_sim5.0_env) junweil@office-precognition:~/projects/unitree_sim_5.0/unitree_sim_isaaclab$ python sim_main.py --device cpu  --enable_cameras  --task Isaac-Move-Cylinder-G129-Dex3-Wholebody --enable_dex3_dds --robot_type g129
+            # 开启模型推理加可视化
+
+            #可以使用键盘 控制一下机器人改变一下
+                (tv) junweil@office-precognition:~/projects/unitree_sim_5.0/unitree_sim_isaaclab$ python send_commands_keyboard.py
 ```
 
 

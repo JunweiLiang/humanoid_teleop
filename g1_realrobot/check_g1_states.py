@@ -394,6 +394,7 @@ def get_inline_print(g1_state, left_hand_state, right_hand_state, hand_type):
     # ANSI escape code to clear the terminal screen and move cursor to the top-left
     output_string = "\033[H\033[J"
 
+
     # Format and append G1 motor states
     output_string += "--- G1 Motor States ---\n"
     for joint in G1_29_JointIndex:

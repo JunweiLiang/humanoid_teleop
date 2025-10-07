@@ -12,6 +12,9 @@
         力矩 Torque： (unit: N·m) 旋转力
 
         电机转子实际输出扭矩(Nm) = 前馈转子扭矩(Nm)+（转子目标速度(rad/s)-转子当前速度(rad/s)）*速度Kd+（转子目标位置(rad)-转子当前位置(rad)）*位置Kp
+            # kp = 40.0 属于偏低的位置刚度；所以弧度到牛米，是几十到几百
+            # kp = 300.0 属于高的位置刚度，通常给腰部自由度设置，不然腰部会直不起来
+            # kd = 1.5 属于低，kd = 3.0给腰部；弧度每秒就跟牛米是一个量级。
 
         tau = tauff + kp * (q_target - q) + kd * (dq_target - dq)
 
@@ -59,6 +62,9 @@
         cmd.kp = 0.0       # 位置误差比例系数
         cmd.kd = 0.01      # 转速误差比例系数
         cmd.tau = 0.0      # 转子期望前馈扭矩 N.m
+
+        # 总结，LowCmd下有35个MotorCmd，每个MotorCmd就是上述公式，去计算转子实际输出扭矩
+            # 上述公式会运用到转子当前的位置和速度来计算输出扭矩
 ```
 
 + 获取机器人状态
@@ -67,6 +73,13 @@
         分 机器人 和灵巧手 状态获取
         订阅话题 rt/lowstate(类型: unitree_hg::msg::dds_::LowState_) 获取 G1 当前状态。
 
+        # 总结，LowState下一样有35个motor_state, 还有一个imu_state，外加遥控器数据
+            # 电机state包括feedback的q/dq/ddq,还有反馈力矩
+            # imu主要是
+                陀螺仪：xyz的角速度rad/s, gyroscope[3]
+                加速度计，xyz方向的m/s平方， accelerometer[3]; 静止时会测到重力加速度？
+                通过以上两个计算出来的pose, 用四元数quaternion[4]; 或者欧拉角表示rpy[3];
+                    机器人初始是  [1.0, 0.0, 0.0, 0.0] ,后续都是相对于初始状态的pose。会根据加速度计的重力方向校准
 
         # 机器人状态：unitree_hg::msg::dds_::LowState_
             struct LowState_ {
