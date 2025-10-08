@@ -102,10 +102,11 @@ class LocoMotionInference:
 
             next_target = next_target / action_scale
             cal_action[:, 0:12] = next_target
+            print(cal_action)
 
             self.control_agent_with_history.step(torch.from_numpy(cal_action))
             self.control_agent_with_history.get_obs()
-            time.sleep(0.002)
+            time.sleep(0.05)
         print("calibration done")
         obs = self.control_agent_with_history.reset()
         return obs
@@ -533,10 +534,10 @@ class G1_Control_Agent():
 
         if self.control_g1:
             # 发送指令控制G1
-            print("--------------------------------")
-            for i in range(29):
-                cmd = self.low_cmd.motor_cmd[i]
-                print(f"Motor {i}: mode={cmd.mode}, q={cmd.q:.3f}, kp={cmd.kp}, kd={cmd.kd}")
+            #print("--------------------------------")
+            #for i in range(29):
+            #    cmd = self.low_cmd.motor_cmd[i]
+            #    print(f"Motor {i}: mode={cmd.mode}, q={cmd.q:.3f}, kp={cmd.kp}, kd={cmd.kd}")
             self.low_cmd.crc = self.crc.Crc(self.low_cmd)
             self.lowcmd_publisher.Write(self.low_cmd)
             #print(self.low_cmd)
