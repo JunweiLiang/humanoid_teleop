@@ -94,9 +94,9 @@ class LocoMotionInference:
         # 获取 一系列 PD动作目标
         target_sequence = []
         while np.max(np.abs(target - final_goal)) > 0.01:
-            target -= np.clip((target - final_goal), -0.05, 0.05)
+            target -= np.clip((target - final_goal), -0.002, 0.002)
             target_sequence += [copy.deepcopy(target)]
-        print(target_sequence)
+        #print(target_sequence)
         print(len(target_sequence))
 
         for target in target_sequence:
@@ -109,7 +109,7 @@ class LocoMotionInference:
 
             self.control_agent_with_history.step(torch.from_numpy(cal_action))
             self.control_agent_with_history.get_obs()
-            time.sleep(0.05)
+            time.sleep(0.002)
         print("calibration done")
         obs = self.control_agent_with_history.reset()
         return obs
