@@ -7,6 +7,7 @@ import torch
 import numpy as np
 import time
 import os
+import sys
 
 import threading
 import json
@@ -30,6 +31,9 @@ from unitree_sdk2py.idl.unitree_hg.msg.dds_ import LowCmd_
 from unitree_sdk2py.idl.unitree_hg.msg.dds_ import LowState_
 from unitree_sdk2py.idl.std_msgs.msg.dds_ import String_
 from unitree_sdk2py.utils.crc import CRC
+
+from unitree_sdk2py.comm.motion_switcher.motion_switcher_client import MotionSwitcherClient
+
 
 class LocoMotionInference:
     def __init__(
@@ -182,6 +186,29 @@ class G1_Control_Agent():
         else:
             ChannelFactoryInitialize(0, network_interface)
         self.crc = CRC()
+
+        # This code is crucial to take over low-level control.
+        if self.control_g1:
+            print("Requesting low-level control of the robot...")
+            self.msc = MotionSwitcherClient()
+            self.msc.SetTimeout(5.0)
+            self.msc.Init()
+
+            # First, check if another controller is active and release it.
+            status, result = self.msc.CheckMode()
+            while result.get('name'): # Use .get() for safety
+                print(f"Another controller '{result['name']}' is active. Releasing it...")
+                self.msc.ReleaseMode()
+                time.sleep(1.0)
+                status, result = self.msc.CheckMode()
+
+            # Then, request the low-level mode for this script.
+            # The name 'python_loco_control' is arbitrary.
+            status, result = self.msc.RequestMode(1, "python_loco_control")
+            if not status or result['result'] != 0:
+                raise Exception(f"Failed to request low-level control mode: {result.get('message', 'Unknown error')}")
+            print("Successfully acquired low-level control.")
+        # ================================================================
 
         # Homie原本腰部只用一个自由度作为观测
         self.joint_idxs = [0,1,2,3,4,5,6,7,8,9,10,11,12,15,16,17,18,19,20,21,22,23,24,25,26,27,28]
@@ -512,7 +539,7 @@ class G1_Control_Agent():
             # 发送指令控制G1
             self.low_cmd.crc = self.crc.Crc(self.low_cmd)
             self.lowcmd_publisher.Write(self.low_cmd)
-            print(self.low_cmd)
+            #print(self.low_cmd)
 
         # 不发送指令，可以把low_cmd拿去可视化
 
@@ -876,6 +903,9 @@ parser.add_argument("--max_freq", default=100.0, type=float, help="maximum freq"
 if __name__ == "__main__":
     # 测试， 先开了G1 sim或者实机G1, 然后每次模型输出的q可视化到meshcat中
     args = parser.parse_args()
+    if args.no_control and args.only_calibrate:
+        print("You cannot no control and only calibrate the robot")
+        sys.exit()
     locomotion_controller = LocoMotionInference(
         args.model_path, args.network_interface,
         device="cuda:0", urdf=args.urdf, hand_type=args.hand_type,
