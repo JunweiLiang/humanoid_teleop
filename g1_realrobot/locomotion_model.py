@@ -503,6 +503,7 @@ class G1_Control_Agent():
             # 发送指令控制G1
             self.low_cmd.crc = self.crc.Crc(self.low_cmd)
             self.lowcmd_publisher.Write(self.low_cmd)
+            print(self.low_cmd)
 
         # 不发送指令，可以把low_cmd拿去可视化
 
