@@ -15,6 +15,7 @@ import math
 import copy
 from enum import IntEnum
 import logging_mp
+logging_mp.basic_config(level=logging_mp.INFO)
 logger_mp = logging_mp.get_logger(__name__)
 
 # for visualization
@@ -187,6 +188,7 @@ class G1_Control_Agent():
             ChannelFactoryInitialize(0, network_interface)
         self.crc = CRC()
 
+        """
         # This code is crucial to take over low-level control.
         if self.control_g1:
             print("Requesting low-level control of the robot...")
@@ -201,6 +203,7 @@ class G1_Control_Agent():
                 status, result = self.msc.CheckMode()
                 time.sleep(1)
             print("Successfully acquired low-level control.")
+        """
         # ================================================================
 
         # Homie原本腰部只用一个自由度作为观测
