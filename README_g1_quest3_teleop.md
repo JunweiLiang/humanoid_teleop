@@ -386,6 +386,83 @@
 
                 (tv) junweil@office-precognition:~/projects/humanoid_teleop$ python g1_realrobot/visualize_arm_episodes.py ~/Downloads/data/can_sorting/episode_0001/data.json assets/g1/g1_body29_hand14.urdf --fps 60 --image_path /home/junweil/Downloads/data/can_sorting/episode_0001/colors/ --use_waist --hand_type dex3
 
+            # 桌面任务5，每个50episode数据在office
+                (base) junweil@office-precognition:~/projects/huawei_data$ ls
+                101_data  desk5_tasks_50ep.tar
+
+                # 可视化
+                    (tv) junweil@office-precognition:~/projects/humanoid_teleop$ python g1_realrobot/visualize_arm_episodes.py ~/projects/huawei_data/101_data/can_sorting/episode_0005/data.json assets/g1/g1_body29_hand14.urdf --fps 60 --image_path ~/projects/huawei_data/101_data/can_sorting/episode_0005/colors/ --use_waist --hand_type dex3
+
+                # 可视化样例
+                    https://drive.google.com/drive/folders/1MkMhkSa_LnhpYDLptVZQF8Nald4V_Wjs?usp=drive_link
+
+
+```
+## 3-2. 实机遥操作 (宇树3指) + 自定义locomotion运控
++ 自定义运控程序`locomotion_model.py`的DDS通讯[流程图](./wbc_teleop_dds_pipeline.png)
+```
+    ## [10/2025] 使用自定义locomotion模型
+        # 需要在tv环境下安装的东西
+            # 用于自定义的locomotion policy推理
+            $ pip install onnxruntime-gpu
+
+            # for 5090 显卡，重装pytorch
+
+                $ pip uninstall torchaudio torch torchvision torchaudio-nightly torch-nightly torchvision-nightly
+                $ pip install torch==2.7.0 torchvision==0.22.0 --index-url https://download.pytorch.org/whl/cu128 --extra-index-url https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple
+
+                可以忽略 dex-retargeting 0.4.7 requires torch==2.3.0
+
+        # Homie 的指令input: Vx, Vy + 转向角速度 (yaw) + 身体高度 (0.74m以下，)，4D；输出12 DoF脚 Joint Pos
+        # 观测输入: 身体角速度、重力向量，全身关节位置，全身关节速度，还有上一步action
+
+
+        # 实验准备
+            # laptop6 有线连接2号机，用龙门架。小心龙门架跑车会横移
+                # G1开机自检完成后， L2+B进入阻尼，然后L2 + R2进入调试模式，灯应该会边
+                # 然后把g1的手放到前面，L2 + A会进入关节0位，然后再L2+B再次进入阻尼模式
+                # 脚要触地
+
+            # 1. 开启 locomotion运控
+
+                # 实机跑，max_freq=100 一开始可能剧烈抖动踏步, 所以max_freq 设置为50.0,然后站稳后就不动了，可以松掉安全绳
+
+                (tv) junweil@precognition-laptop6:~/projects/humanoid_teleop$ python g1_realrobot/locomotion_model.py --model_path homie_deploy_official.onnx --urdf  assets/g1/g1_body29_hand14.urdf --hand_type dex3 --max_freq 50.0
+
+                # 注意！！开启运控后，遥控器应该就失效了（L2+B都没用），所以出现问题只能ctr+c掉locomotion_model.py
+
+            # 2. 开启图像服务器
+
+                (base) unitree@ubuntu:~/projects/image_server$ python3.8 image_server_timesync.py
+
+            # 3. 开启teleop
+                # 控制说明:
+                    # 右手 B按键开启遥操作，右手A按键结束遥操作程序，手会自动握拳
+                    # 左手x按键开启、结束一个episode的录制
+                    # 左右手板机控制手开合
+                    # 左手 中指 按钮（名字叫left_squeeze_ctrl）控制身体下蹲
+                        # 不按left_squeeze_ctrl_value是0.0, 完全按下对应1.0，homie的高度现在我写死在1.65米到1.2米之间映射到这个[0.0, 1.0]
+                        # 想要修改这个需要同时修改 teleop_hand_and_arm_loco.py:
+                            # sport_client.set_cmd(v_x, v_y, v_yaw, height)
+                        # 以及locomotion_model.py def _get_command(self): 里
+                    # 移动用quest 3 摇杆控制，左手前进后退左平移右平移，右手转向
+                    # 注意用quest 3 的摇杆，你感觉的前进方向，可能不对；所以慢慢推摇杆
+                    # 速度可以在locomotion_model.py def _get_command(self): 里调整系数
+
+
+
+                (tv) junweil@precognition-laptop6:~/projects/xr_teleoperate/teleop$ python teleop_hand_and_arm_with_loco.py --xr-mode=controller  --arm=G1_29 --ee=dex3 --record --network_interface enp131s0 --task_name move_box --task_dir ../data/move_box
+
+                # 可以看情况添加 腰部 yaw控制：--use_waist
+
+                # 可以添加 --lock_arm ，这样按下右手B按键后程序不会控制手臂，手臂保持在零位，此时按键摇杆都可以使用，方便调试locomotion
+
+
+
+            # 4. 可视化全身的data episode
+                (tv) junweil@office-precognition:~/projects/humanoid_teleop$ python g1_realrobot/visualize_wbc_episodes.py ~/Downloads/data/move_box/episode_0010/data.json assets/g1/g1_body29_hand14.urdf --fps 60 --image_path ~/Downloads/data/move_box/episode_0010//colors/ --hand_type dex3
+                    # 视频: https://drive.google.com/drive/folders/120JGNOUmESJtJZ3OTWuyyHOllV9xOLBc?usp=drive_link
+
 ```
 4. 用仿真验证遥操作
 ```

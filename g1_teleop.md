@@ -1351,6 +1351,9 @@ exts."isaacsim.asset.browser".folders = [
                 # 可视化
                     (tv) junweil@office-precognition:~/projects/humanoid_teleop$ python g1_realrobot/visualize_arm_episodes.py ~/projects/huawei_data/101_data/can_sorting/episode_0005/data.json assets/g1/g1_body29_hand14.urdf --fps 60 --image_path ~/projects/huawei_data/101_data/can_sorting/episode_0005/colors/ --use_waist --hand_type dex3
 
+                # 可视化样例
+                    https://drive.google.com/drive/folders/1MkMhkSa_LnhpYDLptVZQF8Nald4V_Wjs?usp=drive_link
+
 
     # 用Quest 3s/Quest 3均可 [整身动作, 一共收集手臂14+手2+腿12+腰1=共29自由度]
 
@@ -1589,7 +1592,8 @@ exts."isaacsim.asset.browser".folders = [
             (tv) junweil@precognition-laptop6:~/projects/xr_teleoperate/teleop$ python teleop_hand_and_arm_with_loco.py --xr-mode=controller  --arm=G1_29 --ee=dex3 --record --network_interface enp131s0 --task_name move_box --task_dir ../data/move_box
 
         # 5. 可视化全身的data episode
-
+            (tv) junweil@office-precognition:~/projects/humanoid_teleop$ python g1_realrobot/visualize_wbc_episodes.py ~/Downloads/data/move_box/episode_0010/data.json assets/g1/g1_body29_hand14.urdf --fps 60 --image_path ~/Downloads/data/move_box/episode_0010//colors/ --hand_type dex3
+                # 视频: https://drive.google.com/drive/folders/120JGNOUmESJtJZ3OTWuyyHOllV9xOLBc?usp=drive_link
 
 ```
 
