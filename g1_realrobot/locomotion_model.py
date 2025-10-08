@@ -38,6 +38,7 @@ class LocoMotionInference:
             use_waist3=False,
             control_g1=True,
             sim=False,
+            only_calibrate=False,
             show_freq=True,
             max_freq=60.0):
 
@@ -45,6 +46,7 @@ class LocoMotionInference:
         self.sim = sim
         self.show_freq = show_freq
         self.control_g1 = control_g1
+        self.only_calibrate = only_calibrate
         if not self.control_g1:
             self.g1_visualizer = G1_29_Vis_WholeBody(urdf=urdf, hand_type=hand_type)
             self.hand_type = hand_type
@@ -112,7 +114,10 @@ class LocoMotionInference:
             while True:
                 start_time = time.time()
                 actions = self.loco_policy(obs_history)
-                obs, low_cmd_targets = self.control_agent_with_history.step(actions)
+
+                if not self.only_calibrate:
+                    obs, low_cmd_targets = self.control_agent_with_history.step(actions)
+
                 obs_history = obs["obs_history"]
 
                 if not self.control_g1:
@@ -852,6 +857,7 @@ parser.add_argument("--urdf", default=None, help="need this for visualization")
 
 parser.add_argument("--sim", action="store_true", help="read G1 states from simulation")
 parser.add_argument("--no_control", action="store_true", help="visualize output control command instead of sending to G1")
+parser.add_argument("--only_calibrate", action="store_true", help="only run calibration, see if G1 cmd works")
 parser.add_argument("--network_interface", default=None)
 parser.add_argument("--hand_type", default="dex3", help="dex3 or inspire1")
 parser.add_argument("--max_freq", default=100.0, type=float, help="maximum freq")
@@ -866,6 +872,7 @@ if __name__ == "__main__":
         use_waist3=args.use_waist3,
         control_g1=not args.no_control,
         sim=args.sim,
+        only_calibrate=args.only_calibrate,
         show_freq=True,
         max_freq=args.max_freq)
     # this will block until keyboard interrupt

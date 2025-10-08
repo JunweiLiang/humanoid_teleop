@@ -108,6 +108,16 @@
 
     xr_teleoperate$ pip install -r requirements.txt
 
+    # 用于自定义的locomotion policy推理
+    $ pip install onnxruntime-gpu
+
+        # for 5090 显卡，重装pytorch
+
+            $ pip uninstall torchaudio torch torchvision torchaudio-nightly torch-nightly torchvision-nightly
+            $ pip install torch==2.7.0 torchvision==0.22.0 --index-url https://download.pytorch.org/whl/cu128 --extra-index-url https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple
+
+            可以忽略 dex-retargeting 0.4.7 requires torch==2.3.0
+
     # 安装仿真测试环境叫unitree_sim_env (直接跑实机遥操作可不需要安装这个)
     $ conda create -n unitree_sim_env python=3.10
     $ pip install torch==2.7.0 torchvision==0.22.0 --index-url https://download.pytorch.org/whl/cu128 --extra-index-url https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple
@@ -123,6 +133,8 @@
     xr_teleoperate/unitree_sdk2_python$ pip install -e .
 
     # episode 重看环境用tv环境即可
+
+
 ```
 
 ## 2. 实机遥操作 (因时5指)

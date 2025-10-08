@@ -1544,12 +1544,16 @@ exts."isaacsim.asset.browser".folders = [
 
         # 2. 单独跑实机locomotion，
             # laptop5 有线连接2号机，用龙门架。跑100Hz
+                # 需要安装tv环境
 
                 # G1开机自检完成后， L2+B进入阻尼，然后L2 + R2进入调试模式，灯应该会边
                 # 然后把g1的手放到前面，L2 + A会进入关节0位，然后再L2+B再次进入阻尼模式
-            # 2.先尝试可视化，不控制G1 (注意不加 --sim)
+
+            # 2.先尝试可视化，不控制G1 (注意不加 --sim), 可以看到browser中输出的action
 
                 ~/projects/humanoid_teleop$ python g1_realrobot/locomotion_model.py --model_path homie_deploy_official.onnx --urdf  assets/g1/g1_body29_hand14.urdf --no_control --hand_type dex3 --max_freq 100.0
+
+                # 加--only_calibrate 只做calibrate的动作
 
         # 3. teleop关闭手臂控制，先控制 走路和高度设置
             --lock_arm
