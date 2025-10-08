@@ -1548,12 +1548,19 @@ exts."isaacsim.asset.browser".folders = [
 
                 # G1开机自检完成后， L2+B进入阻尼，然后L2 + R2进入调试模式，灯应该会边
                 # 然后把g1的手放到前面，L2 + A会进入关节0位，然后再L2+B再次进入阻尼模式
+                # 脚要触地
 
-            # 2.先尝试可视化，不控制G1 (注意不加 --sim), 可以看到browser中输出的action
+            # 先尝试可视化，不控制G1 (注意不加 --sim), 可以看到browser中输出的action
 
-                ~/projects/humanoid_teleop$ python g1_realrobot/locomotion_model.py --model_path homie_deploy_official.onnx --urdf  assets/g1/g1_body29_hand14.urdf --no_control --hand_type dex3 --max_freq 100.0
+                ~/projects/humanoid_teleop$ python g1_realrobot/locomotion_model.py --model_path homie_deploy_official.onnx --urdf  assets/g1/g1_body29_hand14.urdf --no_control --hand_type dex3 --max_freq 50.0
 
                 # 加--only_calibrate 只做calibrate的动作
+
+                    ~/projects/humanoid_teleop$ python g1_realrobot/locomotion_model.py --model_path homie_deploy_official.onnx --urdf  assets/g1/g1_body29_hand14.urdf --only_calibrate --hand_type dex3 --max_freq 50.0
+
+            # 实机跑，max_freq=100 一开始可能剧烈抖动踏步, 所以max_freq 设置为50.0,然后站稳后就不动了，可以摘掉安全绳
+
+                ~/projects/humanoid_teleop$ python g1_realrobot/locomotion_model.py --model_path homie_deploy_official.onnx --urdf  assets/g1/g1_body29_hand14.urdf --hand_type dex3 --max_freq 50.0
 
         # 3. teleop关闭手臂控制，先控制 走路和高度设置
             --lock_arm

@@ -903,7 +903,7 @@ parser.add_argument("--no_control", action="store_true", help="visualize output 
 parser.add_argument("--only_calibrate", action="store_true", help="only run calibration, see if G1 cmd works")
 parser.add_argument("--network_interface", default=None)
 parser.add_argument("--hand_type", default="dex3", help="dex3 or inspire1")
-parser.add_argument("--max_freq", default=100.0, type=float, help="maximum freq")
+parser.add_argument("--max_freq", default=50.0, type=float, help="maximum freq")
 
 
 if __name__ == "__main__":
