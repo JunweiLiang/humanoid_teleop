@@ -88,6 +88,7 @@ class LocoMotionInference:
             [-0.1000,  0.0000,  0.0000,  0.3000, -0.2000,  0.0000,
             -0.1000,  0.0000, 0.0000,  0.3000, -0.2000,  0.0000], dtype=float)
         print("starting to calibrate...")
+        print(joint_pos)
         target = joint_pos
         cal_action = np.zeros((1, num_lower_dofs))
         # 获取 一系列 PD动作目标
@@ -95,6 +96,8 @@ class LocoMotionInference:
         while np.max(np.abs(target - final_goal)) > 0.01:
             target -= np.clip((target - final_goal), -0.05, 0.05)
             target_sequence += [copy.deepcopy(target)]
+        print(target_sequence)
+        print(len(target_sequence))
 
         for target in target_sequence:
             next_target = target
