@@ -118,7 +118,7 @@ class LocoMotionInference:
                 if not self.only_calibrate:
                     obs, low_cmd_targets = self.control_agent_with_history.step(actions)
 
-                obs_history = obs["obs_history"]
+                    obs_history = obs["obs_history"]
 
                 if not self.control_g1:
                     self._show_current_targets(low_cmd_targets)
