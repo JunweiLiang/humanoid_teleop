@@ -330,6 +330,7 @@ class G1_Control_Agent():
                 # need this to update the mode_machine
                 if self.update_mode_machine_ == False:
                     self.mode_machine_ = lowstate.mode_machine
+                    print("changed model machine using lowstate to %s" % lowstate.mode_machine)
                     self.update_mode_machine_ = True
             time.sleep(0.002)
 
@@ -511,6 +512,7 @@ class G1_Control_Agent():
             # 发送指令控制G1
             self.low_cmd.crc = self.crc.Crc(self.low_cmd)
             self.lowcmd_publisher.Write(self.low_cmd)
+            print(self.low_cmd)
 
         # 不发送指令，可以把low_cmd拿去可视化
 
