@@ -1317,7 +1317,7 @@ exts."isaacsim.asset.browser".folders = [
             # 再按一下电源键就启动回来了，同样的浏览器可以拿来做遥操作了
 
 ```
-## 录取单手，双手，整身任务, 然后 可视化
+## 录取单手，双手的上半身任务, 然后 可视化
 ```
     # 更新代码，需要预先在episode_writer.py 定义好任务描述
         --task_dir 放nvme
@@ -1344,6 +1344,13 @@ exts."isaacsim.asset.browser".folders = [
 
             (tv) junweil@office-precognition:~/projects/humanoid_teleop$ python g1_realrobot/visualize_arm_episodes.py ~/Downloads/data/can_sorting/episode_0001/data.json assets/g1/g1_body29_hand14.urdf --fps 60 --image_path /home/junweil/Downloads/data/can_sorting/episode_0001/colors/ --use_waist --hand_type dex3
 
+            # 桌面任务5，每个50episode数据在office
+                (base) junweil@office-precognition:~/projects/huawei_data$ ls
+                101_data  desk5_tasks_50ep.tar
+
+                # 可视化
+                    (tv) junweil@office-precognition:~/projects/humanoid_teleop$ python g1_realrobot/visualize_arm_episodes.py ~/projects/huawei_data/101_data/can_sorting/episode_0005/data.json assets/g1/g1_body29_hand14.urdf --fps 60 --image_path ~/projects/huawei_data/101_data/can_sorting/episode_0005/colors/ --use_waist --hand_type dex3
+
 
     # 用Quest 3s/Quest 3均可 [整身动作, 一共收集手臂14+手2+腿12+腰1=共29自由度]
 
@@ -1351,7 +1358,7 @@ exts."isaacsim.asset.browser".folders = [
 
         # homie运控
 
-        #  整身仿真replay
+        # Our  Homie 运控
 
 ```
 ## 录取上半身动作后，实机replay
@@ -1564,7 +1571,7 @@ exts."isaacsim.asset.browser".folders = [
 
         # 3. teleop关闭手臂控制，先控制 走路和高度设置
             --lock_arm
-            左手squeeze_ctr 控制高度1.65- 1.3米
+            左手squeeze_ctr 控制高度1.65- 1.2米
 
                 # 开启运控
                     ~/projects/humanoid_teleop$ python g1_realrobot/locomotion_model.py --model_path homie_deploy_official.onnx --urdf  assets/g1/g1_body29_hand14.urdf --hand_type dex3 --max_freq 50.0
@@ -1577,9 +1584,12 @@ exts."isaacsim.asset.browser".folders = [
                 # 开启teleop，lock arm
                       (tv) junweil@precognition-laptop6:~/projects/xr_teleoperate/teleop$ python teleop_hand_and_arm_with_loco.py --xr-mode=controller  --arm=G1_29 --ee=dex3 --record --network_interface enp131s0  --lock_arm --task_name move_box --task_dir ../data/move_box
 
-            # 4. teleop 同时控制手臂腰yaw
+        # 4. teleop 同时控制手臂
 
-                (tv) junweil@precognition-laptop6:~/projects/xr_teleoperate/teleop$ python teleop_hand_and_arm_with_loco.py --xr-mode=controller  --arm=G1_29 --ee=dex3 --record --network_interface enp131s0 --task_name move_box --task_dir ../data/move_box
+            (tv) junweil@precognition-laptop6:~/projects/xr_teleoperate/teleop$ python teleop_hand_and_arm_with_loco.py --xr-mode=controller  --arm=G1_29 --ee=dex3 --record --network_interface enp131s0 --task_name move_box --task_dir ../data/move_box
+
+        # 5. 可视化全身的data episode
+
 
 ```
 
