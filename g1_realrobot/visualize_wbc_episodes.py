@@ -457,8 +457,8 @@ def show_current_q(vis_model, step_data, leg_state_qpos, hand_type="inspire1"):
         target_q[12:15] = waist_q
         target_q[15:22] = left_arm_pos
         target_q[22:29] = left_ee_pos
-        target_q[29:37] = right_arm_pos
-        target_q[37:] = right_ee_pos
+        target_q[29:36] = right_arm_pos
+        target_q[36:] = right_ee_pos
 
     vis_model.vis.display(target_q)
 
