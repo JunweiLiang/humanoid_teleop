@@ -543,7 +543,7 @@ class G1_Control_Agent():
             #    print(f"Motor {i}: mode={cmd.mode}, q={cmd.q:.3f}, kp={cmd.kp}, kd={cmd.kd}")
             self.low_cmd.crc = self.crc.Crc(self.low_cmd)
             self.lowcmd_publisher.Write(self.low_cmd)
-            print(self.low_cmd)
+            #print(self.low_cmd)
 
         # 不发送指令，可以把low_cmd拿去可视化
 

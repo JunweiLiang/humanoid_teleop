@@ -120,6 +120,7 @@ class Custom:
 
         if self.update_mode_machine_ == False:
             self.mode_machine_ = self.low_state.mode_machine
+            print("mode_machine:", self.mode_machine_)
             self.update_mode_machine_ = True
         
         self.counter_ +=1
@@ -145,7 +146,7 @@ class Custom:
 
             self.low_cmd.crc = self.crc.Crc(self.low_cmd)
             self.lowcmd_publisher_.Write(self.low_cmd)
-            print(self.low_cmd)
+            #print(self.low_cmd)
 
         elif self.time_ < self.duration_ * 2 :
             # [Stage 2]: swing ankle using PR mode
