@@ -516,7 +516,7 @@ class G1_Control_Agent():
 
 
         self.low_cmd.mode_pr = 0 # Series Control for Pitch/Roll Joints这是URDF的默认模式
-        self.low_cmd.mode_machine = self.mode_machine_
+        self.low_cmd.mode_machine = 5#self.mode_machine_
         # 先设置腿部
         for i in range(12):
             self.low_cmd.motor_cmd[i].mode = 1 # 1:Enable, 0:Disable
