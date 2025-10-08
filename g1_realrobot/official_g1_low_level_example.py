@@ -143,6 +143,10 @@ class Custom:
                 self.low_cmd.motor_cmd[i].kp = Kp[i] 
                 self.low_cmd.motor_cmd[i].kd = Kd[i]
 
+            self.low_cmd.crc = self.crc.Crc(self.low_cmd)
+            self.lowcmd_publisher_.Write(self.low_cmd)
+            print(self.low_cmd)
+
         elif self.time_ < self.duration_ * 2 :
             # [Stage 2]: swing ankle using PR mode
             max_P = np.pi * 30.0 / 180.0
@@ -159,12 +163,14 @@ class Custom:
             self.low_cmd.motor_cmd[G1JointIndex.LeftAnkleRoll].q = L_R_des
             self.low_cmd.motor_cmd[G1JointIndex.RightAnklePitch].q = R_P_des
             self.low_cmd.motor_cmd[G1JointIndex.RightAnkleRoll].q = R_R_des
-        else:
-            sys.exit()
-    
 
-        self.low_cmd.crc = self.crc.Crc(self.low_cmd)
-        self.lowcmd_publisher_.Write(self.low_cmd)
+            self.low_cmd.crc = self.crc.Crc(self.low_cmd)
+            self.lowcmd_publisher_.Write(self.low_cmd)
+        else:
+
+            pass
+
+
 
 if __name__ == '__main__':
 
