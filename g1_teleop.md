@@ -1564,9 +1564,23 @@ exts."isaacsim.asset.browser".folders = [
 
         # 3. teleop关闭手臂控制，先控制 走路和高度设置
             --lock_arm
-            左手squeeze_ctr 控制高度1.65- 1.2米
+            左手squeeze_ctr 控制高度1.65- 1.3米
 
-        # 4. teleop 同时控制手臂腰yaw
+                # 开启运控
+                    ~/projects/humanoid_teleop$ python g1_realrobot/locomotion_model.py --model_path homie_deploy_official.onnx --urdf  assets/g1/g1_body29_hand14.urdf --hand_type dex3 --max_freq 50.0
+
+
+                    # 开启image server
+
+                        (base) unitree@ubuntu:~/projects/image_server$ python3.8 image_server_timesync.py
+
+                # 开启teleop，lock arm
+                      (tv) junweil@precognition-laptop6:~/projects/xr_teleoperate/teleop$ python teleop_hand_and_arm_with_loco.py --xr-mode=controller  --arm=G1_29 --ee=dex3 --record --network_interface enp131s0  --lock_arm --task_name move_box --task_dir ../data/move_box
+
+            # 4. teleop 同时控制手臂腰yaw
+
+                (tv) junweil@precognition-laptop6:~/projects/xr_teleoperate/teleop$ python teleop_hand_and_arm_with_loco.py --xr-mode=controller  --arm=G1_29 --ee=dex3 --record --network_interface enp131s0 --task_name move_box --task_dir ../data/move_box
+
 ```
 
 
