@@ -559,7 +559,7 @@ def show_current_q(vis_model, step_data, leg_state_qpos, hand_type="inspire1"):
     left_ee_name = "left_ee" if "left_ee" in step_data else "left_hand"
     right_ee_name = "right_ee" if "right_ee" in step_data else "right_hand"
 
-
+    print(step_data["waist"]["qpos"])
     waist_q = np.array(step_data["waist"]["qpos"])
 
     target_q = np.zeros(vis_model.reduced_robot.model.nq, dtype=np.float32) # 43 or 41
