@@ -93,10 +93,8 @@ class LocoMotionInference:
         # 获取 一系列 PD动作目标
         target_sequence = []
         while np.max(np.abs(target - final_goal)) > 0.01:
-            target -= np.clip((target - final_goal), -0.02, 0.02)
+            target -= np.clip((target - final_goal), -0.05, 0.05)
             target_sequence += [copy.deepcopy(target)]
-        #print(target_sequence)
-        print(len(target_sequence))
 
         for target in target_sequence:
             next_target = target
@@ -924,5 +922,4 @@ if __name__ == "__main__":
         show_freq=True,
         max_freq=args.max_freq)
     # this will block until keyboard interrupt
-    #locomotion_controller.run()
-    locomotion_controller.calibrate_robot()
+    locomotion_controller.run()
