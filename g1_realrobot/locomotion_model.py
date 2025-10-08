@@ -246,6 +246,9 @@ class G1_Control_Agent():
         self.lowstate_subscriber.Init()
         self.lowstate_buffer = DataBuffer()
 
+        self.update_mode_machine_ = False
+        self.mode_machine_ = 0
+
         # initialize subscribe thread
         self.subscribe_motor_thread = threading.Thread(target=self._subscribe_motor_state)
         self.subscribe_motor_thread.daemon = True
@@ -323,6 +326,11 @@ class G1_Control_Agent():
                 lowstate.motor_state = copy.deepcopy(msg.motor_state) # 0-28 is for G1
                 lowstate.imu_state = copy.deepcopy(msg.imu_state)
                 self.lowstate_buffer.SetData(lowstate)
+
+                # need this to update the mode_machine
+                if self.update_mode_machine_ == False:
+                    self.mode_machine_ = lowstate.mode_machine
+                    self.update_mode_machine_ = True
             time.sleep(0.002)
 
     def _subscribe_cmd(self):
@@ -480,7 +488,7 @@ class G1_Control_Agent():
 
 
         self.low_cmd.mode_pr = 0 # Series Control for Pitch/Roll Joints这是URDF的默认模式
-        self.low_cmd.mode_machine = 0
+        self.low_cmd.mode_machine = self.mode_machine_
         # 先设置腿部
         for i in range(12):
             self.low_cmd.motor_cmd[i].mode = 1 # 1:Enable, 0:Disable
@@ -503,7 +511,6 @@ class G1_Control_Agent():
             # 发送指令控制G1
             self.low_cmd.crc = self.crc.Crc(self.low_cmd)
             self.lowcmd_publisher.Write(self.low_cmd)
-            print(self.low_cmd)
 
         # 不发送指令，可以把low_cmd拿去可视化
 
