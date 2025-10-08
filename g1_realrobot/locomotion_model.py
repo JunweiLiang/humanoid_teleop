@@ -368,7 +368,7 @@ class G1_Control_Agent():
                 v_yaw = float(cmd_json["v_yaw"]) * 0.2
                 height = float(cmd_json["height"])
                 # height必须 1.65~0.74之间,下面就会得到0.74 ~ 0.08
-                height = max(0.9, min(height, 1.65))
+                height = max(1.2, min(height, 1.65))
                 height = 0.74 - 0.54 * (1.65-min(height, 1.65))*1.0/(1.65-0.91)
                 # TODO: 加 filter/ value check
                 cmd = np.array([v_x, v_y, v_yaw, height])
@@ -850,7 +850,7 @@ parser.add_argument("--urdf", default=None, help="need this for visualization")
 parser.add_argument("--sim", action="store_true", help="visualize output control command instead of sending to G1")
 parser.add_argument("--network_interface", default=None)
 parser.add_argument("--hand_type", default="dex3", help="dex3 or inspire1")
-parser.add_argument("--max_freq", default=60.0, type=float, help="maximum freq")
+parser.add_argument("--max_freq", default=100.0, type=float, help="maximum freq")
 
 
 if __name__ == "__main__":
