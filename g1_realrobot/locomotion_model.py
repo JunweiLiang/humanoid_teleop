@@ -194,19 +194,12 @@ class G1_Control_Agent():
             self.msc.SetTimeout(5.0)
             self.msc.Init()
 
-            # First, check if another controller is active and release it.
             status, result = self.msc.CheckMode()
-            while result.get('name'): # Use .get() for safety
-                print(f"Another controller '{result['name']}' is active. Releasing it...")
+            while result["name"]:
+                print(result["name"])
                 self.msc.ReleaseMode()
-                time.sleep(1.0)
                 status, result = self.msc.CheckMode()
-
-            # Then, request the low-level mode for this script.
-            # The name 'python_loco_control' is arbitrary.
-            status, result = self.msc.RequestMode(1, "python_loco_control")
-            if not status or result['result'] != 0:
-                raise Exception(f"Failed to request low-level control mode: {result.get('message', 'Unknown error')}")
+                time.sleep(1)
             print("Successfully acquired low-level control.")
         # ================================================================
 
