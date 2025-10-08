@@ -1537,14 +1537,19 @@ exts."isaacsim.asset.browser".folders = [
                 (unitree_sim5.0_env) junweil@office-precognition:~/projects/unitree_sim_5.0/unitree_sim_isaaclab$ python sim_main.py --device cpu  --enable_cameras  --task Isaac-Move-Cylinder-G129-Dex3-Wholebody --enable_dex3_dds --robot_type g129
 
             # 开启模型推理加可视化 actions, 好像还算合理, 腿是正常走路摆动的，设置max_freq 60 实际Hz在30-50多
-                (tv) junweil@office-precognition:~/projects/humanoid_teleop$ python g1_realrobot/locomotion_model.py --model_path homie_deploy_official.onnx --urdf  assets/g1/g1_body29_hand14.urdf --sim --hand_type dex3 --max_freq 60.0
+                (tv) junweil@office-precognition:~/projects/humanoid_teleop$ python g1_realrobot/locomotion_model.py --model_path homie_deploy_official.onnx --urdf  assets/g1/g1_body29_hand14.urdf --no_control --sim --hand_type dex3 --max_freq 60.0
 
             #可以使用键盘 控制一下机器人改变一下
                 (tv) junweil@office-precognition:~/projects/unitree_sim_5.0/unitree_sim_isaaclab$ python send_commands_keyboard.py
 
         # 2. 单独跑实机locomotion，
             # laptop5 有线连接2号机，用龙门架。跑100Hz
-            # 2.先尝试可视化，不控制G1
+
+                # G1开机自检完成后， L2+B进入阻尼，然后L2 + R2进入调试模式，灯应该会边
+                # 然后把g1的手放到前面，L2 + A会进入关节0位，然后再L2+B再次进入阻尼模式
+            # 2.先尝试可视化，不控制G1 (注意不加 --sim)
+
+                ~/projects/humanoid_teleop$ python g1_realrobot/locomotion_model.py --model_path homie_deploy_official.onnx --urdf  assets/g1/g1_body29_hand14.urdf --no_control --hand_type dex3 --max_freq 100.0
 
         # 3. teleop关闭手臂控制，先控制 走路和高度设置
             --lock_arm

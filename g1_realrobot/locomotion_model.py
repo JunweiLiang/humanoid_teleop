@@ -37,10 +37,12 @@ class LocoMotionInference:
             device="cuda:0", urdf=None, hand_type=None,
             use_waist3=False,
             control_g1=True,
+            sim=False,
             show_freq=True,
             max_freq=60.0):
 
         self.device = device
+        self.sim = sim
         self.show_freq = show_freq
         self.control_g1 = control_g1
         if not self.control_g1:
@@ -55,7 +57,7 @@ class LocoMotionInference:
         # 监听自定义的command DDS topic, 可以用Oculus的控制器发送或者键盘发送
         self.control_agent = G1_Control_Agent(
             network_interface, use_waist3=use_waist3,
-            device=device, control_g1=control_g1)
+            device=device, control_g1=control_g1, sim=self.sim)
         # add obs
         self.control_agent_with_history = HistoryWrapper(self.control_agent)
         self.ctr_max_freq = max_freq # 控制频率 Hz
@@ -162,13 +164,14 @@ class LocoMotionInference:
 
 class G1_Control_Agent():
     def __init__(self,
-            network_interface, use_waist3=False,
+            network_interface, use_waist3=False, sim=False,
             device="cuda:0", control_g1=True):
 
         self.device = device
         self.control_g1 = control_g1
+        self.sim = sim
         # channel factory只能 init一次
-        if not self.control_g1:
+        if self.sim:
             # 仿真中测试
             ChannelFactoryInitialize(1)
         else:
@@ -847,7 +850,8 @@ parser.add_argument("--model_path", help="locomotion policy onnx model ")
 parser.add_argument("--use_waist3", action="store_true", help="homie observes 29 instead of 27 dof")
 parser.add_argument("--urdf", default=None, help="need this for visualization")
 
-parser.add_argument("--sim", action="store_true", help="visualize output control command instead of sending to G1")
+parser.add_argument("--sim", action="store_true", help="read G1 states from simulation")
+parser.add_argument("--no_control", action="store_true", help="visualize output control command instead of sending to G1")
 parser.add_argument("--network_interface", default=None)
 parser.add_argument("--hand_type", default="dex3", help="dex3 or inspire1")
 parser.add_argument("--max_freq", default=100.0, type=float, help="maximum freq")
@@ -860,7 +864,8 @@ if __name__ == "__main__":
         args.model_path, args.network_interface,
         device="cuda:0", urdf=args.urdf, hand_type=args.hand_type,
         use_waist3=args.use_waist3,
-        control_g1=not args.sim,
+        control_g1=not args.no_control,
+        sim=args.sim,
         show_freq=True,
         max_freq=args.max_freq)
     # this will block until keyboard interrupt
