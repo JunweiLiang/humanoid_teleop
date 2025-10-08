@@ -93,7 +93,7 @@ class LocoMotionInference:
         # 获取 一系列 PD动作目标
         target_sequence = []
         while np.max(np.abs(target - final_goal)) > 0.01:
-            target -= np.clip((target - final_goal), -0.05, 0.05)
+            target -= np.clip((target - final_goal), -0.02, 0.02)
             target_sequence += [copy.deepcopy(target)]
         #print(target_sequence)
         print(len(target_sequence))
@@ -104,7 +104,6 @@ class LocoMotionInference:
 
             next_target = next_target / action_scale
             cal_action[:, 0:12] = next_target
-            print(cal_action)
 
             self.control_agent_with_history.step(torch.from_numpy(cal_action))
             self.control_agent_with_history.get_obs()
@@ -358,6 +357,7 @@ class G1_Control_Agent():
                 self.lowstate_buffer.SetData(lowstate)
 
                 # need this to update the mode_machine
+                # 这个值很重要，不对的话lowcmd就不work
                 if self.update_mode_machine_ == False:
                     self.mode_machine_ = msg.mode_machine
                     print("changed model machine using lowstate to %s" % self.mode_machine_)
