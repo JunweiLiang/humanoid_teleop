@@ -105,7 +105,7 @@ class LocoMotionInference:
 
             self.control_agent_with_history.step(torch.from_numpy(cal_action))
             self.control_agent_with_history.get_obs()
-            time.sleep(0.05)
+            time.sleep(0.002)
         print("calibration done")
         obs = self.control_agent_with_history.reset()
         return obs
@@ -212,7 +212,7 @@ class G1_Control_Agent():
             [-0.1000,  0.0000,  0.0000,  0.3000, -0.2000,  0.0000, -0.1000,  0.0000,
             0.0000,  0.3000, -0.2000,  0.0000,  0.0000,  0.0000,  0.0000,  0.0000,
             0.0000,  0.0000,  0.0000,  0.0000,  0.0000, 0.0000,  0.0000,  0.0000,
-            0.0000,  0.0000,  0.0000], dtype=float)
+            0.0000,  0.0000,  0.0000], dtype=float) # 27
         # 我们训练了新的
         if use_waist3:
             self.joint_idxs = range(29)
