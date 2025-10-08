@@ -412,7 +412,7 @@ class G1_Control_Agent():
                 v_yaw = float(cmd_json["v_yaw"]) * 0.2
                 height = float(cmd_json["height"])
                 # height必须 1.65~0.74之间,下面就会得到0.74 ~ 0.08
-                height = max(1.3, min(height, 1.65))
+                height = max(1.2, min(height, 1.65))
                 height = 0.74 - 0.54 * (1.65-min(height, 1.65))*1.0/(1.65-0.91)
                 # TODO: 加 filter/ value check
                 cmd = np.array([v_x, v_y, v_yaw, height])
