@@ -88,13 +88,12 @@ class LocoMotionInference:
             [-0.1000,  0.0000,  0.0000,  0.3000, -0.2000,  0.0000,
             -0.1000,  0.0000, 0.0000,  0.3000, -0.2000,  0.0000], dtype=float)
         print("starting to calibrate...")
-        print(joint_pos)
         target = joint_pos
         cal_action = np.zeros((1, num_lower_dofs))
         # 获取 一系列 PD动作目标
         target_sequence = []
         while np.max(np.abs(target - final_goal)) > 0.01:
-            target -= np.clip((target - final_goal), -0.002, 0.002)
+            target -= np.clip((target - final_goal), -0.05, 0.05)
             target_sequence += [copy.deepcopy(target)]
         #print(target_sequence)
         print(len(target_sequence))
@@ -109,7 +108,7 @@ class LocoMotionInference:
 
             self.control_agent_with_history.step(torch.from_numpy(cal_action))
             self.control_agent_with_history.get_obs()
-            time.sleep(0.002)
+            time.sleep(0.05)
         print("calibration done")
         obs = self.control_agent_with_history.reset()
         return obs
@@ -312,6 +311,10 @@ class G1_Control_Agent():
 
         if self.control_g1:
             # create publisher #
+            while not self.update_mode_machine_:
+                logger_mp.info("[G1_29_Control] Waiting to update mode machine...")
+                time.sleep(0.1)
+            logger_mp.info("[G1_29_Control] Done. mode machine set to %s" % self.mode_machine_)
             self.lowcmd_publisher = ChannelPublisher("rt/lowcmd", LowCmd_)
             self.lowcmd_publisher.Init()
         # 默认命令
@@ -356,8 +359,8 @@ class G1_Control_Agent():
 
                 # need this to update the mode_machine
                 if self.update_mode_machine_ == False:
-                    self.mode_machine_ = lowstate.mode_machine
-                    print("changed model machine using lowstate to %s" % lowstate.mode_machine)
+                    self.mode_machine_ = msg.mode_machine
+                    print("changed model machine using lowstate to %s" % self.mode_machine_)
                     self.update_mode_machine_ = True
             time.sleep(0.002)
 
@@ -516,7 +519,8 @@ class G1_Control_Agent():
 
 
         self.low_cmd.mode_pr = 0 # Series Control for Pitch/Roll Joints这是URDF的默认模式
-        self.low_cmd.mode_machine = 5#self.mode_machine_
+        #self.low_cmd.mode_machine = 5 # g1_low_level_example.py中获取到的
+        self.low_cmd.mode_machine = self.mode_machine_
         # 先设置腿部
         for i in range(12):
             self.low_cmd.motor_cmd[i].mode = 1 # 1:Enable, 0:Disable
