@@ -8,7 +8,7 @@
 ---
 
 ### 数据结构样例
-.
+```
 ├── can_inserting
 │   ├── episode_0049
 │   │   ├── audios
@@ -25,6 +25,7 @@
 ├── towel_folding
 ├── twist_off_bottle_cap
 └── unloading
+```
 ### 数据说明
 
 +   每个episode的 `states/action` 数据在 `data.json` 中。
