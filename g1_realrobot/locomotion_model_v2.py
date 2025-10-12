@@ -8,6 +8,7 @@ import numpy as np
 import time
 import os
 import sys
+import struct
 
 import threading
 import json
@@ -36,6 +37,9 @@ from unitree_sdk2py.utils.crc import CRC
 from unitree_sdk2py.comm.motion_switcher.motion_switcher_client import MotionSwitcherClient
 
 
+# some helper stuff
+from utils import UnitreeRemoteController, EmergencyStopException
+
 class LocoMotionInference:
     def __init__(
             self, model_path, network_interface,
@@ -44,12 +48,10 @@ class LocoMotionInference:
             control_g1=True,
             sim=False,
             only_calibrate=False,
-            show_freq=True,
             max_freq=60.0):
 
         self.device = device
         self.sim = sim
-        self.show_freq = show_freq
         self.control_g1 = control_g1
         self.only_calibrate = only_calibrate
         if not self.control_g1:
@@ -111,45 +113,45 @@ class LocoMotionInference:
         return obs
 
     def run(self):
-        # 这个会循环控制机器人,
+        # 这个会循环控制机器人, exception 让外部程序处理
         self.control_agent_with_history.reset()
         obs_history = self.calibrate_robot()["obs_history"]
 
-        try:
-            while True:
-                start_time = time.time()
-                actions = self.loco_policy(obs_history)
+        # --- FPS Logging Setup ---
+        fps_log_interval, last_fps_log_time, frames_since_last_log = 10.0, time.time(), 0
 
-                if not self.only_calibrate:
-                    obs, low_cmd_targets = self.control_agent_with_history.step(actions)
+        while True:
+            start_time = time.time()
+            actions = self.loco_policy(obs_history)
 
-                    obs_history = obs["obs_history"]
+            if not self.only_calibrate:
+                obs, low_cmd_targets = self.control_agent_with_history.step(actions)
 
-                if not self.control_g1:
-                    self._show_current_targets(low_cmd_targets)
+                obs_history = obs["obs_history"]
 
-                if self.show_freq:
-                    # Calculate elapsed time and frequency
-                    current_time = time.time()
-                    time_elapsed = current_time - start_time
+            if not self.control_g1:
+                self._show_current_targets(low_cmd_targets)
 
-                    # Avoid division by zero and calculate frequency
-                    frequency = 1.0 / time_elapsed if time_elapsed > 0 else 0
-
-                    # Print the frequency on the same line, overwriting the previous one
-                    print(f"Running at: {frequency:.2f} Hz", end='\r')
-
-                # Ensure consistent frame rate
-                current_time = time.time()
-                time_elapsed = current_time - start_time
-                sleep_time = max(0, (1 / self.ctr_max_freq) - time_elapsed)
+            # Ensure consistent frame rate
+            current_time = time.time()
+            time_elapsed = current_time - start_time
+            sleep_time = max(0, (1 / self.ctr_max_freq) - time_elapsed)
+            if sleep_time > 0:
                 time.sleep(sleep_time)
-        finally:
-            # finally, return to the nominal pose
-            # TODO: 和teleop一起使用，teleop退出时已经 让G1手臂回0了,这里回脚？
-            print("returning to zero pose..")
-            obs = self.calibrate_robot()
-            print("return done.")
+
+            # --- FPS Logging Logic ---
+            frames_since_last_log += 1
+            now = time.time()
+            if now - last_fps_log_time >= fps_log_interval:
+                # Calculate FPS for the just-completed interval
+                avg_fps = frames_since_last_log / (now - last_fps_log_time)
+                logger_mp.info(f"Average loop FPS (last {fps_log_interval:.1f}s): {avg_fps:.2f} Hz")
+
+                # Reset for the next interval
+                last_fps_log_time = now
+                frames_since_last_log = 0
+            # --- End FPS Logging Logic ---
+
 
     def _show_current_targets(self, low_cmd):
         # see visualize_arm_episodes for joint ID list
@@ -171,7 +173,6 @@ class LocoMotionInference:
         self.g1_visualizer.vis.display(current_q)
 
 
-
 class G1_Control_Agent():
     def __init__(self,
             network_interface, use_waist3=False, sim=False,
@@ -187,6 +188,10 @@ class G1_Control_Agent():
         else:
             ChannelFactoryInitialize(0, network_interface)
         self.crc = CRC()
+        self.remote_control = UnitreeRemoteController()
+        # 遥控器状态和机器人状态同时获取，遥控器应该低频点检查状态
+        self.REMOTE_CHECK_INTERVAL = 10
+        self._remote_check_counter = 0
 
         """
         # This code is crucial to take over low-level control.
@@ -361,7 +366,13 @@ class G1_Control_Agent():
                     print("changed model machine using lowstate to %s" % self.mode_machine_)
                     self.update_mode_machine_ = True
 
-                # TODO: 获取遥控器状态，多一个保险
+                # 获取遥控器状态，多一个保险
+                # Only parse remote and check for E-stop every k steps.
+                if self._remote_check_counter % self.REMOTE_CHECK_INTERVAL == 0:
+                    self.remote_control.parse(msg.wireless_remote)
+                    # 同样L2+B就应该退出程序急停
+                    if self.remote_control.L2 == 1 and self.remote_control.B == 1:
+                        raise EmergencyStopException("L2+B button pressed on the remote!")
 
             time.sleep(0.002)
 
@@ -905,7 +916,8 @@ parser.add_argument("--no_control", action="store_true", help="visualize output 
 parser.add_argument("--only_calibrate", action="store_true", help="only run calibration, see if G1 cmd works")
 parser.add_argument("--network_interface", default=None)
 parser.add_argument("--hand_type", default="dex3", help="dex3 or inspire1")
-parser.add_argument("--max_freq", default=50.0, type=float, help="maximum freq")
+parser.add_argument("--max_freq", default=200.0, type=float, help="maximum freq")
+
 
 
 if __name__ == "__main__":
@@ -923,5 +935,17 @@ if __name__ == "__main__":
         only_calibrate=args.only_calibrate,
         show_freq=True,
         max_freq=args.max_freq)
-    # this will block until keyboard interrupt
-    locomotion_controller.run()
+    try:
+        # this will block until keyboard interrupt/remote controll stop
+        locomotion_controller.run()
+    except EmergencyStopException as e:
+        print("remote control stop detected.")
+    except KeyboardInterrupt:
+        print("keyboard interrupt detected.")
+    finally:
+        # finally, return to the nominal pose
+        # TODO: 和teleop一起使用，teleop退出时已经 让G1手臂回0了,这里回脚？
+        print("returning to zero pose..")
+        obs = locomotion_controller.calibrate_robot()
+        print("return done.")
+
