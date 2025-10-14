@@ -1595,6 +1595,8 @@ exts."isaacsim.asset.browser".folders = [
             (tv) junweil@office-precognition:~/projects/humanoid_teleop$ python g1_realrobot/visualize_wbc_episodes.py ~/Downloads/data/move_box/episode_0010/data.json assets/g1/g1_body29_hand14.urdf --fps 60 --image_path ~/Downloads/data/move_box/episode_0010//colors/ --hand_type dex3
                 # 视频: https://drive.google.com/drive/folders/120JGNOUmESJtJZ3OTWuyyHOllV9xOLBc?usp=drive_link
 
+    # 10/2025 重新调试locomotion_v2, 用宇树遥控器
+
 ```
 
 

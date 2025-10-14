@@ -49,6 +49,7 @@ class LocoMotionInference:
             control_g1=True,
             sim=False,
             only_calibrate=False,
+            use_rc=False,
             max_freq=60.0):
 
         self.device = device
@@ -67,6 +68,7 @@ class LocoMotionInference:
         # 监听自定义的command DDS topic, 可以用Oculus的控制器发送或者键盘发送
         self.control_agent = G1_Control_Agent(
             network_interface, use_waist3=use_waist3,
+            use_rc=use_rc,
             device=device, control_g1=control_g1, sim=self.sim)
         # add obs
         self.control_agent_with_history = HistoryWrapper(self.control_agent)
@@ -81,7 +83,7 @@ class LocoMotionInference:
             return torch.tensor(ort_outs[0], device=self.device)
         return run_inference
 
-    def calibrate_robot(self):
+    def calibrate_robot(self, wait=False):
         # 让机器人回到零位
         self.control_agent_with_history.get_obs()
         # 当前joint pos
@@ -91,6 +93,7 @@ class LocoMotionInference:
             [-0.1000,  0.0000,  0.0000,  0.3000, -0.2000,  0.0000,
             -0.1000,  0.0000, 0.0000,  0.3000, -0.2000,  0.0000], dtype=float)
         print("starting to calibrate...")
+        # TODO: add controller to wait
         target = joint_pos
         cal_action = np.zeros((1, num_lower_dofs))
         # 获取 一系列 PD动作目标
@@ -177,7 +180,8 @@ class LocoMotionInference:
 class G1_Control_Agent():
     def __init__(self,
             network_interface, use_waist3=False, sim=False,
-            device="cuda:0", control_g1=True):
+            device="cuda:0", control_g1=True,
+            use_rc=False):
 
         self.device = device
         self.control_g1 = control_g1
@@ -190,8 +194,9 @@ class G1_Control_Agent():
             ChannelFactoryInitialize(0, network_interface)
         self.crc = CRC()
         self.remote_control = UnitreeRemoteController()
+        self.use_rc = use_rc  # use the unitree remote controller to send xy
         # 遥控器状态和机器人状态同时获取，遥控器应该低频点检查状态
-        self.REMOTE_CHECK_INTERVAL = 10
+        self.REMOTE_CHECK_INTERVAL = 10 # 10 对应 50 Hz
         self._remote_check_counter = 0
 
         """
@@ -228,6 +233,7 @@ class G1_Control_Agent():
                 0.0000,  0.0000,  0.0000,  0.0000,  0.0000, 0.0000,  0.0000,  0.0000,
                 0.0000,  0.0000,  0.0000, 0.0000,  0.0000], dtype=float)
         # 关节电机pd参数代码位于在“HomieDeploy/unitree_sdk2unitree_sdk2/g1_control.cpp”下的第85行
+        # 按200Hz的控制频率
         self.Kp = [
             150, 150, 150, 300, 40, 40,      #// legs
             150, 150, 150, 300, 40, 40,      #// legs
@@ -242,6 +248,27 @@ class G1_Control_Agent():
             4, 4, 4, 1, 0.5, 0.5, 0.5,  #// arms
             4, 4, 4, 1, 0.5, 0.5, 0.5   #// arms
         ]
+        # 如果频率上不去，腿抖的话，降低Kp，增大Kd
+        """
+        self.Kp = [
+            120, 120, 120, 250, 30, 30,      #// legs
+            120, 120, 120, 250, 30, 30,      #// legs
+            300, 300, 300,                   #// waist
+            150, 150, 150, 100,  10, 10, 5,  #// arms
+            150, 150, 150, 100,  10, 10, 5,  #// arms
+        ]
+        self.Kd = [
+            3, 3, 3, 4, 3, 3,     #// legs
+            3, 3, 3, 4, 3, 3,     #// legs
+            5, 5, 5,              #// waist
+            4, 4, 4, 1, 0.5, 0.5, 0.5,  #// arms
+            4, 4, 4, 1, 0.5, 0.5, 0.5   #// arms
+        ]
+        """
+        # 腿部动作平滑
+        self.smoothed_actions = None
+        self.smoothing_alpha = 0.9 # TUNE THIS: 0.1=very smooth, 0.9=less smooth
+
         # 如teleop -> robot_arm.py设置
         self.kp_high = 300.0
         self.kd_high = 3.0
@@ -288,15 +315,20 @@ class G1_Control_Agent():
         logger_mp.info("[G1_29_State] Subscribe dds ok.")
 
         # command 用string格式
-        self.cmd_subscriber = ChannelSubscriber("rt/loco_cmd", String_)
-        self.cmd_subscriber.Init()
+
         self.cmd_buffer = DataBuffer()
 
-        # initialize subscribe thread
-        self.subscribe_cmd_thread = threading.Thread(target=self._subscribe_cmd)
-        self.subscribe_cmd_thread.daemon = True
-        self.subscribe_cmd_thread.start()
-        # 一开始可能cmd topic还没有publish
+        #self.height_cmd = 1.65 # TODO: 宇树遥控器上下按键可以改变这个?
+        #self.height_limit = (1.0, 1.65)
+        if not self.use_rc: # 不使用宇树遥控器的话才subscribe
+            self.cmd_subscriber = ChannelSubscriber("rt/loco_cmd", String_)
+            self.cmd_subscriber.Init()
+
+            # initialize subscribe thread
+            self.subscribe_cmd_thread = threading.Thread(target=self._subscribe_cmd)
+            self.subscribe_cmd_thread.daemon = True
+            self.subscribe_cmd_thread.start()
+            # 一开始可能cmd topic还没有publish
 
         # 同时我们还要subscribe arm_cmd(包括手臂和腰部命令), 也是由teleop程序发布
         # 也是LowCmd_数据，只有手臂12+3腰的q有用
@@ -313,6 +345,7 @@ class G1_Control_Agent():
         self.arm_buffer.SetData(self._get_default_arm_cmd())
 
         if self.control_g1:
+            self.lowcmd_buffer = DataBuffer()
             # create publisher #
             while not self.update_mode_machine_:
                 logger_mp.info("[G1_29_Control] Waiting to update mode machine...")
@@ -320,8 +353,58 @@ class G1_Control_Agent():
             logger_mp.info("[G1_29_Control] Done. mode machine set to %s" % self.mode_machine_)
             self.lowcmd_publisher = ChannelPublisher("rt/lowcmd", LowCmd_)
             self.lowcmd_publisher.Init()
-        # 默认命令
+
+            # TODO: 这里直接开始200Hz发送底层控制指令，step()函数时更新底层控制指令，可能100Hz
+            # 一开始默认cmd全0， 扭矩也会输出0.
+            # 后面rc有停止指令，应该马上设置cmd motor enable=0
+            self.send_lowcmd_thread = threading.Thread(target=self._send_lowcmd)
+            self.send_lowcmd_thread.daemon = True
+            self.send_lowcmd_thread.start()
+        # 默认0力矩命令
         self.low_cmd = unitree_hg_msg_dds__LowCmd_()
+        self.low_cmd.mode_pr = 0 # Series Control for Pitch/Roll Joints这是URDF的默认模式
+        #self.low_cmd.mode_machine = 5 # g1_low_level_example.py中获取到的
+        self.low_cmd.mode_machine = self.mode_machine_
+        # 阻尼命令
+        self.low_cmd_damp = unitree_hg_msg_dds__LowCmd_()
+        self.low_cmd_damp.mode_pr = 0 # Series Control for Pitch/Roll Joints这是URDF的默认模式
+        self.low_cmd_damp.mode_machine = self.mode_machine_
+        for joint in G1_29_JointIndex:
+            joint_id = joint.value
+            self.low_cmd_damp.motor_cmd[joint_id].mode = 1
+            self.low_cmd_damp.motor_cmd[joint_id].q = 0.0
+            self.low_cmd_damp.motor_cmd[joint_id].dq = 0.0
+            self.low_cmd_damp.motor_cmd[joint_id].kp = 0.0
+            self.low_cmd_damp.motor_cmd[joint_id].kd = 0.1
+            self.low_cmd_damp.motor_cmd[joint_id].tau = 0.0
+
+        self.stop = False  # 用于指示motor_cmd替换成damping
+
+    def _send_lowcmd(self):
+        while True:
+            if self.stop:
+                self.low_cmd_damp.crc = self.crc.Crc(self.low_cmd_damp)
+                write_cmd = self.low_cmd_damp
+            else:
+                read_lowcmd = self.lowcmd_buffer.GetData()
+
+                if read_lowcmd is not None:
+
+                    for joint in G1_29_JointIndex:
+                        joint_id = joint.value
+                        self.low_cmd.motor_cmd[joint_id].mode = 0 # 1:Enable, 0:Disable
+                        self.low_cmd.motor_cmd[joint_id].mode = 1 # 1:Enable, 0:Disable
+                        self.low_cmd.motor_cmd[joint_id].tau = read_lowcmd.motor_cmd[joint_id].tau
+                        self.low_cmd.motor_cmd[joint_id].q = read_lowcmd.motor_cmd[joint_id].q
+                        self.low_cmd.motor_cmd[joint_id].dq = read_lowcmd.motor_cmd[joint_id].dq
+                        self.low_cmd.motor_cmd[joint_id].kp = read_lowcmd.motor_cmd[joint_id].kp
+                        self.low_cmd.motor_cmd[joint_id].kd = read_lowcmd.motor_cmd[joint_id].kd
+
+                self.low_cmd.crc = self.crc.Crc(self.low_cmd)
+                write_cmd = self.low_cmd
+
+            self.lowcmd_publisher.Write(write_cmd)
+            time.sleep(0.002) # 500Hz
 
     def _get_default_arm_cmd(self):
         # 与teleop的robot_arm.py同样设置，获取零位的手臂+腰的kp kd的默认cmd
@@ -374,6 +457,18 @@ class G1_Control_Agent():
                     # 同样L2+B就应该退出程序急停
                     if self.remote_control.L2 == 1 and self.remote_control.B == 1:
                         raise EmergencyStopException("L2+B button pressed on the remote!")
+                    if self.use_rc:
+                        v_x = self.remote_control.Ly    # Forward/backward velocity
+                        v_y = self.remote_control.Lx    # Sideways/strafing velocity
+                        v_yaw = self.remote_control.Rx  # Turning/yaw velocity
+
+                        cmd_json = {
+                            "v_x": v_x,
+                            "v_y": v_y,
+                            "v_yaw": v_yaw,
+                            "height": 1.65
+                        }
+                        self.cmd_buffer.SetData(cmd_json)
 
             time.sleep(0.002)
 
@@ -382,8 +477,9 @@ class G1_Control_Agent():
             msg = self.cmd_subscriber.Read()
             if msg is not None:
                 cmd_string = msg.data
-                self.cmd_buffer.SetData(cmd_string)
-            time.sleep(0.01) # 100Hz
+                cmd_json = json.loads(cmd_string)
+                self.cmd_buffer.SetData(cmd_json)
+            time.sleep(0.005) # 200Hz
 
     def _subscribe_arm(self):
         while True:
@@ -404,7 +500,7 @@ class G1_Control_Agent():
 
                 self.arm_buffer.SetData(lowcmd)
 
-            time.sleep(0.002) # 500Hz
+            time.sleep(0.005) # 200Hz
 
     def reset(self):
         self.actions = torch.zeros(12)
@@ -416,24 +512,35 @@ class G1_Control_Agent():
 
         # 0.74
         cmd = np.array([0.0, 0.0, 0.0, 0.74])
+        speed_filter = 0.1 # 摇杆漂移的值，小于这个就抹零
+        cmd_json = self.cmd_buffer.GetData()
+        if cmd_json is not None:
 
-        cmd_string = self.cmd_buffer.GetData()
-        if cmd_string is not None:
-            try:
-                cmd_json = json.loads(cmd_string)
-                # 给定的cmd指令应该都是0-1.0之间
-                v_x = float(cmd_json["v_x"]) * 0.5
-                v_y = float(cmd_json["v_y"]) * 0.5
-                v_yaw = float(cmd_json["v_yaw"]) * 0.2
-                height = float(cmd_json["height"])
-                # height必须 1.65~0.74之间,下面就会得到0.74 ~ 0.08
-                height = max(1.2, min(height, 1.65))
-                height = 0.74 - 0.54 * (1.65-min(height, 1.65))*1.0/(1.65-0.91)
-                # TODO: 加 filter/ value check
-                cmd = np.array([v_x, v_y, v_yaw, height])
+            #cmd_json = json.loads(cmd_string)
+            # 给定的cmd指令应该都是-1.0+1.0之间
+            v_x = float(cmd_json["v_x"]) * 0.6
+            v_y = float(cmd_json["v_y"]) * 0.5
+            v_yaw = float(cmd_json["v_yaw"]) * 0.8
 
-            except json.JSONDecodeError:
-                logger_mp.warn("Received malformed command string. Ignoring.")
+            if v_x>0:
+                v_x=(max(np.abs(v_x)-speed_filter,0))
+            else:
+                v_x=-(max(np.abs(v_x)-speed_filter,0))
+            if v_y>0:
+                v_y=(max(np.abs(v_y)-speed_filter,0))
+            else:
+                v_y=-(max(np.abs(v_y)-speed_filter,0))
+            if v_yaw>0:
+                v_yaw=(max(np.abs(v_yaw)-speed_filter,0))
+            else:
+                v_yaw=-(max(np.abs(v_yaw)-speed_filter,0))
+
+            height = float(cmd_json["height"])
+            # height必须 1.65~0.74之间,下面就会得到0.74 ~ 0.08
+            height = max(1.2, min(height, 1.65))
+            height = 0.74 - 0.54 * (1.65-min(height, 1.65))*1.0/(1.65-0.91)
+            # TODO: 加 filter/ value check
+            cmd = np.array([v_x, v_y, v_yaw, height])
 
         return cmd
 
@@ -474,7 +581,7 @@ class G1_Control_Agent():
         # 还有一些数据要存到self中，会更新一些变量
 
         # (4, )
-        cmds = self._get_command()
+        cmds = self._get_command() * np.array([2.0, 2.0, 0.25, 1.0])
         self.cmds = cmds
         # 不知道Homie为啥乘这个
         #self.commands[:, :] * np.array([2.0, 2.0, 0.25, 1.0])
@@ -509,8 +616,17 @@ class G1_Control_Agent():
         # (12,)
         self.actions = torch.clip(actions[0:1, :], -clip_actions, clip_actions)
         actions = actions.cpu().numpy()
+         # --- START SMOOTHING LOGIC ---
+        if self.smoothed_actions is None:
+            self.smoothed_actions = actions
+        else:
+            self.smoothed_actions = self.smoothing_alpha * actions + \
+                                   (1 - self.smoothing_alpha) * self.smoothed_actions
+
         # 模型输出平滑这么多？
-        scaled_pos_target = actions * 0.25 + self.default_dof_pos[:12]
+        #scaled_pos_target = actions * 0.25 + self.default_dof_pos[:12]
+        scaled_pos_target = self.smoothed_actions * 0.25 + self.default_dof_pos[:12]
+
         # torques = (scaled_pos_target - self.dof_pos[:12]) * self.p_gains[:12]  - self.dof_vel[:12] * self.d_gains[:12]
         # torques = np.clip(torques[:12], -self.torque_limit[:12], self.torque_limit[:12])
         self.joint_pos_target[:12] = scaled_pos_target[:12]
@@ -529,42 +645,41 @@ class G1_Control_Agent():
         #command_for_robot.q_des = self.joint_pos_target
         #command_for_robot.tau_ff = self.torques
 
-
-        self.low_cmd.mode_pr = 0 # Series Control for Pitch/Roll Joints这是URDF的默认模式
-        #self.low_cmd.mode_machine = 5 # g1_low_level_example.py中获取到的
-        self.low_cmd.mode_machine = self.mode_machine_
+        lowcmd_tmp = unitree_hg_msg_dds__LowCmd_()
         # 先设置腿部
         for i in range(12):
-            self.low_cmd.motor_cmd[i].mode = 1 # 1:Enable, 0:Disable
-            self.low_cmd.motor_cmd[i].tau = self.tauff[i] # 默认都是0
-            self.low_cmd.motor_cmd[i].q = self.joint_pos_target[i]
-            self.low_cmd.motor_cmd[i].dq = 0.
-            self.low_cmd.motor_cmd[i].kp = self.Kp[i]
-            self.low_cmd.motor_cmd[i].kd = self.Kd[i]
+            lowcmd_tmp.motor_cmd[i].mode = 1 # 1:Enable, 0:Disable
+            lowcmd_tmp.motor_cmd[i].tau = self.tauff[i] # 默认都是0
+            lowcmd_tmp.motor_cmd[i].q = self.joint_pos_target[i]
+            lowcmd_tmp.motor_cmd[i].dq = 0.
+            lowcmd_tmp.motor_cmd[i].kp = self.Kp[i]
+            lowcmd_tmp.motor_cmd[i].kd = self.Kd[i]
 
-        for joint in G1_29_ArmJointIndex: # 12+3
+        for joint in G1_29_ArmJointIndex: # 12+3 # 手臂加上腰部
             joint_id = joint.value
-            self.low_cmd.motor_cmd[joint_id].mode = 1 # 1:Enable, 0:Disable
-            self.low_cmd.motor_cmd[joint_id].tau = arm_cmd.motor_cmd[joint_id].tau
-            self.low_cmd.motor_cmd[joint_id].q = arm_cmd.motor_cmd[joint_id].q
-            self.low_cmd.motor_cmd[joint_id].dq = arm_cmd.motor_cmd[joint_id].dq
-            self.low_cmd.motor_cmd[joint_id].kp = arm_cmd.motor_cmd[joint_id].kp
-            self.low_cmd.motor_cmd[joint_id].kd = arm_cmd.motor_cmd[joint_id].kd
+            lowcmd_tmp.motor_cmd[joint_id].mode = 1 # 1:Enable, 0:Disable
+            lowcmd_tmp.motor_cmd[joint_id].tau = arm_cmd.motor_cmd[joint_id].tau
+            lowcmd_tmp.motor_cmd[joint_id].q = arm_cmd.motor_cmd[joint_id].q
+            lowcmd_tmp.motor_cmd[joint_id].dq = arm_cmd.motor_cmd[joint_id].dq
+            lowcmd_tmp.motor_cmd[joint_id].kp = arm_cmd.motor_cmd[joint_id].kp
+            lowcmd_tmp.motor_cmd[joint_id].kd = arm_cmd.motor_cmd[joint_id].kd
 
-        if self.control_g1:
+        #if self.control_g1:
             # 发送指令控制G1
             #print("--------------------------------")
             #for i in range(29):
             #    cmd = self.low_cmd.motor_cmd[i]
             #    print(f"Motor {i}: mode={cmd.mode}, q={cmd.q:.3f}, kp={cmd.kp}, kd={cmd.kd}")
-            self.low_cmd.crc = self.crc.Crc(self.low_cmd)
-            self.lowcmd_publisher.Write(self.low_cmd)
+            #self.low_cmd.crc = self.crc.Crc(self.low_cmd)
+            #self.lowcmd_publisher.Write(self.low_cmd)
             #print(self.low_cmd)
+        if self.control_g1:
+            self.lowstate_buffer.SetData(lowcmd_tmp)
 
         # 不发送指令，可以把low_cmd拿去可视化
 
         obs = self.get_obs()
-        return obs, self.low_cmd
+        return obs, lowcmd_tmp
 
 
 
@@ -579,7 +694,7 @@ parser.add_argument("--only_calibrate", action="store_true", help="only run cali
 parser.add_argument("--network_interface", default=None)
 parser.add_argument("--hand_type", default="dex3", help="dex3 or inspire1")
 parser.add_argument("--max_freq", default=200.0, type=float, help="maximum freq")
-
+parser.add_argument("--use_rc", action="store_true", help="use unitree remote for debugging instead of teleop controller")
 
 if __name__ == "__main__":
     # 测试， 先开了G1 sim或者实机G1, 然后每次模型输出的q可视化到meshcat中
@@ -595,18 +710,23 @@ if __name__ == "__main__":
         sim=args.sim,
         only_calibrate=args.only_calibrate,
         show_freq=True,
+        use_rc=args.use_rc,
         max_freq=args.max_freq)
     try:
         # this will block until keyboard interrupt/remote controll stop
         locomotion_controller.run()
     except EmergencyStopException as e:
         print("remote control stop detected.")
+        # 直接阻尼模式
+        locomotion_controller.control_agent.stop = True
     except KeyboardInterrupt:
         print("keyboard interrupt detected.")
+        # 直接阻尼模式
+        locomotion_controller.control_agent.stop = True
     finally:
         # finally, return to the nominal pose
         # TODO: 和teleop一起使用，teleop退出时已经 让G1手臂回0了,这里回脚？
         print("returning to zero pose..")
-        obs = locomotion_controller.calibrate_robot()
+        locomotion_controller.calibrate_robot()
         print("return done.")
 

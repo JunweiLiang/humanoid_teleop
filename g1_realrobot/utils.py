@@ -149,7 +149,7 @@ class UnitreeRemoteController:
 
     def parse(self, remoteData):
         self.parse_key(remoteData)
-        self.parse_botton(remoteData[2],remoteData[3])
+        self.parse_botton(remoteData[2], remoteData[3])
 
         print("debug unitreeRemoteController: ")
         print("Lx:", self.Lx)
