@@ -197,6 +197,9 @@ class G1_Control_Agent():
         #height_cmd = 1.65 # 宇树遥控器上下按键可以改变这个
         self.remote_control = UnitreeRemoteController(
             height_limit=(1.0, 1.65))
+        # command 用json格式
+
+        self.cmd_buffer = DataBuffer()
         self.use_rc = use_rc  # use the unitree remote controller to send xy
         # 遥控器状态和机器人状态同时获取，遥控器应该低频点检查状态
         self.REMOTE_CHECK_INTERVAL = 10 # 10 对应 50 Hz
@@ -317,9 +320,7 @@ class G1_Control_Agent():
             logger_mp.info("[G1_29_State] Waiting to subscribe dds...")
         logger_mp.info("[G1_29_State] Subscribe dds ok.")
 
-        # command 用string格式
 
-        self.cmd_buffer = DataBuffer()
 
 
         if not self.use_rc: # 不使用宇树遥控器的话才subscribe
