@@ -34,7 +34,7 @@ from unitree_sdk2py.comm.motion_switcher.motion_switcher_client import MotionSwi
 
 
 # some helper stuff
-from utils import UnitreeRemoteController, EmergencyStopException
+from utils import UnitreeRemoteController
 from utils import DataBuffer, HistoryWrapper
 from utils import get_rotation_matrix_from_rpy
 from utils import G1_29_JointIndex, G1_29_ArmJointIndex
