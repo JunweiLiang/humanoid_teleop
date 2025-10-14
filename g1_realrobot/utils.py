@@ -106,7 +106,7 @@ class SimpleFPSLogger:
         elapsed = now - self.last_log_time
         if elapsed >= self.log_interval:
             avg_fps = self.frames_since_last_log / elapsed
-            self.logger.info(f"[{self.name}] Average FPS (last {elapsed:.1f}s): {avg_fps:.2f} Hz")
+            self.logger.info(f"[{self.name}] (last {elapsed:.1f}s): {avg_fps:.2f} Hz")
             self.last_log_time = now
             self.frames_since_last_log = 0
 

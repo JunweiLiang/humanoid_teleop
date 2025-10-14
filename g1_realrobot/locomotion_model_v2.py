@@ -98,6 +98,7 @@ class LocoMotionInference:
         while wait:
             if self.control_agent.remote_control.R2 == 1:
                 break
+            time.sleep(0.01) # avoid busy loop
 
         print("starting to calibrate...")
 
@@ -127,6 +128,7 @@ class LocoMotionInference:
             while True:
                 if self.control_agent.remote_control.R2 == 1:
                     break
+                time.sleep(0.01) # avoid busy loop
 
         obs = self.control_agent_with_history.reset()
         return obs
@@ -146,15 +148,25 @@ class LocoMotionInference:
                 break
 
             start_time = time.time()
+
+            t0 = time.time()
             actions = self.loco_policy(obs_history)
+            t1 = time.time()
 
             if not self.only_calibrate:
                 obs, low_cmd_targets = self.control_agent_with_history.step(actions)
 
                 obs_history = obs["obs_history"]
 
-            if not self.control_g1:
+            if not self.control_g1 and main_loop_fps_logger.frames_since_last_log % 10 == 0: # Visualize only every 5th frame
+                # visualization can be slower
                 self._show_current_targets(low_cmd_targets)
+
+            t2 = time.time()
+
+            # Log timings occasionally
+            if main_loop_fps_logger.frames_since_last_log % 100 == 0: # Print every 100 frames
+                logger_mp.info(f"Timings (ms) -> Inference: {(t1-t0)*1000:.2f}, Step/vis: {(t2-t1)*1000:.2f}")
 
             # Ensure consistent frame rate
             current_time = time.time()
