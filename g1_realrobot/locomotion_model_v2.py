@@ -193,7 +193,10 @@ class G1_Control_Agent():
         else:
             ChannelFactoryInitialize(0, network_interface)
         self.crc = CRC()
-        self.remote_control = UnitreeRemoteController()
+
+        #height_cmd = 1.65 # 宇树遥控器上下按键可以改变这个
+        self.remote_control = UnitreeRemoteController(
+            height_limit=(1.0, 1.65))
         self.use_rc = use_rc  # use the unitree remote controller to send xy
         # 遥控器状态和机器人状态同时获取，遥控器应该低频点检查状态
         self.REMOTE_CHECK_INTERVAL = 10 # 10 对应 50 Hz
@@ -318,8 +321,7 @@ class G1_Control_Agent():
 
         self.cmd_buffer = DataBuffer()
 
-        #self.height_cmd = 1.65 # TODO: 宇树遥控器上下按键可以改变这个?
-        #self.height_limit = (1.0, 1.65)
+
         if not self.use_rc: # 不使用宇树遥控器的话才subscribe
             self.cmd_subscriber = ChannelSubscriber("rt/loco_cmd", String_)
             self.cmd_subscriber.Init()
@@ -458,16 +460,23 @@ class G1_Control_Agent():
                     if self.remote_control.L2 == 1 and self.remote_control.B == 1:
                         raise EmergencyStopException("L2+B button pressed on the remote!")
                     if self.use_rc:
+                        # print了一下宇树遥控器，摇杆可能都有误差
+                        # 左摇杆，上下值 Ly=[0.95, -0.83], 左右值范围Lx=[-1.0, 1.0]
+                        # 右摇杆，上下值 Ry=[1.0, -1.0], 左右值范围Rx=[-0.92, 0.94]
+                        # 其他按键按下了就是持续是1值
                         v_x = self.remote_control.Ly    # Forward/backward velocity
-                        v_y = self.remote_control.Lx    # Sideways/strafing velocity
-                        v_yaw = self.remote_control.Rx  # Turning/yaw velocity
-
+                        # 左摇杆，往左，是负的，对应机器人左手，是y轴正方向
+                        v_y = -self.remote_control.Lx    # Sideways/strafing velocity
+                        v_yaw = -self.remote_control.Rx  # Turning/yaw velocity
+                        height = self.remote_control.height
                         cmd_json = {
                             "v_x": v_x,
                             "v_y": v_y,
                             "v_yaw": v_yaw,
-                            "height": 1.65
+                            #"height": 1.65
+                            "height": height
                         }
+                        print(cmd_json)
                         self.cmd_buffer.SetData(cmd_json)
 
             time.sleep(0.002)

@@ -13,7 +13,7 @@ from enum import IntEnum
 import pinocchio as pin
 from pinocchio.robot_wrapper import RobotWrapper
 from pinocchio.visualize import MeshcatVisualizer
-
+import time
 
 class HistoryWrapper:
     def __init__(self, env):
@@ -92,7 +92,7 @@ class EmergencyStopException(Exception):
     pass
 
 class UnitreeRemoteController:
-    def __init__(self):
+    def __init__(self, height_limit=(1.0, 1.65), height_change_interval=0.5, height_change_step=0.1):
         # key
         self.Lx = 0
         self.Rx = 0
@@ -116,6 +116,16 @@ class UnitreeRemoteController:
         self.F1 = 0
         self.F3 = 0
         self.Start = 0
+
+        # --- Added for height control ---
+        self.height_min, self.height_max = height_limit
+        # Initialize height to the maximum value
+        self.height = self.height_max
+        # Time in seconds between height adjustments
+        self.height_change_interval = height_change_interval
+        self.height_change_step = height_change_step # 按一次增减多少
+        # Timestamp of the last height change, initialized to 0 for immediate first press
+        self.last_height_change_time = 0
 
     def parse_botton(self, data1, data2):
         self.R1 = (data1 >> 0) & 1
@@ -151,6 +161,35 @@ class UnitreeRemoteController:
         self.parse_key(remoteData)
         self.parse_botton(remoteData[2], remoteData[3])
 
+        # --- Logic for height control ---
+        current_time = time.time()
+
+        # Check if enough time has passed since the last height change
+        if current_time - self.last_height_change_time > self.height_change_interval:
+            # Check Up button
+            if self.Up == 1:
+                # Calculate new height and ensure it doesn't exceed the max limit
+                new_height = round(self.height + self.height_change_step, 2)
+                if new_height <= self.height_max:
+                    self.height = new_height
+                    print(f"Height increased to: {self.height:.2f}")
+                    # Update the time of the last change
+                    self.last_height_change_time = current_time
+            # Check Down button
+            elif self.Down == 1:
+                # Calculate new height and ensure it doesn't go below the min limit
+                new_height = round(self.height - self.height_change_step, 2)
+                if new_height >= self.height_min:
+                    self.height = new_height
+                    print(f"Height decreased to: {self.height:.2f}")
+                    # Update the time of the last change
+                    self.last_height_change_time = current_time
+
+        """
+         # print了一下宇树遥控器，摇杆可能都有误差
+                    # 左摇杆，上下值 Ly=[0.95, -0.83], 左右值范围Lx=[-1.0, 1.0]
+                    # 右摇杆，上下值 Ry=[1.0, -1.0], 左右值范围Rx=[-0.92, 0.94]
+                    # 其他按键按下了就是持续是1值
         print("debug unitreeRemoteController: ")
         print("Lx:", self.Lx)
         print("Rx:", self.Rx)
@@ -174,6 +213,7 @@ class UnitreeRemoteController:
         print("F3:", self.F3)
         print("Start:", self.Start)
         print("\n")
+        """
 
 # ----以下仅用于可视化
 class G1_29_Vis_WholeBody:

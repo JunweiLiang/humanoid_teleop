@@ -1595,10 +1595,10 @@ exts."isaacsim.asset.browser".folders = [
             (tv) junweil@office-precognition:~/projects/humanoid_teleop$ python g1_realrobot/visualize_wbc_episodes.py ~/Downloads/data/move_box/episode_0010/data.json assets/g1/g1_body29_hand14.urdf --fps 60 --image_path ~/Downloads/data/move_box/episode_0010//colors/ --hand_type dex3
                 # 视频: https://drive.google.com/drive/folders/120JGNOUmESJtJZ3OTWuyyHOllV9xOLBc?usp=drive_link
 
-    # 10/2025 重新调试locomotion_v2, 用宇树遥控器
+    # [10/2025] 重新调试locomotion_v2, 用宇树遥控器
 
         # 1. 单独跑实机locomotion，
-        # laptop5 有线连接2号机，用龙门架。跑100Hz
+        # laptop6 有线连接2号机，用龙门架。跑100Hz
             # 需要安装tv环境
 
             # G1开机自检完成后， L2+B进入阻尼，然后L2 + R2进入调试模式，灯应该会边
@@ -1607,7 +1607,12 @@ exts."isaacsim.asset.browser".folders = [
 
         # 先尝试可视化，不控制G1 可以看到browser中输出的action
 
-            ~/projects/humanoid_teleop$ python g1_realrobot/locomotion_model.py --model_path homie_deploy_official.onnx --urdf  assets/g1/g1_body29_hand14.urdf --no_control --hand_type dex3 --max_freq 50.0
+            ~/projects/humanoid_teleop$ python g1_realrobot/locomotion_model.py --model_path homie_deploy_official.onnx --urdf  assets/g1/g1_body29_hand14.urdf --no_control --hand_type dex3 --max_freq 100.0
+
+                # print了一下宇树遥控器，摇杆可能都有误差
+                    # 左摇杆，上下值 Ly=[0.95, -0.83], 左右值范围Lx=[-1.0, 1.0]
+                    # 右摇杆，上下值 Ry=[1.0, -1.0], 左右值范围Rx=[-0.92, 0.94]
+                    # 其他按键按下了就是持续是1值
 
             # 加--only_calibrate 只做calibrate的动作
 
