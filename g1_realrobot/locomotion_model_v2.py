@@ -92,8 +92,14 @@ class LocoMotionInference:
         final_goal = np.array(
             [-0.1000,  0.0000,  0.0000,  0.3000, -0.2000,  0.0000,
             -0.1000,  0.0000, 0.0000,  0.3000, -0.2000,  0.0000], dtype=float)
+
+        print("press R2 to start calibrate..")
+        while wait:
+            if self.control_agent.remote_control.R2 == 1:
+                break
+
         print("starting to calibrate...")
-        # TODO: add controller to wait
+
         target = joint_pos
         cal_action = np.zeros((1, num_lower_dofs))
         # 获取 一系列 PD动作目标
@@ -112,7 +118,13 @@ class LocoMotionInference:
             self.control_agent_with_history.step(torch.from_numpy(cal_action))
             self.control_agent_with_history.get_obs()
             time.sleep(0.05)
+
         print("calibration done")
+        print("Starting pose calibrated [Press R2 to start controller]")
+        while True:
+            if self.control_agent.remote_control.R2 == 1:
+                break
+
         obs = self.control_agent_with_history.reset()
         return obs
 
@@ -125,6 +137,11 @@ class LocoMotionInference:
         fps_log_interval, last_fps_log_time, frames_since_last_log = 10.0, time.time(), 0
 
         while True:
+
+            if self.control_agent.stop:
+                logger_mp.info("Stop signal received, exiting main control loop.")
+                break
+
             start_time = time.time()
             actions = self.loco_policy(obs_history)
 
@@ -320,9 +337,6 @@ class G1_Control_Agent():
             logger_mp.info("[G1_29_State] Waiting to subscribe dds...")
         logger_mp.info("[G1_29_State] Subscribe dds ok.")
 
-
-
-
         if not self.use_rc: # 不使用宇树遥控器的话才subscribe
             self.cmd_subscriber = ChannelSubscriber("rt/loco_cmd", String_)
             self.cmd_subscriber.Init()
@@ -459,7 +473,11 @@ class G1_Control_Agent():
                     self.remote_control.parse(msg.wireless_remote)
                     # 同样L2+B就应该退出程序急停
                     if self.remote_control.L2 == 1 and self.remote_control.B == 1:
-                        raise EmergencyStopException("L2+B button pressed on the remote!")
+                        # we set a shared 'stop' flag. The main loop will check this flag and exit.
+                        if not self.stop:
+                            logger_mp.info("Emergency stop (L2+B) detected! Initiating safe shutdown.")
+                            self.stop = True
+
                     if self.use_rc:
                         # print了一下宇树遥控器，摇杆可能都有误差
                         # 左摇杆，上下值 Ly=[0.95, -0.83], 左右值范围Lx=[-1.0, 1.0]
@@ -644,16 +662,6 @@ class G1_Control_Agent():
         # 接收arm 和腰部的动作指令，一起控制G1
         arm_cmd = self.arm_buffer.GetData()
 
-        # arm_actions = self.se.get_arm_action()
-        # self.joint_pos_target[15:] = 0.#arm_actions
-        # self.joint_pos_target[12] = scaled_pos_target[12] # waist
-        # self.joint_pos_target[15:] = scaled_pos_target[13:]
-        # self.torques[:12] = torques[:12]
-        # print("torques: ", torques)
-        # print("==============================================================================")
-        # self.torques[15:] = torques[13:]
-        #command_for_robot.q_des = self.joint_pos_target
-        #command_for_robot.tau_ff = self.torques
 
         lowcmd_tmp = unitree_hg_msg_dds__LowCmd_()
         # 先设置腿部
@@ -674,17 +682,9 @@ class G1_Control_Agent():
             lowcmd_tmp.motor_cmd[joint_id].kp = arm_cmd.motor_cmd[joint_id].kp
             lowcmd_tmp.motor_cmd[joint_id].kd = arm_cmd.motor_cmd[joint_id].kd
 
-        #if self.control_g1:
-            # 发送指令控制G1
-            #print("--------------------------------")
-            #for i in range(29):
-            #    cmd = self.low_cmd.motor_cmd[i]
-            #    print(f"Motor {i}: mode={cmd.mode}, q={cmd.q:.3f}, kp={cmd.kp}, kd={cmd.kd}")
-            #self.low_cmd.crc = self.crc.Crc(self.low_cmd)
-            #self.lowcmd_publisher.Write(self.low_cmd)
-            #print(self.low_cmd)
+
         if self.control_g1:
-            self.lowstate_buffer.SetData(lowcmd_tmp)
+            self.lowcmd_buffer.SetData(lowcmd_tmp)
 
         # 不发送指令，可以把low_cmd拿去可视化
 
@@ -722,20 +722,32 @@ if __name__ == "__main__":
         use_rc=args.use_rc,
         max_freq=args.max_freq)
     try:
-        # this will block until keyboard interrupt/remote controll stop
+        # This loop will now exit gracefully when the 'stop' flag is set from the remote or Ctrl+C.
         locomotion_controller.run()
-    except EmergencyStopException as e:
-        print("remote control stop detected.")
-        # 直接阻尼模式
-        locomotion_controller.control_agent.stop = True
     except KeyboardInterrupt:
-        print("keyboard interrupt detected.")
-        # 直接阻尼模式
-        locomotion_controller.control_agent.stop = True
+        # This handles Ctrl+C.
+        print("\nKeyboard interrupt detected. Initiating safe shutdown.")
     finally:
-        # finally, return to the nominal pose
-        # TODO: 和teleop一起使用，teleop退出时已经 让G1手臂回0了,这里回脚？
-        print("returning to zero pose..")
-        locomotion_controller.calibrate_robot()
-        print("return done.")
+        # This block executes on ANY exit condition (remote stop or Ctrl+C), ensuring safety.
+        print("Control loop exited. Starting safe shutdown procedure...")
+
+        if locomotion_controller and locomotion_controller.control_agent:
+            # 1. Immediately switch to damping mode.
+            print("Activating damping mode for safety...")
+            locomotion_controller.control_agent.stop = True
+            time.sleep(0.5) # Allow time for damping command to be sent consistently.
+
+            # 2. Return the robot to a neutral standing pose.
+            # We must temporarily disable damping mode to send active position commands.
+            print("Preparing to return robot to neutral pose...")
+            locomotion_controller.control_agent.stop = False
+            locomotion_controller.calibrate_robot(wait=False)
+            print("Robot returned to neutral pose.")
+
+            # 3. Re-enable damping as the final, safe state before exiting.
+            print("Re-activating damping mode as final state.")
+            locomotion_controller.control_agent.stop = True
+            time.sleep(0.2) # Allow final command to be sent.
+
+        print("Shutdown complete.")
 

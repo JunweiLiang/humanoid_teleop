@@ -85,11 +85,6 @@ def get_rotation_matrix_from_rpy(rpy):
 
 
 
-class EmergencyStopException(Exception):
-    """
-    Custom exception raised when an emergency stop event is detected.
-    """
-    pass
 
 class UnitreeRemoteController:
     def __init__(self, height_limit=(1.0, 1.65), height_change_interval=0.5, height_change_step=0.1):
