@@ -709,7 +709,6 @@ if __name__ == "__main__":
         control_g1=not args.no_control,
         sim=args.sim,
         only_calibrate=args.only_calibrate,
-        show_freq=True,
         use_rc=args.use_rc,
         max_freq=args.max_freq)
     try:
