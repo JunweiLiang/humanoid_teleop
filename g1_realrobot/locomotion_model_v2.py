@@ -443,7 +443,7 @@ class G1_Control_Agent():
             self.low_cmd_damp.motor_cmd[joint_id].q = 0.0
             self.low_cmd_damp.motor_cmd[joint_id].dq = 0.0
             self.low_cmd_damp.motor_cmd[joint_id].kp = 0.0
-            self.low_cmd_damp.motor_cmd[joint_id].kd = 0.1
+            self.low_cmd_damp.motor_cmd[joint_id].kd = 2.0
             self.low_cmd_damp.motor_cmd[joint_id].tau = 0.0
 
         self.stop = False  # 用于指示motor_cmd替换成damping
@@ -808,19 +808,12 @@ if __name__ == "__main__":
         print("Control loop exited. Starting safe shutdown procedure...")
 
         if locomotion_controller and locomotion_controller.control_agent:
-            # 1. Immediately switch to damping mode.
+            # Immediately switch to damping mode.
             print("Activating damping mode for safety...")
             locomotion_controller.control_agent.stop = True
-            time.sleep(0.5) # Allow time for damping command to be sent consistently.
+            time.sleep(3.0) # Allow time for damping command to be sent consistently.
 
-            # 2. Use the SAME smooth function to return the robot to a safe pose.
-            locomotion_controller.control_agent.stop = False
-            locomotion_controller.go_to_neutral_pose_smoothly(wait=False) # No R2 wait needed
 
-            # 3. Re-enable damping as the final, safe state before exiting.
-            print("Re-activating damping mode as final state.")
-            locomotion_controller.control_agent.stop = True
-            time.sleep(0.2)
 
         print("Shutdown complete.")
 
