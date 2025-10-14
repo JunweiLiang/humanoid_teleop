@@ -357,22 +357,7 @@ class G1_Control_Agent():
         # 默认手臂就是零位的
         self.arm_buffer.SetData(self._get_default_arm_cmd())
 
-        if self.control_g1:
-            self.lowcmd_buffer = DataBuffer()
-            # create publisher #
-            while not self.update_mode_machine_:
-                logger_mp.info("[G1_29_Control] Waiting to update mode machine...")
-                time.sleep(0.1)
-            logger_mp.info("[G1_29_Control] Done. mode machine set to %s" % self.mode_machine_)
-            self.lowcmd_publisher = ChannelPublisher("rt/lowcmd", LowCmd_)
-            self.lowcmd_publisher.Init()
 
-            # TODO: 这里直接开始200Hz发送底层控制指令，step()函数时更新底层控制指令，可能100Hz
-            # 一开始默认cmd全0， 扭矩也会输出0.
-            # 后面rc有停止指令，应该马上设置cmd motor enable=0
-            self.send_lowcmd_thread = threading.Thread(target=self._send_lowcmd)
-            self.send_lowcmd_thread.daemon = True
-            self.send_lowcmd_thread.start()
         # 默认0力矩命令
         self.low_cmd = unitree_hg_msg_dds__LowCmd_()
         self.low_cmd.mode_pr = 0 # Series Control for Pitch/Roll Joints这是URDF的默认模式
@@ -392,6 +377,24 @@ class G1_Control_Agent():
             self.low_cmd_damp.motor_cmd[joint_id].tau = 0.0
 
         self.stop = False  # 用于指示motor_cmd替换成damping
+
+        if self.control_g1:
+            self.lowcmd_buffer = DataBuffer()
+            # create publisher #
+            while not self.update_mode_machine_:
+                logger_mp.info("[G1_29_Control] Waiting to update mode machine...")
+                time.sleep(0.1)
+            logger_mp.info("[G1_29_Control] Done. mode machine set to %s" % self.mode_machine_)
+            self.lowcmd_publisher = ChannelPublisher("rt/lowcmd", LowCmd_)
+            self.lowcmd_publisher.Init()
+
+            # TODO: 这里直接开始200Hz发送底层控制指令，step()函数时更新底层控制指令，可能100Hz
+            # 一开始默认cmd全0， 扭矩也会输出0.
+            # 后面rc有停止指令，应该马上设置cmd motor enable=0
+            self.send_lowcmd_thread = threading.Thread(target=self._send_lowcmd)
+            self.send_lowcmd_thread.daemon = True
+            self.send_lowcmd_thread.start()
+
 
     def _send_lowcmd(self):
         while True:
