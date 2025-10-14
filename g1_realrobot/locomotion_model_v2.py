@@ -38,6 +38,7 @@ from utils import UnitreeRemoteController
 from utils import DataBuffer, HistoryWrapper
 from utils import get_rotation_matrix_from_rpy
 from utils import G1_29_JointIndex, G1_29_ArmJointIndex
+from utils import SimpleFPSLogger
 # for visualization
 from utils import G1_29_Vis_WholeBody, G1_29_Dex3_JointIndex, G1_29_Inspire_JointIndex
 
@@ -135,8 +136,8 @@ class LocoMotionInference:
         self.control_agent_with_history.reset()
         obs_history = self.calibrate_robot(wait=True)["obs_history"]
 
-        # --- FPS Logging Setup ---
-        fps_log_interval, last_fps_log_time, frames_since_last_log = 10.0, time.time(), 0
+        # --- Main Loop FPS Logging Setup ---
+        main_loop_fps_logger = SimpleFPSLogger(name="MainControlLoop", logger=logger_mp)
 
         while True:
 
@@ -162,18 +163,8 @@ class LocoMotionInference:
             if sleep_time > 0:
                 time.sleep(sleep_time)
 
-            # --- FPS Logging Logic ---
-            frames_since_last_log += 1
-            now = time.time()
-            if now - last_fps_log_time >= fps_log_interval:
-                # Calculate FPS for the just-completed interval
-                avg_fps = frames_since_last_log / (now - last_fps_log_time)
-                logger_mp.info(f"Average loop FPS (last {fps_log_interval:.1f}s): {avg_fps:.2f} Hz")
-
-                # Reset for the next interval
-                last_fps_log_time = now
-                frames_since_last_log = 0
-            # --- End FPS Logging Logic ---
+            # Log FPS for the main control loop
+            main_loop_fps_logger.tick()
 
 
     def _show_current_targets(self, low_cmd):
@@ -224,23 +215,13 @@ class G1_Control_Agent():
         self.REMOTE_CHECK_INTERVAL = 10 # 10 对应 50 Hz
         self._remote_check_counter = 0
 
-        """
-        # This code is crucial to take over low-level control.
-        if self.control_g1:
-            print("Requesting low-level control of the robot...")
-            self.msc = MotionSwitcherClient()
-            self.msc.SetTimeout(5.0)
-            self.msc.Init()
 
-            status, result = self.msc.CheckMode()
-            while result["name"]:
-                print(result["name"])
-                self.msc.ReleaseMode()
-                status, result = self.msc.CheckMode()
-                time.sleep(1)
-            print("Successfully acquired low-level control.")
-        """
         # ================================================================
+
+        # --- FPS Logging Setup for Threads ---
+        self.motor_sub_fps_logger = SimpleFPSLogger(name="MotorSubscribeThread", logger=logger_mp)
+        self.lowcmd_pub_fps_logger = SimpleFPSLogger(name="LowCmdPublishThread", logger=logger_mp)
+
 
         # Homie原本腰部只用一个自由度作为观测
         self.joint_idxs = [0,1,2,3,4,5,6,7,8,9,10,11,12,15,16,17,18,19,20,21,22,23,24,25,26,27,28]
@@ -411,7 +392,6 @@ class G1_Control_Agent():
 
                     for joint in G1_29_JointIndex:
                         joint_id = joint.value
-                        self.low_cmd.motor_cmd[joint_id].mode = 0 # 1:Enable, 0:Disable
                         self.low_cmd.motor_cmd[joint_id].mode = 1 # 1:Enable, 0:Disable
                         self.low_cmd.motor_cmd[joint_id].tau = read_lowcmd.motor_cmd[joint_id].tau
                         self.low_cmd.motor_cmd[joint_id].q = read_lowcmd.motor_cmd[joint_id].q
@@ -423,6 +403,11 @@ class G1_Control_Agent():
                 write_cmd = self.low_cmd
 
             self.lowcmd_publisher.Write(write_cmd)
+
+            # Log FPS for this thread, but only when actively publishing commands
+            if not self.stop:
+                self.lowcmd_pub_fps_logger.tick()
+
             time.sleep(0.002) # 500Hz
 
     def _get_default_arm_cmd(self):
@@ -455,6 +440,9 @@ class G1_Control_Agent():
         while True:
             msg = self.lowstate_subscriber.Read()
             if msg is not None:
+                # Log FPS for this thread
+                self.motor_sub_fps_logger.tick()
+
                 # default low state
                 lowstate = unitree_hg_msg_dds__LowState_()
                 # 确认是否需要copy

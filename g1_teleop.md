@@ -1607,16 +1607,42 @@ exts."isaacsim.asset.browser".folders = [
 
         # 先尝试可视化，不控制G1 可以看到browser中输出的action
 
-            ~/projects/humanoid_teleop$ python g1_realrobot/locomotion_model.py --model_path homie_deploy_official.onnx --urdf  assets/g1/g1_body29_hand14.urdf --no_control --hand_type dex3 --max_freq 100.0
-
                 # print了一下宇树遥控器，摇杆可能都有误差
                     # 左摇杆，上下值 Ly=[0.95, -0.83], 左右值范围Lx=[-1.0, 1.0]
                     # 右摇杆，上下值 Ry=[1.0, -1.0], 左右值范围Rx=[-0.92, 0.94]
                     # 其他按键按下了就是持续是1值
 
-            # 加--only_calibrate 只做calibrate的动作
+                # --no_control --use_rc 看看遥控器控制是否ok, L2+B可以退出程序
 
-                ~/projects/humanoid_teleop$ python g1_realrobot/locomotion_model.py --model_path homie_deploy_official.onnx --urdf  assets/g1/g1_body29_hand14.urdf --only_calibrate --hand_type dex3 --max_freq 50.0
+                 (tv) junweil@precognition-laptop6:~/projects/humanoid_teleop$ python g1_realrobot/locomotion_model_v2.py --model_path homie_deploy_official.onnx --urdf  assets/g1/g1_body29_hand14.urdf --no_control --hand_type dex3 --max_freq 100.0 --use_rc
+                    You can open the visualizer by visiting the following URL:
+                    http://127.0.0.1:7000/static/
+                    loco-motion policy loaded.
+                    changed model machine using lowstate to 5
+                    17:29:59:175031 INFO     [G1_29_State] Subscribe dds ok.           locomotion_model_v2.py:340
+                    press R2 to start calibrate..
+                    starting to calibrate...
+                    calibration done
+                    [Press R2 to start controller]
+                    17:30:20:167440 INFO     Average loop FPS (last 10.0s): 39.06 Hz   locomotion_model_v2.py:171
+                    17:30:30:186638 INFO     Average loop FPS (last 10.0s): 40.62 Hz   locomotion_model_v2.py:171
+                    17:30:32:181404 INFO     Emergency stop (L2+B) detected!           locomotion_model_v2.py:480
+                                             Initiating safe shutdown.
+                    Control loop exited. Starting safe shutdown procedure...
+                    Activating damping mode for safety...
+                    17:30:32:187696 INFO     Stop signal received, exiting main        locomotion_model_v2.py:144
+                                             control loop.
+                    Preparing to return robot to neutral pose...
+                    press R2 to start calibrate..
+                    starting to calibrate...
+                    calibration done
+                    Robot returned to neutral pose.
+                    Re-activating damping mode as final state.
+                    Shutdown complete.
+
+        # 只跑only_calibrate，看看程序退出是否ok
+
+        # 开始测试
 
 ```
 

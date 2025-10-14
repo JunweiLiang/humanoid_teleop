@@ -14,6 +14,7 @@ import pinocchio as pin
 from pinocchio.robot_wrapper import RobotWrapper
 from pinocchio.visualize import MeshcatVisualizer
 import time
+import logging_mp
 
 class HistoryWrapper:
     def __init__(self, env):
@@ -84,7 +85,30 @@ def get_rotation_matrix_from_rpy(rpy):
     return rot
 
 
+class SimpleFPSLogger:
+    """A simple helper class to log frames per second for a given loop."""
+    def __init__(self, name="Thread", log_interval_sec=10.0, logger=None):
+        self.name = name
+        self.log_interval = log_interval_sec
+        self.logger = logger
+        if self.logger is None:
+            # Fallback to a default logger if none is provided
+            self.logger = logging_mp.get_logger(f"FPSLogger_{name}")
+            logging_mp.basic_config(level=logging_mp.INFO)
 
+        self.last_log_time = time.time()
+        self.frames_since_last_log = 0
+
+    def tick(self):
+        """Call this method once per frame/iteration in the loop you want to monitor."""
+        self.frames_since_last_log += 1
+        now = time.time()
+        elapsed = now - self.last_log_time
+        if elapsed >= self.log_interval:
+            avg_fps = self.frames_since_last_log / elapsed
+            self.logger.info(f"[{self.name}] Average FPS (last {elapsed:.1f}s): {avg_fps:.2f} Hz")
+            self.last_log_time = now
+            self.frames_since_last_log = 0
 
 class UnitreeRemoteController:
     def __init__(self, height_limit=(1.0, 1.65), height_change_interval=0.5, height_change_step=0.1):
