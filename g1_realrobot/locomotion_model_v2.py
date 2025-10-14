@@ -133,7 +133,7 @@ class LocoMotionInference:
     def run(self):
         # 这个会循环控制机器人, exception 让外部程序处理
         self.control_agent_with_history.reset()
-        obs_history = self.calibrate_robot()["obs_history"]
+        obs_history = self.calibrate_robot(wait=True)["obs_history"]
 
         # --- FPS Logging Setup ---
         fps_log_interval, last_fps_log_time, frames_since_last_log = 10.0, time.time(), 0
