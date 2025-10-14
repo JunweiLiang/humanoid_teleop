@@ -133,10 +133,80 @@ class LocoMotionInference:
         obs = self.control_agent_with_history.reset()
         return obs
 
+    # UNIFIED FUNCTION: Moves the entire body smoothly to the default pose.
+    # Used for both initial calibration and safe shutdown.
+    def go_to_neutral_pose_smoothly(self, wait=False):
+        """
+        Moves all robot joints from their current position to the default neutral pose
+        in a smooth, interpolated manner.
+        """
+        if wait:
+            print("Press R2 to start moving to neutral pose...")
+            while self.control_agent.remote_control.R2 != 1:
+                time.sleep(0.01)
+
+        print("Starting move to neutral pose...")
+
+        # Step 1: Get current state and final goal for the ENTIRE body
+        self.control_agent_with_history.get_obs()
+        current_pos = np.copy(self.control_agent.joint_pos)
+        final_goal = self.control_agent.default_dof_pos
+        num_dofs = self.control_agent.num_dofs
+
+        # Step 2: Generate a sequence of intermediate targets via interpolation
+        target_sequence = []
+        target = np.copy(current_pos)
+        # Use a small clip value for slow, smooth motion
+        clip_val = 0.02
+        while np.max(np.abs(target - final_goal)) > clip_val:
+            target -= np.clip((target - final_goal), -clip_val, clip_val)
+            target_sequence.append(copy.deepcopy(target))
+        # Ensure the final goal is reached
+        target_sequence.append(final_goal)
+
+        # Step 3: Command the robot through the interpolated trajectory
+        for full_body_target in target_sequence:
+            lowcmd_tmp = unitree_hg_msg_dds__LowCmd_()
+            default_arm_cmd = self.control_agent.arm_buffer.GetData()
+
+            # Iterate through all DOFs and set their target 'q'
+            for i in range(num_dofs):
+                # We map from the 27/29-dof array back to the G1 joint index (0-28)
+                joint_idx = self.control_agent.joint_idxs[i]
+
+                lowcmd_tmp.motor_cmd[joint_idx].mode = 1
+                lowcmd_tmp.motor_cmd[joint_idx].q = full_body_target[i]
+                lowcmd_tmp.motor_cmd[joint_idx].dq = 0.
+
+                # Assign appropriate PD gains for legs vs. arms/waist
+                if i < self.control_agent.num_lower_dofs: # Legs
+                     lowcmd_tmp.motor_cmd[joint_idx].kp = self.control_agent.Kp[joint_idx]
+                     lowcmd_tmp.motor_cmd[joint_idx].kd = self.control_agent.Kd[joint_idx]
+                else: # Arms and Waist (use gains from teleop subscriber)
+                     lowcmd_tmp.motor_cmd[joint_idx].kp = default_arm_cmd.motor_cmd[joint_idx].kp
+                     lowcmd_tmp.motor_cmd[joint_idx].kd = default_arm_cmd.motor_cmd[joint_idx].kd
+
+            if self.control_agent.control_g1:
+                self.control_agent.lowcmd_buffer.SetData(lowcmd_tmp)
+
+            time.sleep(0.02) # Control the speed of the motion (50Hz)
+
+        print("Robot is in neutral pose.")
+
+        if wait:
+            print("[Press R2 to start controller]")
+            while self.control_agent.remote_control.R2 != 1:
+                time.sleep(0.01)
+
+        # Return the first observation for the main loop
+        obs = self.control_agent_with_history.reset()
+        return obs
+
     def run(self):
         # 这个会循环控制机器人, exception 让外部程序处理
         self.control_agent_with_history.reset()
-        obs_history = self.calibrate_robot(wait=True)["obs_history"]
+        #obs_history = self.calibrate_robot(wait=True)["obs_history"]
+        obs_history = self.go_to_neutral_pose_smoothly(wait=True)["obs_history"]
 
         # --- Main Loop FPS Logging Setup ---
         main_loop_fps_logger = SimpleFPSLogger(name="MainControlLoop", logger=logger_mp)
@@ -743,17 +813,14 @@ if __name__ == "__main__":
             locomotion_controller.control_agent.stop = True
             time.sleep(0.5) # Allow time for damping command to be sent consistently.
 
-            # 2. Return the robot to a neutral standing pose.
-            # We must temporarily disable damping mode to send active position commands.
-            print("Preparing to return robot to neutral pose...")
+            # 2. Use the SAME smooth function to return the robot to a safe pose.
             locomotion_controller.control_agent.stop = False
-            locomotion_controller.calibrate_robot(wait=False)
-            print("Robot returned to neutral pose.")
+            locomotion_controller.go_to_neutral_pose_smoothly(wait=False) # No R2 wait needed
 
             # 3. Re-enable damping as the final, safe state before exiting.
             print("Re-activating damping mode as final state.")
             locomotion_controller.control_agent.stop = True
-            time.sleep(0.2) # Allow final command to be sent.
+            time.sleep(0.2)
 
         print("Shutdown complete.")
 
