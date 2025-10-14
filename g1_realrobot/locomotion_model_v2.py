@@ -120,10 +120,12 @@ class LocoMotionInference:
             time.sleep(0.05)
 
         print("calibration done")
-        print("Starting pose calibrated [Press R2 to start controller]")
-        while True:
-            if self.control_agent.remote_control.R2 == 1:
-                break
+
+        if wait:
+            print("[Press R2 to start controller]")
+            while True:
+                if self.control_agent.remote_control.R2 == 1:
+                    break
 
         obs = self.control_agent_with_history.reset()
         return obs
