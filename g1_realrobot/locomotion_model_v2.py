@@ -495,7 +495,7 @@ class G1_Control_Agent():
                             #"height": 1.65
                             "height": height
                         }
-                        print(cmd_json)
+                        #print(cmd_json)
                         self.cmd_buffer.SetData(cmd_json)
 
             time.sleep(0.002)
