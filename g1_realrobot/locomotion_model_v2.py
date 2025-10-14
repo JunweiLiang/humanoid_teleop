@@ -149,9 +149,10 @@ class LocoMotionInference:
 
             start_time = time.time()
 
-            t0 = time.time()
-            actions = self.loco_policy(obs_history)
-            t1 = time.time()
+            # 如果要看ONNX时间对比control step，注释掉t0, t1, t2
+            #t0 = time.time()
+            actions = self.loco_policy(obs_history) # 5090笔记本电脑只需要1ms以内
+            #t1 = time.time()
 
             if not self.only_calibrate:
                 obs, low_cmd_targets = self.control_agent_with_history.step(actions)
@@ -162,11 +163,11 @@ class LocoMotionInference:
                 # visualization can be slower
                 self._show_current_targets(low_cmd_targets)
 
-            t2 = time.time()
+            #t2 = time.time()
 
             # Log timings occasionally
-            if main_loop_fps_logger.frames_since_last_log % 100 == 0: # Print every 100 frames
-                logger_mp.info(f"Timings (ms) -> Inference: {(t1-t0)*1000:.2f}, Step/vis: {(t2-t1)*1000:.2f}")
+            #if main_loop_fps_logger.frames_since_last_log % 200 == 0:
+            #    logger_mp.info(f"Timings (ms) -> Inference: {(t1-t0)*1000:.2f}, Step/vis: {(t2-t1)*1000:.2f}")
 
             # Ensure consistent frame rate
             current_time = time.time()

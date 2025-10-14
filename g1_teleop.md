@@ -1615,32 +1615,24 @@ exts."isaacsim.asset.browser".folders = [
                 # --no_control --use_rc 看看遥控器控制是否ok, L2+B可以退出程序
 
                  (tv) junweil@precognition-laptop6:~/projects/humanoid_teleop$ python g1_realrobot/locomotion_model_v2.py --model_path homie_deploy_official.onnx --urdf  assets/g1/g1_body29_hand14.urdf --no_control --hand_type dex3 --max_freq 100.0 --use_rc
-                    You can open the visualizer by visiting the following URL:
-                    http://127.0.0.1:7000/static/
-                    loco-motion policy loaded.
-                    changed model machine using lowstate to 5
-                    17:29:59:175031 INFO     [G1_29_State] Subscribe dds ok.           locomotion_model_v2.py:340
-                    press R2 to start calibrate..
-                    starting to calibrate...
-                    calibration done
-                    [Press R2 to start controller]
-                    17:30:20:167440 INFO     Average loop FPS (last 10.0s): 39.06 Hz   locomotion_model_v2.py:171
-                    17:30:30:186638 INFO     Average loop FPS (last 10.0s): 40.62 Hz   locomotion_model_v2.py:171
-                    17:30:32:181404 INFO     Emergency stop (L2+B) detected!           locomotion_model_v2.py:480
-                                             Initiating safe shutdown.
-                    Control loop exited. Starting safe shutdown procedure...
-                    Activating damping mode for safety...
-                    17:30:32:187696 INFO     Stop signal received, exiting main        locomotion_model_v2.py:144
-                                             control loop.
-                    Preparing to return robot to neutral pose...
-                    press R2 to start calibrate..
-                    starting to calibrate...
-                    calibration done
-                    Robot returned to neutral pose.
-                    Re-activating damping mode as final state.
-                    Shutdown complete.
+
+                    19:27:05:057229 INFO     [MainControlLoop] (last 10.0s): 74.99 Hz                utils.py:109
+                    19:27:05:097391 INFO     Timings (ms) -> Inference: 0.43,          locomotion_model_v2.py:169
+                                             Step/vis: 39.60
+                    19:27:06:388416 INFO     Timings (ms) -> Inference: 0.42,          locomotion_model_v2.py:169
+                                             Step/vis: 16.92
+                    19:27:07:724357 INFO     Timings (ms) -> Inference: 1.73,          locomotion_model_v2.py:169
+                                             Step/vis: 36.04
+                    19:27:08:903326 INFO     Timings (ms) -> Inference: 0.43,          locomotion_model_v2.py:169
+                                             Step/vis: 23.27
+                    19:27:09:752509 INFO     [MotorSubscribeThread] (last 10.0s): 295.53 Hz          utils.py:109
+                    19:27:10:197115 INFO     Timings (ms) -> Inference: 0.87,          locomotion_model_v2.py:169
+                                             Step/vis: 40.70
+
+                # 5090笔记本， motor_sub可以跑300Hz, 主循环100Hz; GPU用了300MB显存，1% 利用率
 
         # 只跑only_calibrate，看看程序退出是否ok
+
 
         # 开始测试
 
