@@ -1637,8 +1637,9 @@ exts."isaacsim.asset.browser".folders = [
                 # 如果此时断开网线，程序也会自动退出
 
         # 开始测试
-
-            (tv) junweil@precognition-laptop6:~/projects/humanoid_teleop$ python g1_realrobot/locomotion_model_v2.py --model_path homie_deploy_official.onnx --urdf  assets/g1/g1_body29_hand14.urdf --hand_type dex3 --max_freq 100.0 --use_rc
+            # homie本身是50Hz训练推理的，所以这里主循环也要50Hz
+            # 底层的state subscribe和lowcmd send可以比较高
+            (tv) junweil@precognition-laptop6:~/projects/humanoid_teleop$ python g1_realrobot/locomotion_model_v2.py --model_path homie_deploy_official.onnx --urdf  assets/g1/g1_body29_hand14.urdf --hand_type dex3 --max_freq 50.0 --use_rc
                 loco-motion policy loaded.
                 changed model machine using lowstate to 5
                 10:54:03:338758 INFO     [G1_29_State] Waiting to subscribe dds... locomotion_model_v2.py:365

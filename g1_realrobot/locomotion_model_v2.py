@@ -293,7 +293,7 @@ class G1_Control_Agent():
             4, 4, 4, 1, 0.5, 0.5, 0.5   #// arms
         ]
         # 如果频率上不去，腿抖的话，降低Kp，增大Kd
-        """
+
         self.Kp = [
             120, 120, 120, 250, 30, 30,      #// legs
             120, 120, 120, 250, 30, 30,      #// legs
@@ -308,7 +308,7 @@ class G1_Control_Agent():
             4, 4, 4, 1, 0.5, 0.5, 0.5,  #// arms
             4, 4, 4, 1, 0.5, 0.5, 0.5   #// arms
         ]
-        """
+
         # 腿部动作平滑
         self.smoothed_actions = None
         self.smoothing_alpha = 0.9 # TUNE THIS: 0.1=very smooth, 0.9=less smooth
