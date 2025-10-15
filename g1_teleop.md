@@ -1639,6 +1639,8 @@ exts."isaacsim.asset.browser".folders = [
         # 开始测试
             # homie本身是50Hz训练推理的，所以这里主循环也要50Hz
             # 底层的state subscribe和lowcmd send可以比较高
+            # 默认机器人腰部13、14 pitch roll自由度锁住，电机的moter cmd直接enable=0
+
             (tv) junweil@precognition-laptop6:~/projects/humanoid_teleop$ python g1_realrobot/locomotion_model_v2.py --model_path homie_deploy_official.onnx --urdf  assets/g1/g1_body29_hand14.urdf --hand_type dex3 --max_freq 50.0 --use_rc
                 loco-motion policy loaded.
                 changed model machine using lowstate to 5

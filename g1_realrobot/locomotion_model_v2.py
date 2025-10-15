@@ -298,7 +298,7 @@ class G1_Control_Agent():
         self.Kp = [
             120, 120, 120, 250, 30, 30,      #// legs
             120, 120, 120, 250, 30, 30,      #// legs
-            200, 200, 200,                   #// waist
+            300, 300, 300,                   #// waist
             150, 150, 150, 100,  10, 10, 5,  #// arms
             150, 150, 150, 100,  10, 10, 5,  #// arms
         ]
@@ -429,7 +429,7 @@ class G1_Control_Agent():
 
     def _send_lowcmd(self):
         while True:
-            # --- NEW: Watchdog Check ---
+            # --- Watchdog Check for network issues ---
             # This check runs at 500Hz.
             if not self.stop:
                 time_since_last_state = time.time() - self.last_lowstate_receipt_time
@@ -731,7 +731,11 @@ class G1_Control_Agent():
 
         for joint in G1_29_ArmJointIndex: # 12+3 # 手臂加上腰部
             joint_id = joint.value
-            lowcmd_tmp.motor_cmd[joint_id].mode = 1 # 1:Enable, 0:Disable
+            if joint_id in [13, 14]:
+                # 腰部两个自由度锁住
+                lowcmd_tmp.motor_cmd[joint_id].mode = 0 # 1:Enable, 0:Disable
+            else:
+                lowcmd_tmp.motor_cmd[joint_id].mode = 1 # 1:Enable, 0:Disable
             lowcmd_tmp.motor_cmd[joint_id].tau = arm_cmd.motor_cmd[joint_id].tau
             lowcmd_tmp.motor_cmd[joint_id].q = arm_cmd.motor_cmd[joint_id].q
             lowcmd_tmp.motor_cmd[joint_id].dq = arm_cmd.motor_cmd[joint_id].dq
