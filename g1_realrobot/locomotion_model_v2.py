@@ -296,15 +296,15 @@ class G1_Control_Agent():
         # 我们使用下面的就不抖了
 
         self.Kp = [
-            120, 120, 120, 250, 30, 30,      #// legs
-            120, 120, 120, 250, 30, 30,      #// legs
+            120, 120, 120, 250, 40, 40,      #// legs
+            120, 120, 120, 250, 40, 40,      #// legs
             300, 300, 300,                   #// waist
             150, 150, 150, 100,  10, 10, 5,  #// arms
             150, 150, 150, 100,  10, 10, 5,  #// arms
         ]
         self.Kd = [
-            3, 3, 3, 4, 3, 3,     #// legs
-            3, 3, 3, 4, 3, 3,     #// legs
+            3, 3, 3, 4, 2, 2,     #// legs
+            3, 3, 3, 4, 2, 2,     #// legs
             5, 5, 5,              #// waist
             4, 4, 4, 1, 0.5, 0.5, 0.5,  #// arms
             4, 4, 4, 1, 0.5, 0.5, 0.5   #// arms
@@ -313,7 +313,7 @@ class G1_Control_Agent():
 
         # 腿部动作平滑
         self.smoothed_actions = None
-        self.smoothing_alpha = 0.9 # TUNE THIS: 0.1=very smooth, 0.9=less smooth
+        self.smoothing_alpha = 1.0 # TUNE THIS: 0.1=very smooth, 0.9=less smooth
 
         # 如teleop -> robot_arm.py设置
         self.kp_high = 300.0
