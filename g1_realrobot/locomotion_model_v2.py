@@ -84,57 +84,8 @@ class LocoMotionInference:
             return torch.tensor(ort_outs[0], device=self.device)
         return run_inference
 
-    def calibrate_robot(self, wait=False):
-        # 让机器人回到零位
-        self.control_agent_with_history.get_obs()
-        # 当前joint pos
-        num_lower_dofs = self.control_agent_with_history.num_lower_dofs # 12 lower body
-        joint_pos = self.control_agent_with_history.joint_pos[:num_lower_dofs]
-        final_goal = np.array(
-            [-0.1000,  0.0000,  0.0000,  0.3000, -0.2000,  0.0000,
-            -0.1000,  0.0000, 0.0000,  0.3000, -0.2000,  0.0000], dtype=float)
-
-        print("press R2 to start calibrate..")
-        while wait:
-            if self.control_agent.remote_control.R2 == 1:
-                break
-            time.sleep(0.01) # avoid busy loop
-
-        print("starting to calibrate...")
-
-        target = joint_pos
-        cal_action = np.zeros((1, num_lower_dofs))
-        # 获取 一系列 PD动作目标
-        target_sequence = []
-        while np.max(np.abs(target - final_goal)) > 0.01:
-            target -= np.clip((target - final_goal), -0.05, 0.05)
-            target_sequence += [copy.deepcopy(target)]
-
-        for target in target_sequence:
-            next_target = target
-            action_scale = 0.25 # 为啥除action  scale,放大4倍？
-
-            next_target = next_target / action_scale
-            cal_action[:, 0:12] = next_target
-
-            self.control_agent_with_history.step(torch.from_numpy(cal_action))
-            self.control_agent_with_history.get_obs()
-            time.sleep(0.05)
-
-        print("calibration done")
-
-        if wait:
-            print("[Press R2 to start controller]")
-            while True:
-                if self.control_agent.remote_control.R2 == 1:
-                    break
-                time.sleep(0.01) # avoid busy loop
-
-        obs = self.control_agent_with_history.reset()
-        return obs
-
     # UNIFIED FUNCTION: Moves the entire body smoothly to the default pose.
-    # Used for both initial calibration and safe shutdown.
+    # Used for initial calibration
     def go_to_neutral_pose_smoothly(self, wait=False):
         """
         Moves all robot joints from their current position to the default neutral pose
@@ -203,7 +154,7 @@ class LocoMotionInference:
         return obs
 
     def run(self):
-        # 这个会循环控制机器人, exception 让外部程序处理
+        # 这个会循环控制机器人
         self.control_agent_with_history.reset()
         #obs_history = self.calibrate_robot(wait=True)["obs_history"]
         obs_history = self.go_to_neutral_pose_smoothly(wait=True)["obs_history"]
@@ -211,6 +162,7 @@ class LocoMotionInference:
         # --- Main Loop FPS Logging Setup ---
         main_loop_fps_logger = SimpleFPSLogger(name="MainControlLoop", logger=logger_mp)
 
+        print("controller started, L2+B to enter damping mode to exit")
         while True:
 
             if self.control_agent.stop:
@@ -293,7 +245,8 @@ class G1_Control_Agent():
         # command 用json格式
 
         self.cmd_buffer = DataBuffer()
-        self.use_rc = use_rc  # use the unitree remote controller to send xy
+        # 是否使用宇树遥控器的 vxyyaw_height指令
+        self.use_rc = use_rc
         # 遥控器状态和机器人状态同时获取，遥控器应该低频点检查状态
         self.REMOTE_CHECK_INTERVAL = 10 # 10 对应 50 Hz
         self._remote_check_counter = 0
@@ -302,8 +255,10 @@ class G1_Control_Agent():
         # ================================================================
 
         # --- FPS Logging Setup for Threads ---
-        self.motor_sub_fps_logger = SimpleFPSLogger(name="MotorSubscribeThread", logger=logger_mp)
-        self.lowcmd_pub_fps_logger = SimpleFPSLogger(name="LowCmdPublishThread", logger=logger_mp)
+        self.motor_sub_fps_logger = SimpleFPSLogger(
+            name="MotorSubscribeThread", logger=logger_mp)
+        self.lowcmd_pub_fps_logger = SimpleFPSLogger(
+            name="LowCmdPublishThread", logger=logger_mp)
 
 
         # Homie原本腰部只用一个自由度作为观测
@@ -386,6 +341,13 @@ class G1_Control_Agent():
         self.num_history_length = 6
         self.num_envs = 1
 
+        # --- NEW: Watchdog Timer for Network Safety ---
+        # The maximum time in seconds to wait for a new LowState message
+        # before triggering an emergency stop. 200ms is a safe and
+        # conservative value, allowing for minor network jitter.
+        self.STATE_TIMEOUT_S = 0.2
+        self.last_lowstate_receipt_time = time.time()
+        # --- End Watchdog Timer Setup ---
 
         self.lowstate_subscriber = ChannelSubscriber("rt/lowstate", LowState_)
         self.lowstate_subscriber.Init()
@@ -403,7 +365,7 @@ class G1_Control_Agent():
             logger_mp.info("[G1_29_State] Waiting to subscribe dds...")
         logger_mp.info("[G1_29_State] Subscribe dds ok.")
 
-        if not self.use_rc: # 不使用宇树遥控器的话才subscribe
+        if not self.use_rc: # 不使用宇树遥控器的话才subscribe外部的loco_cmd
             self.cmd_subscriber = ChannelSubscriber("rt/loco_cmd", String_)
             self.cmd_subscriber.Init()
 
@@ -458,9 +420,6 @@ class G1_Control_Agent():
             self.lowcmd_publisher = ChannelPublisher("rt/lowcmd", LowCmd_)
             self.lowcmd_publisher.Init()
 
-            # TODO: 这里直接开始200Hz发送底层控制指令，step()函数时更新底层控制指令，可能100Hz
-            # 一开始默认cmd全0， 扭矩也会输出0.
-            # 后面rc有停止指令，应该马上设置cmd motor enable=0
             self.send_lowcmd_thread = threading.Thread(target=self._send_lowcmd)
             self.send_lowcmd_thread.daemon = True
             self.send_lowcmd_thread.start()
@@ -468,6 +427,18 @@ class G1_Control_Agent():
 
     def _send_lowcmd(self):
         while True:
+            # --- NEW: Watchdog Check ---
+            # This check runs at 500Hz.
+            if not self.stop:
+                time_since_last_state = time.time() - self.last_lowstate_receipt_time
+                if time_since_last_state > self.STATE_TIMEOUT_S:
+                    logger_mp.info(
+                        f"STATE TIMEOUT: No LowState message received for {time_since_last_state:.2f}s. "
+                        f"Triggering emergency stop!"
+                    )
+                    self.stop = True
+            # --- End Watchdog Check ---
+
             if self.stop:
                 self.low_cmd_damp.crc = self.crc.Crc(self.low_cmd_damp)
                 write_cmd = self.low_cmd_damp
@@ -526,6 +497,13 @@ class G1_Control_Agent():
         while True:
             msg = self.lowstate_subscriber.Read()
             if msg is not None:
+
+                # --- NEW: Update Watchdog Timestamp ---
+                # Every time we successfully receive a state message, we update the timestamp.
+                # This serves as the "heartbeat" from the robot.
+                self.last_lowstate_receipt_time = time.time()
+                # --- End Timestamp Update ---
+
                 # Log FPS for this thread
                 self.motor_sub_fps_logger.tick()
 
@@ -780,7 +758,7 @@ parser.add_argument("--only_calibrate", action="store_true", help="only run cali
 parser.add_argument("--network_interface", default=None)
 parser.add_argument("--hand_type", default="dex3", help="dex3 or inspire1")
 parser.add_argument("--max_freq", default=200.0, type=float, help="maximum freq")
-parser.add_argument("--use_rc", action="store_true", help="use unitree remote for debugging instead of teleop controller")
+parser.add_argument("--use_rc", action="store_true", help="use unitree remote for loco cmd instead of teleop controller")
 
 if __name__ == "__main__":
     # 测试， 先开了G1 sim或者实机G1, 然后每次模型输出的q可视化到meshcat中
