@@ -1632,9 +1632,35 @@ exts."isaacsim.asset.browser".folders = [
                 # 5090笔记本， motor_sub可以跑300Hz, 主循环100Hz; GPU用了300MB显存，1% 利用率
 
         # 只跑only_calibrate，看看程序退出是否ok
-
+            (tv) junweil@precognition-laptop6:~/projects/humanoid_teleop$ python g1_realrobot/locomotion_model_v2.py --model_path homie_deploy_official.onnx --urdf  assets/g1/g1_body29_hand14.urdf --hand_type dex3 --max_freq 100.0 --use_rc --only_calibrate
+                # L2+B会退出
+                # 如果此时断开网线，程序也会自动退出
 
         # 开始测试
+
+            (tv) junweil@precognition-laptop6:~/projects/humanoid_teleop$ python g1_realrobot/locomotion_model_v2.py --model_path homie_deploy_official.onnx --urdf  assets/g1/g1_body29_hand14.urdf --hand_type dex3 --max_freq 100.0 --use_rc
+                loco-motion policy loaded.
+                changed model machine using lowstate to 5
+                10:54:03:338758 INFO     [G1_29_State] Waiting to subscribe dds... locomotion_model_v2.py:365
+                10:54:03:339057 INFO     [G1_29_State] Subscribe dds ok.           locomotion_model_v2.py:366
+                10:54:03:342688 INFO     [G1_29_Control] Done. mode machine set to locomotion_model_v2.py:419
+                                         5
+                Press R2 to start moving to neutral pose...
+                Starting move to neutral pose...
+                Robot is in neutral pose.
+                [Press R2 to start controller]
+                10:54:13:223264 INFO     [MotorSubscribeThread] (last 10.0s): 316.68 Hz          utils.py:109
+                10:54:13:224893 INFO     [LowCmdPublishThread] (last 10.0s): 322.63 Hz           utils.py:109
+                controller started, L2+B to enter damping mode to exit
+                10:54:23:224362 INFO     [MotorSubscribeThread] (last 10.0s): 307.27 Hz          utils.py:109
+                10:54:23:225831 INFO     [LowCmdPublishThread] (last 10.0s): 364.57 Hz           utils.py:109
+                10:54:24:650272 INFO     Emergency stop (L2+B) detected!           locomotion_model_v2.py:532
+                                         Initiating safe shutdown.
+                Control loop exited. Starting safe shutdown procedure...
+                Activating damping mode for safety...
+                10:54:24:658196 INFO     Stop signal received, exiting main        locomotion_model_v2.py:169
+                                         control loop.
+                Shutdown complete.
 
 ```
 

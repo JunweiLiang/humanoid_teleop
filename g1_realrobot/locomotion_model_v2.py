@@ -160,7 +160,7 @@ class LocoMotionInference:
         obs_history = self.go_to_neutral_pose_smoothly(wait=True)["obs_history"]
 
         # --- Main Loop FPS Logging Setup ---
-        main_loop_fps_logger = SimpleFPSLogger(name="MainControlLoop", logger=logger_mp)
+        main_loop_fps_logger = SimpleFPSLogger(name="MainControlLoop", log_interval_sec=5.0, logger=logger_mp)
 
         print("controller started, L2+B to enter damping mode to exit")
         while True:
@@ -790,8 +790,6 @@ if __name__ == "__main__":
             print("Activating damping mode for safety...")
             locomotion_controller.control_agent.stop = True
             time.sleep(3.0) # Allow time for damping command to be sent consistently.
-
-
 
         print("Shutdown complete.")
 
