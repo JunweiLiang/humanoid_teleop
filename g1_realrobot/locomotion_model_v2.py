@@ -451,7 +451,11 @@ class G1_Control_Agent():
 
                     for joint in G1_29_JointIndex:
                         joint_id = joint.value
-                        self.low_cmd.motor_cmd[joint_id].mode = 1 # 1:Enable, 0:Disable
+                        if joint_id in [13, 14]:
+                            # 腰部两个自由度锁住
+                            self.low_cmd.motor_cmd[joint_id].mode = 0 # 1:Enable, 0:Disable
+                        else:
+                            self.low_cmd.motor_cmd[joint_id].mode = 1 # 1:Enable, 0:Disable
                         self.low_cmd.motor_cmd[joint_id].tau = read_lowcmd.motor_cmd[joint_id].tau
                         self.low_cmd.motor_cmd[joint_id].q = read_lowcmd.motor_cmd[joint_id].q
                         self.low_cmd.motor_cmd[joint_id].dq = read_lowcmd.motor_cmd[joint_id].dq
@@ -731,11 +735,7 @@ class G1_Control_Agent():
 
         for joint in G1_29_ArmJointIndex: # 12+3 # 手臂加上腰部
             joint_id = joint.value
-            if joint_id in [13, 14]:
-                # 腰部两个自由度锁住
-                lowcmd_tmp.motor_cmd[joint_id].mode = 0 # 1:Enable, 0:Disable
-            else:
-                lowcmd_tmp.motor_cmd[joint_id].mode = 1 # 1:Enable, 0:Disable
+
             lowcmd_tmp.motor_cmd[joint_id].tau = arm_cmd.motor_cmd[joint_id].tau
             lowcmd_tmp.motor_cmd[joint_id].q = arm_cmd.motor_cmd[joint_id].q
             lowcmd_tmp.motor_cmd[joint_id].dq = arm_cmd.motor_cmd[joint_id].dq
