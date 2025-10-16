@@ -803,6 +803,7 @@ parser.add_argument("--network_interface", default=None)
 parser.add_argument("--hand_type", default="dex3", help="dex3 or inspire1")
 parser.add_argument("--max_freq", default=200.0, type=float, help="maximum freq")
 parser.add_argument("--use_rc", action="store_true", help="use unitree remote for loco cmd instead of teleop controller")
+parser.add_argument("--rerun_vis", action="store_true", help="rerun vis")
 
 if __name__ == "__main__":
     # 测试， 先开了G1 sim或者实机G1, 然后每次模型输出的q可视化到meshcat中
@@ -818,6 +819,7 @@ if __name__ == "__main__":
         sim=args.sim,
         only_calibrate=args.only_calibrate,
         use_rc=args.use_rc,
+        rerun_vis=args.rerun_vis,
         max_freq=args.max_freq)
     try:
         # This loop will now exit gracefully when the 'stop' flag is set from the remote or Ctrl+C.
