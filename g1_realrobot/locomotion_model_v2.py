@@ -286,7 +286,7 @@ class G1_Control_Agent():
         ]
         # 如果腿抖的话，降低Kp，增大Kd; 上面是原本C++ homie的
         # 我们使用下面的就能改善抖动
-
+        """
         self.Kp = [
             120, 120, 120, 250, 35, 35,      #// legs (stiffer than before, but less than original)
             120, 120, 120, 250, 35, 35,      #// legs
@@ -301,6 +301,7 @@ class G1_Control_Agent():
             4, 4, 4, 1, 0.5, 0.5, 0.5,  #// arms
             4, 4, 4, 1, 0.5, 0.5, 0.5   #// arms
         ]
+        """
 
 
         # 腿部动作平滑
