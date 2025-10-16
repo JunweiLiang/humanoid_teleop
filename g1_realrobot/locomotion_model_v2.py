@@ -172,7 +172,7 @@ class LocoMotionInference:
         obs_history = self.go_to_neutral_pose_smoothly(wait=True)["obs_history"]
 
         # --- Main Loop FPS Logging Setup ---
-        main_loop_fps_logger = SimpleFPSLogger(name="MainControlLoop", log_interval_sec=5.0, logger=logger_mp)
+        main_loop_fps_logger = SimpleFPSLogger(name="MainControlLoop", log_interval_sec=10.0, logger=logger_mp)
 
         print("controller started, L2+B to enter damping mode to exit")
         while True:
@@ -181,7 +181,7 @@ class LocoMotionInference:
                 logger_mp.info("Stop signal received, exiting main control loop.")
                 break
 
-            start_time = time.time()
+            #start_time = time.time()
 
             # 如果要看ONNX时间对比control step，注释掉t0, t1, t2
             #t0 = time.time()
@@ -225,11 +225,13 @@ class LocoMotionInference:
             #    logger_mp.info(f"Timings (ms) -> Inference: {(t1-t0)*1000:.2f}, Step/vis: {(t2-t1)*1000:.2f}")
 
             # Ensure consistent frame rate
+            """
             current_time = time.time()
             time_elapsed = current_time - start_time
             sleep_time = max(0, (1 / self.ctr_max_freq) - time_elapsed)
             if sleep_time > 0:
                 time.sleep(sleep_time)
+            """
 
             # Log FPS for the main control loop
             main_loop_fps_logger.tick()
@@ -342,6 +344,20 @@ class G1_Control_Agent():
             4, 4, 4, 1, 0.5, 0.5, 0.5,  #// arms
             4, 4, 4, 1, 0.5, 0.5, 0.5   #// arms
         ]
+        self.Kp = [
+            120, 120, 120, 250, 35, 35,      #// legs (stiffer than before, but less than original)
+            120, 120, 120, 250, 35, 35,      #// legs
+            300, 300, 300,                   #// waist
+            150, 150, 150, 100,  10, 10, 5,   #// arms
+            150, 150, 150, 100,  10, 10, 5,   #// arms
+        ]
+        self.Kd = [
+            2.5, 2.5, 2.5, 4.0, 2.0, 2.0,    #// legs (slightly increased damping)
+            2.5, 2.5, 2.5, 4.0, 2.0, 2.0,    #// legs
+            5.0, 5.0, 5.0,                   #// waist
+            4.0, 4.0, 4.0, 1.0, 0.5, 0.5, 0.5, #// arms
+            4.0, 4.0, 4.0, 1.0, 0.5, 0.5, 0.5  #// arms
+        ]
 
 
 
@@ -429,7 +445,7 @@ class G1_Control_Agent():
         # 默认0力矩命令
         self.low_cmd = unitree_hg_msg_dds__LowCmd_()
         self.low_cmd.mode_pr = 0 # Series Control for Pitch/Roll Joints这是URDF的默认模式
-        #self.low_cmd.mode_machine = 5 # g1_low_level_example.py中获取到的
+        #self.low_cmd.mode_machine = 5 # g1_low_level_example.py中获取到的; 锁腰后应该是6
         self.low_cmd.mode_machine = self.mode_machine_
         # 阻尼命令
         self.low_cmd_damp = unitree_hg_msg_dds__LowCmd_()
@@ -479,6 +495,7 @@ class G1_Control_Agent():
                 self.low_cmd_damp.crc = self.crc.Crc(self.low_cmd_damp)
                 write_cmd = self.low_cmd_damp
             else:
+                # 从缓存读取lowcmd
                 read_lowcmd = self.lowcmd_buffer.GetData()
 
                 if read_lowcmd is not None:
@@ -626,7 +643,7 @@ class G1_Control_Agent():
 
     def reset(self):
         self.actions = torch.zeros(12)
-
+        self.time = time.time()
         return self.get_obs()
 
     def _get_command(self):
@@ -668,6 +685,7 @@ class G1_Control_Agent():
 
     def _get_robot_states(self):
         lowstate = self.lowstate_buffer.GetData()
+
         #motor_state = lowstate.motor_state[self.joint_idxs]
         motor_state = [lowstate.motor_state[idx] for idx in self.joint_idxs]
 
@@ -760,7 +778,8 @@ class G1_Control_Agent():
         lowcmd_tmp = unitree_hg_msg_dds__LowCmd_()
         # 先设置腿部
         for i in range(12):
-            lowcmd_tmp.motor_cmd[i].mode = 1 # 1:Enable, 0:Disable
+            # lowcmd_tmp只有q/dq/kp/kd/tau被复制出去
+            #lowcmd_tmp.motor_cmd[i].mode = 1 # 1:Enable, 0:Disable
             lowcmd_tmp.motor_cmd[i].tau = self.tauff[i] # 默认都是0
             lowcmd_tmp.motor_cmd[i].q = self.joint_pos_target[i]
             lowcmd_tmp.motor_cmd[i].dq = 0.
@@ -779,6 +798,13 @@ class G1_Control_Agent():
 
         if self.control_g1:
             self.lowcmd_buffer.SetData(lowcmd_tmp)
+
+        current_time = time.time()
+        time_elapsed = current_time - self.start_time
+        sleep_time = max(0, (1 / self.ctr_max_freq) - time_elapsed)
+        if sleep_time > 0:
+            time.sleep(sleep_time)
+        self.start_time = time.time()
 
         # 不发送指令，可以把low_cmd拿去可视化
 
