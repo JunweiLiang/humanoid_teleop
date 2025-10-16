@@ -48,11 +48,11 @@ class RerunLogger:
 
         for i in range(12):
             entity_path = f"{self.prefix}leg_joints/{i}"
-            # Log each signal directly. Rerun infers it's a scalar time series.
-            rr.log(f"{entity_path}/actions_raw", raw_actions[i])
-            rr.log(f"{entity_path}/actions_smoothed", smoothed_actions[i])
-            rr.log(f"{entity_path}/q_target", target_q[i])
-            rr.log(f"{entity_path}/q_actual", actual_q[i])
+            # CORRECTED: Explicitly wrap the numpy scalar in rr.Scalar()
+            rr.log(f"{entity_path}/actions_raw", rr.Scalar(raw_actions[i]))
+            rr.log(f"{entity_path}/actions_smoothed", rr.Scalar(smoothed_actions[i]))
+            rr.log(f"{entity_path}/q_target", rr.Scalar(target_q[i]))
+            rr.log(f"{entity_path}/q_actual", rr.Scalar(actual_q[i]))
 # --- END NEW ---
 
 class HistoryWrapper:
