@@ -29,6 +29,7 @@ from unitree_sdk2py.idl.unitree_hg.msg.dds_ import LowCmd_
 from unitree_sdk2py.idl.unitree_hg.msg.dds_ import LowState_
 from unitree_sdk2py.idl.std_msgs.msg.dds_ import String_
 from unitree_sdk2py.utils.crc import CRC
+from unitree_sdk2py.utils.thread import RecurrentThread
 
 from unitree_sdk2py.comm.motion_switcher.motion_switcher_client import MotionSwitcherClient
 
@@ -352,9 +353,14 @@ class G1_Control_Agent():
         self.mode_machine_ = 0
 
         # initialize subscribe thread
-        self.subscribe_motor_thread = threading.Thread(target=self._subscribe_motor_state)
-        self.subscribe_motor_thread.daemon = True
-        self.subscribe_motor_thread.start()
+        #self.subscribe_motor_thread = threading.Thread(target=self._subscribe_motor_state)
+        #self.subscribe_motor_thread.daemon = True
+        #self.subscribe_motor_thread.start()
+        self.subscribe_motor_thread = RecurrentThread(
+            interval=0.005, target=self._subscribe_motor_state, name="subscribe_motor_state"
+        )
+        self.subscribe_motor_thread.Start()
+
         while not self.lowstate_buffer.GetData():
             time.sleep(0.1)
             logger_mp.info("[G1_29_State] Waiting to subscribe dds...")
@@ -415,60 +421,64 @@ class G1_Control_Agent():
             self.lowcmd_publisher = ChannelPublisher("rt/lowcmd", LowCmd_)
             self.lowcmd_publisher.Init()
 
-            self.send_lowcmd_thread = threading.Thread(target=self._send_lowcmd)
-            self.send_lowcmd_thread.daemon = True
-            self.send_lowcmd_thread.start()
+            #self.send_lowcmd_thread = threading.Thread(target=self._send_lowcmd)
+            #self.send_lowcmd_thread.daemon = True
+            #self.send_lowcmd_thread.start()
+            self.send_lowcmd_thread = RecurrentThread(
+                interval=0.005, target=self._send_lowcmd, name="send_lowcmd"
+            )
+            self.send_lowcmd_thread.Start()
 
 
     def _send_lowcmd(self):
 
 
-        while True:
+        #while True:
 
-            # --- Watchdog Check for network issues ---
-            # This check runs at 500Hz.
-            if not self.stop:
-                time_since_last_state = time.time() - self.last_lowstate_receipt_time
-                if time_since_last_state > self.STATE_TIMEOUT_S:
-                    logger_mp.info(
-                        f"STATE TIMEOUT: No LowState message received for {time_since_last_state:.2f}s. "
-                        f"Triggering emergency stop!"
-                    )
-                    self.stop = True
-            # --- End Watchdog Check ---
+        # --- Watchdog Check for network issues ---
+        # This check runs at 500Hz.
+        if not self.stop:
+            time_since_last_state = time.time() - self.last_lowstate_receipt_time
+            if time_since_last_state > self.STATE_TIMEOUT_S:
+                logger_mp.info(
+                    f"STATE TIMEOUT: No LowState message received for {time_since_last_state:.2f}s. "
+                    f"Triggering emergency stop!"
+                )
+                self.stop = True
+        # --- End Watchdog Check ---
 
-            if self.stop:
-                self.low_cmd_damp.crc = self.crc.Crc(self.low_cmd_damp)
-                write_cmd = self.low_cmd_damp
-            else:
-                # 从缓存读取lowcmd
-                read_lowcmd = self.lowcmd_buffer.GetData()
+        if self.stop:
+            self.low_cmd_damp.crc = self.crc.Crc(self.low_cmd_damp)
+            write_cmd = self.low_cmd_damp
+        else:
+            # 从缓存读取lowcmd
+            read_lowcmd = self.lowcmd_buffer.GetData()
 
-                if read_lowcmd is not None:
+            if read_lowcmd is not None:
 
-                    for joint in G1_29_JointIndex:
-                        joint_id = joint.value
-                        if joint_id in [13, 14]:
-                            # 腰部两个自由度锁住
-                            self.low_cmd.motor_cmd[joint_id].mode = 0 # 1:Enable, 0:Disable
-                        else:
-                            self.low_cmd.motor_cmd[joint_id].mode = 1 # 1:Enable, 0:Disable
-                        self.low_cmd.motor_cmd[joint_id].tau = read_lowcmd.motor_cmd[joint_id].tau
-                        self.low_cmd.motor_cmd[joint_id].q = read_lowcmd.motor_cmd[joint_id].q
-                        self.low_cmd.motor_cmd[joint_id].dq = read_lowcmd.motor_cmd[joint_id].dq
-                        self.low_cmd.motor_cmd[joint_id].kp = read_lowcmd.motor_cmd[joint_id].kp
-                        self.low_cmd.motor_cmd[joint_id].kd = read_lowcmd.motor_cmd[joint_id].kd
+                for joint in G1_29_JointIndex:
+                    joint_id = joint.value
+                    if joint_id in [13, 14]:
+                        # 腰部两个自由度锁住
+                        self.low_cmd.motor_cmd[joint_id].mode = 0 # 1:Enable, 0:Disable
+                    else:
+                        self.low_cmd.motor_cmd[joint_id].mode = 1 # 1:Enable, 0:Disable
+                    self.low_cmd.motor_cmd[joint_id].tau = read_lowcmd.motor_cmd[joint_id].tau
+                    self.low_cmd.motor_cmd[joint_id].q = read_lowcmd.motor_cmd[joint_id].q
+                    self.low_cmd.motor_cmd[joint_id].dq = read_lowcmd.motor_cmd[joint_id].dq
+                    self.low_cmd.motor_cmd[joint_id].kp = read_lowcmd.motor_cmd[joint_id].kp
+                    self.low_cmd.motor_cmd[joint_id].kd = read_lowcmd.motor_cmd[joint_id].kd
 
-                self.low_cmd.crc = self.crc.Crc(self.low_cmd)
-                write_cmd = self.low_cmd
+            self.low_cmd.crc = self.crc.Crc(self.low_cmd)
+            write_cmd = self.low_cmd
 
-            self.lowcmd_publisher.Write(write_cmd)
+        self.lowcmd_publisher.Write(write_cmd)
 
-            # Log FPS for this thread, but only when actively publishing commands
-            if not self.stop:
-                self.lowcmd_pub_fps_logger.tick()
+        # Log FPS for this thread, but only when actively publishing commands
+        if not self.stop:
+            self.lowcmd_pub_fps_logger.tick()
 
-            time.sleep(0.002) # 500Hz
+            #time.sleep(0.002) # 500Hz
             #time.sleep(0.004) # hoping to match 200Hz
 
     def _get_default_arm_cmd(self):
@@ -499,65 +509,65 @@ class G1_Control_Agent():
 
     def _subscribe_motor_state(self):
 
-        while True:
-            msg = self.lowstate_subscriber.Read()
-            if msg is not None:
+        #while True:
+        msg = self.lowstate_subscriber.Read()
+        if msg is not None:
 
-                # --- NEW: Update Watchdog Timestamp ---
-                # Every time we successfully receive a state message, we update the timestamp.
-                # This serves as the "heartbeat" from the robot.
-                self.last_lowstate_receipt_time = time.time()
-                # --- End Timestamp Update ---
+            # --- NEW: Update Watchdog Timestamp ---
+            # Every time we successfully receive a state message, we update the timestamp.
+            # This serves as the "heartbeat" from the robot.
+            self.last_lowstate_receipt_time = time.time()
+            # --- End Timestamp Update ---
 
-                # Log FPS for this thread
-                self.motor_sub_fps_logger.tick()
+            # Log FPS for this thread
+            self.motor_sub_fps_logger.tick()
 
-                # default low state
-                lowstate = unitree_hg_msg_dds__LowState_()
-                # 确认是否需要copy
-                lowstate.motor_state = copy.deepcopy(msg.motor_state) # 0-28 is for G1
-                lowstate.imu_state = copy.deepcopy(msg.imu_state)
-                self.lowstate_buffer.SetData(lowstate)
+            # default low state
+            lowstate = unitree_hg_msg_dds__LowState_()
+            # 确认是否需要copy
+            lowstate.motor_state = copy.deepcopy(msg.motor_state) # 0-28 is for G1
+            lowstate.imu_state = copy.deepcopy(msg.imu_state)
+            self.lowstate_buffer.SetData(lowstate)
 
-                # need this to update the mode_machine
-                # 这个值很重要，不对的话lowcmd就不work
-                if self.update_mode_machine_ is False:
-                    self.mode_machine_ = msg.mode_machine
-                    print("changed model machine using lowstate to %s" % self.mode_machine_)
-                    self.update_mode_machine_ = True
+            # need this to update the mode_machine
+            # 这个值很重要，不对的话lowcmd就不work
+            if self.update_mode_machine_ is False:
+                self.mode_machine_ = msg.mode_machine
+                print("changed model machine using lowstate to %s" % self.mode_machine_)
+                self.update_mode_machine_ = True
 
-                # 获取遥控器状态，多一个保险
-                # Only parse remote and check for E-stop every k steps.
-                if self._remote_check_counter % self.REMOTE_CHECK_INTERVAL == 0:
-                    self.remote_control.parse(msg.wireless_remote)
-                    # 同样L2+B就应该退出程序急停
-                    if self.remote_control.L2 == 1 and self.remote_control.B == 1:
-                        # we set a shared 'stop' flag. The main loop will check this flag and exit.
-                        if not self.stop:
-                            logger_mp.info("Emergency stop (L2+B) detected! Initiating safe shutdown.")
-                            self.stop = True
+            # 获取遥控器状态，多一个保险
+            # Only parse remote and check for E-stop every k steps.
+            if self._remote_check_counter % self.REMOTE_CHECK_INTERVAL == 0:
+                self.remote_control.parse(msg.wireless_remote)
+                # 同样L2+B就应该退出程序急停
+                if self.remote_control.L2 == 1 and self.remote_control.B == 1:
+                    # we set a shared 'stop' flag. The main loop will check this flag and exit.
+                    if not self.stop:
+                        logger_mp.info("Emergency stop (L2+B) detected! Initiating safe shutdown.")
+                        self.stop = True
 
-                    if self.use_rc:
-                        # print了一下宇树遥控器，摇杆可能都有误差
-                        # 左摇杆，上下值 Ly=[0.95, -0.83], 左右值范围Lx=[-1.0, 1.0]
-                        # 右摇杆，上下值 Ry=[1.0, -1.0], 左右值范围Rx=[-0.92, 0.94]
-                        # 其他按键按下了就是持续是1值
-                        v_x = self.remote_control.Ly    # Forward/backward velocity
-                        # 左摇杆，往左，是负的，对应机器人左手，是y轴正方向
-                        v_y = -self.remote_control.Lx    # Sideways/strafing velocity
-                        v_yaw = -self.remote_control.Rx  # Turning/yaw velocity
-                        height = self.remote_control.height
-                        cmd_json = {
-                            "v_x": v_x,
-                            "v_y": v_y,
-                            "v_yaw": v_yaw,
-                            #"height": 1.65
-                            "height": height
-                        }
-                        #print(cmd_json)
-                        self.cmd_buffer.SetData(cmd_json)
+                if self.use_rc:
+                    # print了一下宇树遥控器，摇杆可能都有误差
+                    # 左摇杆，上下值 Ly=[0.95, -0.83], 左右值范围Lx=[-1.0, 1.0]
+                    # 右摇杆，上下值 Ry=[1.0, -1.0], 左右值范围Rx=[-0.92, 0.94]
+                    # 其他按键按下了就是持续是1值
+                    v_x = self.remote_control.Ly    # Forward/backward velocity
+                    # 左摇杆，往左，是负的，对应机器人左手，是y轴正方向
+                    v_y = -self.remote_control.Lx    # Sideways/strafing velocity
+                    v_yaw = -self.remote_control.Rx  # Turning/yaw velocity
+                    height = self.remote_control.height
+                    cmd_json = {
+                        "v_x": v_x,
+                        "v_y": v_y,
+                        "v_yaw": v_yaw,
+                        #"height": 1.65
+                        "height": height
+                    }
+                    #print(cmd_json)
+                    self.cmd_buffer.SetData(cmd_json)
 
-            time.sleep(0.002)
+            #time.sleep(0.002) # 350Hz左右，好像会抖腿
             #time.sleep(0.004) # hoping to match 200Hz
 
 
