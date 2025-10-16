@@ -41,7 +41,7 @@ from utils import G1_29_JointIndex, G1_29_ArmJointIndex
 from utils import SimpleFPSLogger
 # for visualization
 from utils import G1_29_Vis_WholeBody, G1_29_Dex3_JointIndex, G1_29_Inspire_JointIndex
-from utils import RerunLogger
+
 
 class LocoMotionInference:
     def __init__(
@@ -52,7 +52,7 @@ class LocoMotionInference:
             sim=False,
             only_calibrate=False,
             use_rc=False,
-            rerun_vis=False,
+
             max_freq=60.0):
 
         self.device = device
@@ -62,12 +62,6 @@ class LocoMotionInference:
         if not self.control_g1:
             self.g1_visualizer = G1_29_Vis_WholeBody(urdf=urdf, hand_type=hand_type)
             self.hand_type = hand_type
-
-        self.rerun_vis = rerun_vis
-        if self.rerun_vis:
-            # --- RERUN INITIALIZATION ---
-            # Initialize the Rerun SDK and spawn a viewer.
-            self.rerun_logger = RerunLogger()
 
         # 载入locomotion policy model as a function
         self.loco_policy = self._load_loco_policy(model_path)
@@ -163,9 +157,6 @@ class LocoMotionInference:
         return obs
 
     def run(self):
-        if self.rerun_vis:
-            # --- RERUN: Set up a timeline for our steps ---
-            step_counter = 0
 
         # 这个会循环控制机器人
         self.control_agent_with_history.reset()
@@ -182,57 +173,21 @@ class LocoMotionInference:
                 logger_mp.info("Stop signal received, exiting main control loop.")
                 break
 
-            #start_time = time.time()
 
-            # 如果要看ONNX时间对比control step，注释掉t0, t1, t2
-            #t0 = time.time()
             actions = self.loco_policy(obs_history) # 5090笔记本电脑只需要1ms以内
-            #t1 = time.time()
+
 
             if not self.only_calibrate:
+                # time sleep 逻辑在step中，确保obs 是最新的
                 obs, low_cmd_targets = self.control_agent_with_history.step(actions)
 
                 obs_history = obs["obs_history"]
-
-                if self.rerun_vis:
-                    # --- RERUN VISUALIZATION LOGIC ---
-                    # Get the relevant data from the control agent after the step
-                    actions_smoothed_np = self.control_agent.smoothed_actions.flatten()
-                    actions_raw_np = actions.cpu().numpy().flatten()
-                    # The final target q values sent to the robot for the legs
-                    final_q_targets_np = self.control_agent.joint_pos_target[:12]
-                    # The actual measured joint positions for the legs
-                    actual_q_np = self.control_agent.joint_pos[:12]
-                    # Log all data for the current step using our logger instance
-                    self.rerun_logger.log_leg_data(
-                        step_counter,
-                        actions_raw_np,
-                        actions_smoothed_np,
-                        final_q_targets_np,
-                        actual_q_np
-                    )
-                    # --- RERUN: Increment step counter ---
-                    step_counter += 1
 
 
             if not self.control_g1 and main_loop_fps_logger.frames_since_last_log % 10 == 0: # Visualize only every 5th frame
                 # visualization can be slower
                 self._show_current_targets(low_cmd_targets)
 
-            #t2 = time.time()
-
-            # Log timings occasionally
-            #if main_loop_fps_logger.frames_since_last_log % 200 == 0:
-            #    logger_mp.info(f"Timings (ms) -> Inference: {(t1-t0)*1000:.2f}, Step/vis: {(t2-t1)*1000:.2f}")
-
-            # Ensure consistent frame rate
-            """
-            current_time = time.time()
-            time_elapsed = current_time - start_time
-            sleep_time = max(0, (1 / self.ctr_max_freq) - time_elapsed)
-            if sleep_time > 0:
-                time.sleep(sleep_time)
-            """
 
             # Log FPS for the main control loop
             main_loop_fps_logger.tick()
@@ -333,34 +288,21 @@ class G1_Control_Agent():
         # 我们使用下面的就不抖了
         """
         self.Kp = [
-            100, 100, 100, 200, 30, 30,      #// legs
-            100, 100, 100, 200, 30, 30,      #// legs
-            300, 300, 300,                   #// waist
-            150, 150, 150, 100,  10, 10, 5,  #// arms
-            150, 150, 150, 100,  10, 10, 5,  #// arms
-        ]
-        self.Kd = [
-            3, 3, 3, 4, 2, 2,     #// legs
-            3, 3, 3, 4, 2, 2,     #// legs
-            5, 5, 5,              #// waist
-            4, 4, 4, 1, 0.5, 0.5, 0.5,  #// arms
-            4, 4, 4, 1, 0.5, 0.5, 0.5   #// arms
-        ]
-        self.Kp = [
             120, 120, 120, 250, 35, 35,      #// legs (stiffer than before, but less than original)
             120, 120, 120, 250, 35, 35,      #// legs
             300, 300, 300,                   #// waist
-            150, 150, 150, 100,  10, 10, 5,   #// arms
-            150, 150, 150, 100,  10, 10, 5,   #// arms
+            150, 150, 150, 100,  10, 10, 5,  #// arms
+            150, 150, 150, 100,  10, 10, 5,  #// arms
         ]
         self.Kd = [
             2.5, 2.5, 2.5, 4.0, 2.0, 2.0,    #// legs (slightly increased damping)
             2.5, 2.5, 2.5, 4.0, 2.0, 2.0,    #// legs
-            5.0, 5.0, 5.0,                   #// waist
-            4.0, 4.0, 4.0, 1.0, 0.5, 0.5, 0.5, #// arms
-            4.0, 4.0, 4.0, 1.0, 0.5, 0.5, 0.5  #// arms
+            5, 5, 5,              #// waist
+            4, 4, 4, 1, 0.5, 0.5, 0.5,  #// arms
+            4, 4, 4, 1, 0.5, 0.5, 0.5   #// arms
         ]
         """
+
 
 
 
@@ -525,7 +467,8 @@ class G1_Control_Agent():
             if not self.stop:
                 self.lowcmd_pub_fps_logger.tick()
 
-            time.sleep(0.002) # 500Hz
+            #time.sleep(0.002) # 500Hz
+            time.sleep(0.005) # 200Hz
 
     def _get_default_arm_cmd(self):
         # 与teleop的robot_arm.py同样设置，获取零位的手臂+腰的kp kd的默认cmd
@@ -612,7 +555,8 @@ class G1_Control_Agent():
                         #print(cmd_json)
                         self.cmd_buffer.SetData(cmd_json)
 
-            time.sleep(0.002)
+            #time.sleep(0.002)
+            time.sleep(0.005) # 200Hz
 
     def _subscribe_cmd(self):
         while True:
@@ -828,7 +772,6 @@ parser.add_argument("--network_interface", default=None)
 parser.add_argument("--hand_type", default="dex3", help="dex3 or inspire1")
 parser.add_argument("--max_freq", default=200.0, type=float, help="maximum freq")
 parser.add_argument("--use_rc", action="store_true", help="use unitree remote for loco cmd instead of teleop controller")
-parser.add_argument("--rerun_vis", action="store_true", help="rerun vis")
 
 if __name__ == "__main__":
     # 测试， 先开了G1 sim或者实机G1, 然后每次模型输出的q可视化到meshcat中
@@ -844,7 +787,6 @@ if __name__ == "__main__":
         sim=args.sim,
         only_calibrate=args.only_calibrate,
         use_rc=args.use_rc,
-        rerun_vis=args.rerun_vis,
         max_freq=args.max_freq)
     try:
         # This loop will now exit gracefully when the 'stop' flag is set from the remote or Ctrl+C.
