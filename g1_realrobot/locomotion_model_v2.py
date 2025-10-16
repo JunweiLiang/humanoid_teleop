@@ -41,6 +41,7 @@ from utils import G1_29_JointIndex, G1_29_ArmJointIndex
 from utils import SimpleFPSLogger
 # for visualization
 from utils import G1_29_Vis_WholeBody, G1_29_Dex3_JointIndex, G1_29_Inspire_JointIndex
+import rerun as rr
 
 class LocoMotionInference:
     def __init__(
@@ -51,6 +52,7 @@ class LocoMotionInference:
             sim=False,
             only_calibrate=False,
             use_rc=False,
+            rerun_vis=False,
             max_freq=60.0):
 
         self.device = device
@@ -60,6 +62,12 @@ class LocoMotionInference:
         if not self.control_g1:
             self.g1_visualizer = G1_29_Vis_WholeBody(urdf=urdf, hand_type=hand_type)
             self.hand_type = hand_type
+
+        self.rerun_vis = rerun_vis
+        if self.rerun_vis:
+            # --- RERUN INITIALIZATION ---
+            # Initialize the Rerun SDK and spawn a viewer.
+            rr.init("g1_locomotion_debugger", spawn=True)
 
         # 载入locomotion policy model as a function
         self.loco_policy = self._load_loco_policy(model_path)
@@ -154,6 +162,11 @@ class LocoMotionInference:
         return obs
 
     def run(self):
+        if self.rerun_vis:
+            # --- RERUN: Set up a timeline for our steps ---
+            step_counter = 0
+            rr.set_time_sequence("step", step_counter)
+
         # 这个会循环控制机器人
         self.control_agent_with_history.reset()
         #obs_history = self.calibrate_robot(wait=True)["obs_history"]
@@ -180,6 +193,31 @@ class LocoMotionInference:
                 obs, low_cmd_targets = self.control_agent_with_history.step(actions)
 
                 obs_history = obs["obs_history"]
+
+                if self.rerun_vis:
+                    # --- RERUN VISUALIZATION LOGIC ---
+                    # Get the relevant data from the control agent after the step
+                    actions_smoothed_np = self.control_agent.smoothed_actions.flatten()
+                    actions_raw_np = actions.cpu().numpy().flatten()
+                    # The final target q values sent to the robot for the legs
+                    final_q_targets_np = self.control_agent.joint_pos_target[:12]
+                    # The actual measured joint positions for the legs
+                    actual_q_np = self.control_agent.joint_pos[:12]
+                    # Log each of the 12 leg joints as a separate time series
+                    for i in range(12):
+                        # Log raw policy output
+                        rr.log(f"leg_joints/{i}/actions_raw", rr.TimeSeriesScalar(actions_raw_np[i]))
+                        # Log the smoothed action after the filter
+                        rr.log(f"leg_joints/{i}/actions_smoothed", rr.TimeSeriesScalar(actions_smoothed_np[i]))
+                        # Log the final position target sent to the controller
+                        rr.log(f"leg_joints/{i}/q_target", rr.TimeSeriesScalar(final_q_targets_np[i]))
+                        # Log the actual measured position from the robot's state
+                        rr.log(f"leg_joints/{i}/q_actual", rr.TimeSeriesScalar(actual_q_np[i]))
+                    # ------------------------------------
+
+                    # --- RERUN: Increment step counter ---
+                    step_counter += 1
+
 
             if not self.control_g1 and main_loop_fps_logger.frames_since_last_log % 10 == 0: # Visualize only every 5th frame
                 # visualization can be slower
