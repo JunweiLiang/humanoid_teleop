@@ -303,9 +303,6 @@ class G1_Control_Agent():
         ]
         """
 
-
-
-
         # 腿部动作平滑
         self.smoothed_actions = None
         self.smoothing_alpha = 1.0 # TUNE THIS: 0.1=very smooth, 0.9=less smooth
@@ -424,12 +421,9 @@ class G1_Control_Agent():
 
     def _send_lowcmd(self):
 
-        # --- UPDATED: More robust timing logic for 200Hz ---
-        TARGET_HZ = 200.0
-        TARGET_PERIOD = 1.0 / TARGET_HZ
 
         while True:
-            start_time = time.time()
+
             # --- Watchdog Check for network issues ---
             # This check runs at 500Hz.
             if not self.stop:
@@ -474,15 +468,7 @@ class G1_Control_Agent():
                 self.lowcmd_pub_fps_logger.tick()
 
             #time.sleep(0.002) # 500Hz
-            #time.sleep(0.005) # 200Hz
-            # --- UPDATED: Dynamic sleep to maintain 200Hz rate ---
-            # Calculate the time elapsed during the loop's execution
-            elapsed_time = time.time() - start_time
-            # Calculate the required sleep time to meet the target period
-            sleep_time = TARGET_PERIOD - elapsed_time
-            # If the loop took longer than the target period, don't sleep
-            if sleep_time > 0:
-                time.sleep(sleep_time)
+            time.sleep(0.004) # hoping to match 200Hz
 
     def _get_default_arm_cmd(self):
         # 与teleop的robot_arm.py同样设置，获取零位的手臂+腰的kp kd的默认cmd
@@ -511,11 +497,8 @@ class G1_Control_Agent():
         return motor_index in wrist_motors
 
     def _subscribe_motor_state(self):
-        # --- UPDATED: More robust timing logic for 200Hz ---
-        TARGET_HZ = 200.0
-        TARGET_PERIOD = 1.0 / TARGET_HZ
+
         while True:
-            start_time = time.time()
             msg = self.lowstate_subscriber.Read()
             if msg is not None:
 
@@ -574,15 +557,8 @@ class G1_Control_Agent():
                         self.cmd_buffer.SetData(cmd_json)
 
             #time.sleep(0.002)
-            #time.sleep(0.005) # 200Hz
-            # --- UPDATED: Dynamic sleep to maintain 200Hz rate ---
-            # Calculate the time elapsed during the loop's execution
-            elapsed_time = time.time() - start_time
-            # Calculate the required sleep time to meet the target period
-            sleep_time = TARGET_PERIOD - elapsed_time
-            # If the loop took longer than the target period, don't sleep
-            if sleep_time > 0:
-                time.sleep(sleep_time)
+            time.sleep(0.004) # hoping to match 200Hz
+
 
     def _subscribe_cmd(self):
         while True:
