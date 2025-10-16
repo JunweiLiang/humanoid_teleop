@@ -468,8 +468,8 @@ class G1_Control_Agent():
             if not self.stop:
                 self.lowcmd_pub_fps_logger.tick()
 
-            #time.sleep(0.002) # 500Hz
-            time.sleep(0.004) # hoping to match 200Hz
+            time.sleep(0.002) # 500Hz
+            #time.sleep(0.004) # hoping to match 200Hz
 
     def _get_default_arm_cmd(self):
         # 与teleop的robot_arm.py同样设置，获取零位的手臂+腰的kp kd的默认cmd
@@ -557,8 +557,8 @@ class G1_Control_Agent():
                         #print(cmd_json)
                         self.cmd_buffer.SetData(cmd_json)
 
-            #time.sleep(0.002)
-            time.sleep(0.004) # hoping to match 200Hz
+            time.sleep(0.002)
+            #time.sleep(0.004) # hoping to match 200Hz
 
 
     def _subscribe_cmd(self):
