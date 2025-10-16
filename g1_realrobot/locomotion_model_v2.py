@@ -285,8 +285,8 @@ class G1_Control_Agent():
             4, 4, 4, 1, 0.5, 0.5, 0.5   #// arms
         ]
         # 如果腿抖的话，降低Kp，增大Kd; 上面是原本C++ homie的
-        # 我们使用下面的就不抖了
-        """
+        # 我们使用下面的就能改善抖动
+
         self.Kp = [
             120, 120, 120, 250, 35, 35,      #// legs (stiffer than before, but less than original)
             120, 120, 120, 250, 35, 35,      #// legs
@@ -295,17 +295,17 @@ class G1_Control_Agent():
             150, 150, 150, 100,  10, 10, 5,  #// arms
         ]
         self.Kd = [
-            2.5, 2.5, 2.5, 4.0, 2.0, 2.0,    #// legs (slightly increased damping)
-            2.5, 2.5, 2.5, 4.0, 2.0, 2.0,    #// legs
+            2.5, 2.5, 2.5, 4.0, 2.5, 2.5,    #// legs (slightly increased damping)
+            2.5, 2.5, 2.5, 4.0, 2.5, 2.5,    #// legs
             5, 5, 5,              #// waist
             4, 4, 4, 1, 0.5, 0.5, 0.5,  #// arms
             4, 4, 4, 1, 0.5, 0.5, 0.5   #// arms
         ]
-        """
+
 
         # 腿部动作平滑
         self.smoothed_actions = None
-        self.smoothing_alpha = 1.0 # TUNE THIS: 0.1=very smooth, 0.9=less smooth
+        self.smoothing_alpha = 0.9 # TUNE THIS: 0.1=very smooth, 0.9=less smooth
 
         # 如teleop -> robot_arm.py设置
         self.kp_high = 300.0
@@ -757,7 +757,7 @@ class G1_Control_Agent():
 
         # 不发送指令，可以把low_cmd拿去可视化
 
-        obs = self.get_obs()
+        obs = self.get_obs() # 下一次循环的观测
         return obs, lowcmd_tmp
 
 
