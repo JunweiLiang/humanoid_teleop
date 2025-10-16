@@ -287,7 +287,7 @@ class G1_Control_Agent():
         ]
         # 如果腿抖的话，降低Kp，增大Kd; 上面是原本C++ homie的
         # 我们使用下面的就能改善抖动
-        """
+
         self.Kp = [
             120, 120, 120, 250, 35, 35,      #// legs (stiffer than before, but less than original)
             120, 120, 120, 250, 35, 35,      #// legs
@@ -302,7 +302,7 @@ class G1_Control_Agent():
             4, 4, 4, 1, 0.5, 0.5, 0.5,  #// arms
             4, 4, 4, 1, 0.5, 0.5, 0.5   #// arms
         ]
-        """
+
 
 
         # 腿部动作平滑
@@ -617,9 +617,9 @@ class G1_Control_Agent():
 
             #cmd_json = json.loads(cmd_string)
             # 给定的cmd指令应该都是-1.0+1.0之间
-            v_x = float(cmd_json["v_x"]) * 0.6
-            v_y = float(cmd_json["v_y"]) * 0.5
-            v_yaw = float(cmd_json["v_yaw"]) * 1.0
+            v_x = float(cmd_json["v_x"]) * 0.4
+            v_y = float(cmd_json["v_y"]) * 0.4
+            v_yaw = float(cmd_json["v_yaw"]) * 1.1
 
             if v_x>0:
                 v_x=(max(np.abs(v_x)-speed_filter,0))
