@@ -644,7 +644,7 @@ class G1_Control_Agent():
 
     def reset(self):
         self.actions = torch.zeros(12)
-        self.time = time.time()
+        self.start_time = time.time()
         return self.get_obs()
 
     def _get_command(self):
