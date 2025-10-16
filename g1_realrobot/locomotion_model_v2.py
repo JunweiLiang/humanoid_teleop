@@ -78,6 +78,7 @@ class LocoMotionInference:
         self.control_agent = G1_Control_Agent(
             network_interface, use_waist3=use_waist3,
             use_rc=use_rc,
+            ctr_max_freq=max_freq,
             device=device, control_g1=control_g1, sim=self.sim)
         # add obs
         self.control_agent_with_history = HistoryWrapper(self.control_agent)
@@ -261,8 +262,9 @@ class G1_Control_Agent():
     def __init__(self,
             network_interface, use_waist3=False, sim=False,
             device="cuda:0", control_g1=True,
+            ctr_max_freq=50.0,
             use_rc=False):
-
+        self.ctr_max_freq = ctr_max_freq
         self.device = device
         self.control_g1 = control_g1
         self.sim = sim
