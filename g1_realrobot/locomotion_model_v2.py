@@ -41,7 +41,7 @@ from utils import G1_29_JointIndex, G1_29_ArmJointIndex
 from utils import SimpleFPSLogger
 # for visualization
 from utils import G1_29_Vis_WholeBody, G1_29_Dex3_JointIndex, G1_29_Inspire_JointIndex
-import rerun as rr
+from utils import RerunLogger
 
 class LocoMotionInference:
     def __init__(
@@ -67,7 +67,7 @@ class LocoMotionInference:
         if self.rerun_vis:
             # --- RERUN INITIALIZATION ---
             # Initialize the Rerun SDK and spawn a viewer.
-            rr.init("g1_locomotion_debugger", spawn=True)
+            self.rerun_logger = RerunLogger()
 
         # 载入locomotion policy model as a function
         self.loco_policy = self._load_loco_policy(model_path)
@@ -165,7 +165,6 @@ class LocoMotionInference:
         if self.rerun_vis:
             # --- RERUN: Set up a timeline for our steps ---
             step_counter = 0
-            rr.set_time_sequence("step", step_counter)
 
         # 这个会循环控制机器人
         self.control_agent_with_history.reset()
@@ -203,18 +202,14 @@ class LocoMotionInference:
                     final_q_targets_np = self.control_agent.joint_pos_target[:12]
                     # The actual measured joint positions for the legs
                     actual_q_np = self.control_agent.joint_pos[:12]
-                    # Log each of the 12 leg joints as a separate time series
-                    for i in range(12):
-                        # Log raw policy output
-                        rr.log(f"leg_joints/{i}/actions_raw", rr.TimeSeriesScalar(actions_raw_np[i]))
-                        # Log the smoothed action after the filter
-                        rr.log(f"leg_joints/{i}/actions_smoothed", rr.TimeSeriesScalar(actions_smoothed_np[i]))
-                        # Log the final position target sent to the controller
-                        rr.log(f"leg_joints/{i}/q_target", rr.TimeSeriesScalar(final_q_targets_np[i]))
-                        # Log the actual measured position from the robot's state
-                        rr.log(f"leg_joints/{i}/q_actual", rr.TimeSeriesScalar(actual_q_np[i]))
-                    # ------------------------------------
-
+                    # Log all data for the current step using our logger instance
+                    self.rerun_logger.log_leg_data(
+                        step_counter,
+                        actions_raw_np,
+                        actions_smoothed_np,
+                        final_q_targets_np,
+                        actual_q_np
+                    )
                     # --- RERUN: Increment step counter ---
                     step_counter += 1
 

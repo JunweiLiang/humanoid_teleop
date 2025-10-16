@@ -16,6 +16,45 @@ from pinocchio.visualize import MeshcatVisualizer
 import time
 import logging_mp
 
+
+from datetime import datetime
+import rerun as rr
+import rerun.blueprint as rrb
+
+# --- NEW: Refactored RerunLogger Class ---
+class RerunLogger:
+    """A dedicated logger for visualizing G1 leg control signals."""
+    def __init__(self, prefix="g1_control/"):
+        self.prefix = prefix
+        # Initialize Rerun with a unique recording ID and spawn a viewer.
+        rr.init(f"locomotion_debug_{datetime.now().strftime('%H%M%S')}", spawn=True)
+        self.setup_blueprint()
+
+    def setup_blueprint(self):
+        """Creates a focused Rerun blueprint for our debugging task."""
+        blueprint = rrb.Blueprint(
+            rrb.TimeSeriesView(
+                origin=f"{self.prefix}leg_joints",
+                name="Leg Joint Analysis",
+            ),
+            rrb.SelectionPanel(state=rrb.PanelState.Collapsed),
+            rrb.TimePanel(state=rrb.PanelState.Collapsed)
+        )
+        rr.send_blueprint(blueprint)
+
+    def log_leg_data(self, step, raw_actions, smoothed_actions, target_q, actual_q):
+        """Logs the 4 key signals for the 12 leg joints."""
+        rr.set_time_sequence("step", step)
+
+        for i in range(12):
+            entity_path = f"{self.prefix}leg_joints/{i}"
+            # Log each signal directly. Rerun infers it's a scalar time series.
+            rr.log(f"{entity_path}/actions_raw", raw_actions[i])
+            rr.log(f"{entity_path}/actions_smoothed", smoothed_actions[i])
+            rr.log(f"{entity_path}/q_target", target_q[i])
+            rr.log(f"{entity_path}/q_actual", actual_q[i])
+# --- END NEW ---
+
 class HistoryWrapper:
     def __init__(self, env):
         self.env = env
