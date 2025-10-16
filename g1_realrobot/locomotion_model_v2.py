@@ -346,7 +346,7 @@ class G1_Control_Agent():
 
         # 腿部动作平滑
         self.smoothed_actions = None
-        self.smoothing_alpha = 0.5 # TUNE THIS: 0.1=very smooth, 0.9=less smooth
+        self.smoothing_alpha = 1.0 # TUNE THIS: 0.1=very smooth, 0.9=less smooth
 
         # 如teleop -> robot_arm.py设置
         self.kp_high = 300.0
