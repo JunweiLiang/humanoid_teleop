@@ -621,9 +621,9 @@ class G1_Control_Agent():
 
             #cmd_json = json.loads(cmd_string)
             # 给定的cmd指令应该都是-1.0+1.0之间
-            v_x = float(cmd_json["v_x"]) * 0.4
+            v_x = float(cmd_json["v_x"]) * 0.35
             v_y = float(cmd_json["v_y"]) * 0.25
-            v_yaw = float(cmd_json["v_yaw"]) * 0.7
+            v_yaw = float(cmd_json["v_yaw"]) * 0.8 # homie原版，0.7就转不动了
 
             if v_x>0:
                 v_x=(max(np.abs(v_x)-speed_filter,0))
