@@ -1642,7 +1642,7 @@ exts."isaacsim.asset.browser".folders = [
 
             # G1开机自检完成后， L2+B进入阻尼，然后L2 + R2进入调试模式，灯应该会边
             # 然后把g1的手放到前面，L2 + A会进入关节0位，然后再L2+B再次进入阻尼模式
-            # 开始程序后，R2零位，此时脚要触地，再R2开始底层控制
+            # 开始程序后，R2零位，此时脚要触地多一点，再R2开始底层控制
 
             # 尽量让cmd小
             (tv) junweil@precognition-laptop6:~/projects/humanoid_teleop$ python g1_realrobot/locomotion_model.py --model_path homie_deploy_official.onnx --urdf  assets/g1/g1_body29_hand14.urdf --hand_type dex3 --max_freq 50.0 --use_rc

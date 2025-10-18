@@ -304,13 +304,6 @@ class G1_Control_Agent():
             4, 4, 4, 1, 0.5, 0.5, 0.5,  #// arms
             4, 4, 4, 1, 0.5, 0.5, 0.5   #// arms
         ]
-        self.Kd = [
-            2, 2, 2, 4, 2, 2,     #// legs
-            2, 2, 2, 4, 2, 2,     #// legs
-            5, 5, 5,              #// waist
-            4, 4, 4, 1, 0.5, 0.5, 0.5,  #// arms
-            4, 4, 4, 1, 0.5, 0.5, 0.5   #// arms
-        ]
 
 
         # 腿部动作平滑
@@ -628,9 +621,9 @@ class G1_Control_Agent():
 
             #cmd_json = json.loads(cmd_string)
             # 给定的cmd指令应该都是-1.0+1.0之间
-            v_x = float(cmd_json["v_x"]) * 0.3
-            v_y = float(cmd_json["v_y"]) * 0.3
-            v_yaw = float(cmd_json["v_yaw"]) * 0.8
+            v_x = float(cmd_json["v_x"]) * 0.4
+            v_y = float(cmd_json["v_y"]) * 0.25
+            v_yaw = float(cmd_json["v_yaw"]) * 0.7
 
             if v_x>0:
                 v_x=(max(np.abs(v_x)-speed_filter,0))
