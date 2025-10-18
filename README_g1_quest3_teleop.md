@@ -400,7 +400,7 @@
         # 1. 使用3号机，开image server
             unitree@ubuntu:~/projects/image_server$ python3.8 image_server_timesync.py --rs 337122070060
 
-        # 2. 确保机器已经进入主运控，开启遥操作; 用5090笔记本(CPU: Ultra 9 275HX), 主循环能保持58Hz~，每次ik耗时~3ms
+        # 2. 确保机器已经进入主运控，开启遥操作; 用5090笔记本(CPU: Ultra 9 275HX), 主循环能保持58Hz~，每次ik耗时3~8ms
 
             (tv) junweil@precognition-laptop6:~/projects/xr_teleoperate/teleop$ python teleop_hand_and_arm.py --xr-mode=controller  --arm=G1_29 --ee=dex3 --record --network_interface enp131s0 --motion --use_waist --task_name move_and_open_pot --task_dir ../data/move_and_open_pot
 
