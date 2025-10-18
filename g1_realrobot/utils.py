@@ -246,7 +246,7 @@ class LoopLogger:
             self._block_stats.clear()
 
 class UnitreeRemoteController:
-    def __init__(self, height_limit=(1.0, 1.65), height_change_interval=0.5, height_change_step=0.1):
+    def __init__(self, height_limit=(1.0, 1.65), height_change_interval=0.5, height_change_step=0.05):
         # key
         self.Lx = 0
         self.Rx = 0

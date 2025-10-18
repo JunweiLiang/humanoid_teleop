@@ -236,7 +236,7 @@ class G1_Control_Agent():
 
         #height_cmd = 1.65 # 宇树遥控器上下按键可以改变这个
         self.remote_control = UnitreeRemoteController(
-            height_limit=(1.0, 1.65))
+            height_limit=(1.1, 1.65))
         # command 用json格式
 
         self.cmd_buffer = DataBuffer()
@@ -621,7 +621,7 @@ class G1_Control_Agent():
 
             #cmd_json = json.loads(cmd_string)
             # 给定的cmd指令应该都是-1.0+1.0之间
-            v_x = float(cmd_json["v_x"]) * 0.35
+            v_x = float(cmd_json["v_x"]) * 0.35 # 后退会慢慢碎步走
             v_y = float(cmd_json["v_y"]) * 0.25
             v_yaw = float(cmd_json["v_yaw"]) * 0.8 # homie原版，0.7就转不动了
 
@@ -640,7 +640,7 @@ class G1_Control_Agent():
 
             height = float(cmd_json["height"])
             # height必须 1.65~0.74之间,下面就会得到0.74 ~ 0.08
-            height = max(1.0, min(height, 1.65))
+            height = max(1.1, min(height, 1.65)) # 1.1零位手肘应该差不多碰到大腿了
             height = 0.74 - 0.54 * (1.65-min(height, 1.65))*1.0/(1.65-0.91)
             # TODO: 加 filter/ value check
             cmd = np.array([v_x, v_y, v_yaw, height])
