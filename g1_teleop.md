@@ -1679,21 +1679,15 @@ exts."isaacsim.asset.browser".folders = [
                     Name                          :     Intel RealSense D435I
                     Serial Number                 :     242222070727
 
-        # 1. 开启unitree image server
+        # 1.1 开启unitree image server
 
 
             # 1号机 PC2坏了，要直接连realsense, 在lt6上开server,注意要换realsense serial ID
 
                 (tv) junweil@precognition-laptop6:~/projects/xr_teleoperate/teleop/image_server$ python image_server_timesync.py --rs 242222070727
 
-            # 3号机
-                unitree@ubuntu:~/projects/image_server$ python3.8 image_server_timesync.py --rs 337122070060
-
-        # 2. 开启遥操作
-
-            # 加入了时间记录
-            # 用1号机debug
-                (tv) junweil@precognition-laptop6:~/projects/xr_teleoperate/teleop$ python teleop_hand_and_arm.py --xr-mode=controller  --arm=G1_29 --ee=dex3 --record --network_interface enp131s0 --motion --use_waist --task_name open_washer_door --task_dir ../data/open_washer_door --no_hand --image_server_ip 127.0.0.1
+        # 1.2 测试
+            (tv) junweil@precognition-laptop6:~/projects/xr_teleoperate/teleop$ python teleop_hand_and_arm.py --xr-mode=controller  --arm=G1_29 --ee=dex3 --record --network_interface enp131s0 --motion --use_waist --task_name open_washer_door --task_dir ../data/open_washer_door --no_hand --image_server_ip 127.0.0.1
 
                      13:02:30:104715 INFO     Average Frame Latency (last 500      image_client_timesync.py:209
                          frames): 0.47 ms
@@ -1705,20 +1699,26 @@ exts."isaacsim.asset.browser".folders = [
                         13:02:58:248622 INFO       └─ [ctr_arm] Avg: 0.00 ms (593 calls)        helper_utils.py:83
                         13:02:58:248637 INFO       └─ [record] Avg: 0.00 ms (593 calls)         helper_utils.py:83
 
-            # 用3号机采集数据
-
-                (tv) junweil@precognition-laptop6:~/projects/xr_teleoperate/teleop$ python teleop_hand_and_arm.py --xr-mode=controller  --arm=G1_29 --ee=dex3 --record --network_interface enp131s0 --motion --use_waist --task_name open_washer_door --task_dir ../data/open_washer_door
 
 
-            # 数据存储到 ../data/open_washer_door/episode_0001
-                # 包含各个关节状态、action数据，RGB数据，以及trigger 的原始value
+    # 2. 遥操作收集整身数据 [move_and_open_pot/]基于宇树主运控
+
+        # 3号机
+            unitree@ubuntu:~/projects/image_server$ python3.8 image_server_timesync.py --rs 337122070060
+
+        # 用3号机采集数据
+
+            (tv) junweil@precognition-laptop6:~/projects/xr_teleoperate/teleop$ python teleop_hand_and_arm.py --xr-mode=controller  --arm=G1_29 --ee=dex3 --record --network_interface enp131s0 --motion --use_waist --task_name move_and_open_pot/ --task_dir ../data/move_and_open_pot/
+
+
+        # 数据存储到 ../data/move_and_open_pot/episode_0001
+            # 包含各个关节状态、action数据，RGB数据，以及trigger 的原始value
 
 
 
-        # 3. 仿真replay确认数据质量, 可以查看单双目RGB、收集的states/actions、trigger value
-            # 注意，trigger value为1.，手不一定完全合上，尤其是抓住东西的时候
+        # 仿真replay
 
-            (tv) junweil@office-precognition:~/projects/humanoid_teleop$ python g1_realrobot/visualize_arm_episodes.py ~/Downloads/data/can_sorting/episode_0001/data.json assets/g1/g1_body29_hand14.urdf --fps 60 --image_path /home/junweil/Downloads/data/can_sorting/episode_0001/colors/ --use_waist --hand_type dex3
+        (tv) junweil@office-precognition:~/projects/humanoid_teleop$ python g1_realrobot/visualize_arm_episodes.py ~/Downloads/data/can_sorting/episode_0001/data.json assets/g1/g1_body29_hand14.urdf --fps 60 --image_path /home/junweil/Downloads/data/can_sorting/episode_0001/colors/ --use_waist --hand_type dex3
 ```
 
 

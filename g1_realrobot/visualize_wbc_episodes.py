@@ -600,7 +600,8 @@ if __name__ == "__main__":
 
                     # show the trigger value if any
                     if "loco_cmd" in episode["data"][current_step]["actions"]:
-                        loco_cmd_text = "Loco cmd: %s" % episode["data"][current_step]["actions"]["loco_cmd"]
+                        v_x, v_y, v_yaw, height = episode["data"][current_step]["actions"]["loco_cmd"]
+                        loco_cmd_text = "Loco cmd: [%.3f, %.3f, %.3f, %.3f]" % (v_x, v_y, v_yaw, height)
                         cv2.putText(
                             image,
                             loco_cmd_text,
