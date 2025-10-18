@@ -149,6 +149,102 @@ class SimpleFPSLogger:
             self.last_log_time = now
             self.frames_since_last_log = 0
 
+import time
+import logging
+from collections import defaultdict
+
+class LoopLogger:
+    """
+    A helper class to log loop FPS and the execution time of
+    named code blocks within that loop.
+
+    Usage:
+
+    logger = LoopLogger(name="MyLoop")
+    while True:
+        # --- Overall loop tracking ---
+        logger.tick()
+
+        # --- Timed block 1 ---
+        logger.start("IK_Calc")
+        # ... code for IK ...
+        logger.end("IK_Calc")
+
+        # --- Timed block 2 ---
+        logger.start("StateUpdate")
+        # ... code for state update ...
+        logger.end("StateUpdate")
+    """
+    def __init__(self, name="Thread", log_interval_sec=10.0, logger=None):
+        self.name = name
+        self.log_interval = log_interval_sec
+        self.logger = logger
+        if self.logger is None:
+            # Fallback to a default logger
+            self.logger = logging.getLogger(f"LoopLogger_{name}")
+            if not self.logger.hasHandlers():
+                logging.basicConfig(level=logging.INFO)
+
+        # For overall FPS logging
+        self.last_log_time = time.time()
+        self.frames_since_last_log = 0
+
+        # For named block timing
+        self._block_start_times = {}
+        self._block_stats = defaultdict(lambda: {'total_time': 0.0, 'count': 0})
+
+    def start(self, block_name: str):
+        """Start timing a named code block."""
+        self._block_start_times[block_name] = time.time()
+
+    def end(self, block_name: str):
+        """End timing a named code block and record its duration."""
+        start_time = self._block_start_times.pop(block_name, None)
+
+        if start_time is None:
+            self.logger.warning(f"[{self.name}] Called end('{block_name}') without a matching start()")
+            return
+
+        duration = time.time() - start_time
+        self._block_stats[block_name]['total_time'] += duration
+        self._block_stats[block_name]['count'] += 1
+
+    def tick(self):
+        """
+        Call this method once per frame/iteration in the loop.
+        It handles both overall FPS logging and named block logging.
+        """
+        self.frames_since_last_log += 1
+        now = time.time()
+        elapsed = now - self.last_log_time
+
+        # Check if it's time to log
+        if elapsed >= self.log_interval:
+
+            # --- 1. Log Overall FPS ---
+            avg_fps = self.frames_since_last_log / elapsed
+            self.logger.info(f"[{self.name}] (last {elapsed:.1f}s): {avg_fps:.2f} Hz")
+
+            # --- 2. Log Named Blocks ---
+            for name, stats in self._block_stats.items():
+                if stats['count'] > 0:
+                    avg_time_ms = (stats['total_time'] / stats['count']) * 1000.0
+                    self.logger.info(
+                        f"  └─ [{name}] Avg: {avg_time_ms:.2f} ms "
+                        f"({stats['count']} calls)"
+                    )
+
+            # --- 3. Check for errors ---
+            if self._block_start_times:
+                for name in self._block_start_times.keys():
+                    self.logger.warning(f"[{self.name}] Block '{name}' was started but never ended.")
+
+            # --- 4. Reset for next interval ---
+            self.last_log_time = now
+            self.frames_since_last_log = 0
+            self._block_start_times.clear()
+            self._block_stats.clear()
+
 class UnitreeRemoteController:
     def __init__(self, height_limit=(1.0, 1.65), height_change_interval=0.5, height_change_step=0.1):
         # key

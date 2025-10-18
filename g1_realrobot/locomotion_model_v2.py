@@ -39,7 +39,7 @@ from utils import UnitreeRemoteController
 from utils import DataBuffer, HistoryWrapper
 from utils import get_rotation_matrix_from_rpy
 from utils import G1_29_JointIndex, G1_29_ArmJointIndex
-from utils import SimpleFPSLogger
+from utils import SimpleFPSLogger, LoopLogger
 # for visualization
 from utils import G1_29_Vis_WholeBody, G1_29_Dex3_JointIndex, G1_29_Inspire_JointIndex
 
@@ -165,7 +165,8 @@ class LocoMotionInference:
         obs_history = self.go_to_neutral_pose_smoothly(wait=True)["obs_history"]
 
         # --- Main Loop FPS Logging Setup ---
-        main_loop_fps_logger = SimpleFPSLogger(name="MainControlLoop", log_interval_sec=10.0, logger=logger_mp)
+        #main_loop_fps_logger = SimpleFPSLogger(name="MainControlLoop", log_interval_sec=10.0, logger=logger_mp)
+        main_loop_fps_logger = LoopLogger(name="MainControlLoop", log_interval_sec=10.0, logger=logger_mp)
 
         print("controller started, L2+B to enter damping mode to exit")
         while True:
@@ -175,8 +176,9 @@ class LocoMotionInference:
                 break
 
 
+            main_loop_fps_logger.start("Policy Inference")
             actions = self.loco_policy(obs_history) # 5090笔记本电脑只需要1ms以内
-
+            main_loop_fps_logger.end("Policy Inference")
 
             if not self.only_calibrate:
                 # time sleep 逻辑在step中，确保obs 是最新的
@@ -356,10 +358,11 @@ class G1_Control_Agent():
         #self.subscribe_motor_thread = threading.Thread(target=self._subscribe_motor_state)
         #self.subscribe_motor_thread.daemon = True
         #self.subscribe_motor_thread.start()
+        # 以下这个用linux内核计算时间 ，更准。
         self.subscribe_motor_thread = RecurrentThread(
             interval=0.005, target=self._subscribe_motor_state, name="subscribe_motor_state"
         )
-        self.subscribe_motor_thread.Start()
+        self.subscribe_motor_thread.Start() # .Wait() to exit
 
         while not self.lowstate_buffer.GetData():
             time.sleep(0.1)
@@ -617,9 +620,9 @@ class G1_Control_Agent():
 
             #cmd_json = json.loads(cmd_string)
             # 给定的cmd指令应该都是-1.0+1.0之间
-            v_x = float(cmd_json["v_x"]) * 0.4
-            v_y = float(cmd_json["v_y"]) * 0.4
-            v_yaw = float(cmd_json["v_yaw"]) * 1.1
+            v_x = float(cmd_json["v_x"]) * 0.3
+            v_y = float(cmd_json["v_y"]) * 0.3
+            v_yaw = float(cmd_json["v_yaw"]) * 1.2
 
             if v_x>0:
                 v_x=(max(np.abs(v_x)-speed_filter,0))
