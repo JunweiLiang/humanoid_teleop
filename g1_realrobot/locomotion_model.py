@@ -8,6 +8,7 @@ import numpy as np
 import time
 import os
 import sys
+import struct
 
 import threading
 import json
@@ -18,10 +19,6 @@ import logging_mp
 logging_mp.basic_config(level=logging_mp.INFO)
 logger_mp = logging_mp.get_logger(__name__)
 
-# for visualization
-import pinocchio as pin
-from pinocchio.robot_wrapper import RobotWrapper
-from pinocchio.visualize import MeshcatVisualizer
 
 from unitree_sdk2py.core.channel import ChannelFactoryInitialize
 from unitree_sdk2py.core.channel import ChannelPublisher
@@ -32,8 +29,19 @@ from unitree_sdk2py.idl.unitree_hg.msg.dds_ import LowCmd_
 from unitree_sdk2py.idl.unitree_hg.msg.dds_ import LowState_
 from unitree_sdk2py.idl.std_msgs.msg.dds_ import String_
 from unitree_sdk2py.utils.crc import CRC
+from unitree_sdk2py.utils.thread import RecurrentThread
 
 from unitree_sdk2py.comm.motion_switcher.motion_switcher_client import MotionSwitcherClient
+
+
+# some helper stuff
+from utils import UnitreeRemoteController
+from utils import DataBuffer, HistoryWrapper
+from utils import get_rotation_matrix_from_rpy
+from utils import G1_29_JointIndex, G1_29_ArmJointIndex
+from utils import SimpleFPSLogger, LoopLogger
+# for visualization
+from utils import G1_29_Vis_WholeBody, G1_29_Dex3_JointIndex, G1_29_Inspire_JointIndex
 
 
 class LocoMotionInference:
@@ -44,12 +52,12 @@ class LocoMotionInference:
             control_g1=True,
             sim=False,
             only_calibrate=False,
-            show_freq=True,
+            use_rc=False,
+
             max_freq=60.0):
 
         self.device = device
         self.sim = sim
-        self.show_freq = show_freq
         self.control_g1 = control_g1
         self.only_calibrate = only_calibrate
         if not self.control_g1:
@@ -64,6 +72,8 @@ class LocoMotionInference:
         # 监听自定义的command DDS topic, 可以用Oculus的控制器发送或者键盘发送
         self.control_agent = G1_Control_Agent(
             network_interface, use_waist3=use_waist3,
+            use_rc=use_rc,
+            ctr_max_freq=max_freq,
             device=device, control_g1=control_g1, sim=self.sim)
         # add obs
         self.control_agent_with_history = HistoryWrapper(self.control_agent)
@@ -78,78 +88,113 @@ class LocoMotionInference:
             return torch.tensor(ort_outs[0], device=self.device)
         return run_inference
 
-    def calibrate_robot(self):
-        # 让机器人回到零位
+    # UNIFIED FUNCTION: Moves the entire body smoothly to the default pose.
+    # Used for initial calibration
+    def go_to_neutral_pose_smoothly(self, wait=False):
+        """
+        Moves all robot joints from their current position to the default neutral pose
+        in a smooth, interpolated manner.
+        """
+        if wait:
+            print("Press R2 to start moving to neutral pose...")
+            while self.control_agent.remote_control.R2 != 1:
+                time.sleep(0.01)
+
+        print("Starting move to neutral pose...")
+
+        # Step 1: Get current state and final goal for the ENTIRE body
         self.control_agent_with_history.get_obs()
-        # 当前joint pos
-        num_lower_dofs = self.control_agent_with_history.num_lower_dofs # 12 lower body
-        joint_pos = self.control_agent_with_history.joint_pos[:num_lower_dofs]
-        final_goal = np.array(
-            [-0.1000,  0.0000,  0.0000,  0.3000, -0.2000,  0.0000,
-            -0.1000,  0.0000, 0.0000,  0.3000, -0.2000,  0.0000], dtype=float)
-        print("starting to calibrate...")
-        target = joint_pos
-        cal_action = np.zeros((1, num_lower_dofs))
-        # 获取 一系列 PD动作目标
+        current_pos = np.copy(self.control_agent.joint_pos)
+        final_goal = self.control_agent.default_dof_pos
+        num_dofs = self.control_agent.num_dofs
+
+        # Step 2: Generate a sequence of intermediate targets via interpolation
         target_sequence = []
-        while np.max(np.abs(target - final_goal)) > 0.01:
-            target -= np.clip((target - final_goal), -0.05, 0.05)
-            target_sequence += [copy.deepcopy(target)]
+        target = np.copy(current_pos)
+        # Use a small clip value for slow, smooth motion
+        clip_val = 0.02
+        while np.max(np.abs(target - final_goal)) > clip_val:
+            target -= np.clip((target - final_goal), -clip_val, clip_val)
+            target_sequence.append(copy.deepcopy(target))
+        # Ensure the final goal is reached
+        target_sequence.append(final_goal)
 
-        for target in target_sequence:
-            next_target = target
-            action_scale = 0.25 # 为啥除action  scale,放大4倍？
+        # Step 3: Command the robot through the interpolated trajectory
+        for full_body_target in target_sequence:
+            lowcmd_tmp = unitree_hg_msg_dds__LowCmd_()
+            default_arm_cmd = self.control_agent.arm_buffer.GetData()
 
-            next_target = next_target / action_scale
-            cal_action[:, 0:12] = next_target
+            # Iterate through all DOFs and set their target 'q'
+            for i in range(num_dofs):
+                # We map from the 27/29-dof array back to the G1 joint index (0-28)
+                joint_idx = self.control_agent.joint_idxs[i]
 
-            self.control_agent_with_history.step(torch.from_numpy(cal_action))
-            self.control_agent_with_history.get_obs()
-            time.sleep(0.05)
-        print("calibration done")
+                lowcmd_tmp.motor_cmd[joint_idx].mode = 1
+                lowcmd_tmp.motor_cmd[joint_idx].q = full_body_target[i]
+                lowcmd_tmp.motor_cmd[joint_idx].dq = 0.
+
+                # Assign appropriate PD gains for legs vs. arms/waist
+                if i < self.control_agent.num_lower_dofs: # Legs
+                     lowcmd_tmp.motor_cmd[joint_idx].kp = self.control_agent.Kp[joint_idx]
+                     lowcmd_tmp.motor_cmd[joint_idx].kd = self.control_agent.Kd[joint_idx]
+                else: # Arms and Waist (use gains from teleop subscriber)
+                     lowcmd_tmp.motor_cmd[joint_idx].kp = default_arm_cmd.motor_cmd[joint_idx].kp
+                     lowcmd_tmp.motor_cmd[joint_idx].kd = default_arm_cmd.motor_cmd[joint_idx].kd
+
+            if self.control_agent.control_g1:
+                self.control_agent.lowcmd_buffer.SetData(lowcmd_tmp)
+
+            time.sleep(0.02) # Control the speed of the motion (50Hz)
+
+        print("Robot is in neutral pose.")
+
+        if wait:
+            print("[Press R2 to start controller]")
+            while self.control_agent.remote_control.R2 != 1:
+                time.sleep(0.01)
+
+        # Return the first observation for the main loop
         obs = self.control_agent_with_history.reset()
         return obs
 
     def run(self):
-        # 这个会循环控制机器人,
+
+        # 这个会循环控制机器人
         self.control_agent_with_history.reset()
-        obs_history = self.calibrate_robot()["obs_history"]
+        #obs_history = self.calibrate_robot(wait=True)["obs_history"]
+        obs_history = self.go_to_neutral_pose_smoothly(wait=True)["obs_history"]
 
-        try:
-            while True:
-                start_time = time.time()
-                actions = self.loco_policy(obs_history)
+        # --- Main Loop FPS Logging Setup ---
+        #main_loop_fps_logger = SimpleFPSLogger(name="MainControlLoop", log_interval_sec=10.0, logger=logger_mp)
+        main_loop_fps_logger = LoopLogger(name="MainControlLoop", log_interval_sec=10.0, logger=logger_mp)
 
-                if not self.only_calibrate:
-                    obs, low_cmd_targets = self.control_agent_with_history.step(actions)
+        print("controller started, L2+B to enter damping mode to exit")
+        while True:
 
-                    obs_history = obs["obs_history"]
+            if self.control_agent.stop:
+                logger_mp.info("Stop signal received, exiting main control loop.")
+                break
 
-                if not self.control_g1:
-                    self._show_current_targets(low_cmd_targets)
 
-                if self.show_freq:
-                    # Calculate elapsed time and frequency
-                    current_time = time.time()
-                    time_elapsed = current_time - start_time
+            main_loop_fps_logger.start("Policy Inference")
+            actions = self.loco_policy(obs_history) # 5090笔记本电脑只需要1ms以内
+            main_loop_fps_logger.end("Policy Inference")
 
-                    # Avoid division by zero and calculate frequency
-                    frequency = 1.0 / time_elapsed if time_elapsed > 0 else 0
+            if not self.only_calibrate:
+                # time sleep 逻辑在step中，确保obs 是最新的
+                obs, low_cmd_targets = self.control_agent_with_history.step(actions)
 
-                    # Print the frequency on the same line, overwriting the previous one
-                    print(f"Running at: {frequency:.2f} Hz", end='\r')
+                obs_history = obs["obs_history"]
 
-                # Ensure consistent frame rate
-                current_time = time.time()
-                time_elapsed = current_time - start_time
-                sleep_time = max(0, (1 / self.ctr_max_freq) - time_elapsed)
-                time.sleep(sleep_time)
-        finally:
-            # finally, return to the nominal pose
-            # TODO: 和teleop一起使用，teleop退出时已经 让G1手臂回0了,这里回脚？
-            print("returning to zero pose..")
-            obs = self.calibrate_robot()
-            print("return done.")
+
+            if not self.control_g1 and main_loop_fps_logger.frames_since_last_log % 10 == 0: # Visualize only every 5th frame
+                # visualization can be slower
+                self._show_current_targets(low_cmd_targets)
+
+
+            # Log FPS for the main control loop
+            main_loop_fps_logger.tick()
+
 
     def _show_current_targets(self, low_cmd):
         # see visualize_arm_episodes for joint ID list
@@ -171,12 +216,13 @@ class LocoMotionInference:
         self.g1_visualizer.vis.display(current_q)
 
 
-
 class G1_Control_Agent():
     def __init__(self,
             network_interface, use_waist3=False, sim=False,
-            device="cuda:0", control_g1=True):
-
+            device="cuda:0", control_g1=True,
+            ctr_max_freq=50.0,
+            use_rc=False):
+        self.ctr_max_freq = ctr_max_freq
         self.device = device
         self.control_g1 = control_g1
         self.sim = sim
@@ -188,23 +234,27 @@ class G1_Control_Agent():
             ChannelFactoryInitialize(0, network_interface)
         self.crc = CRC()
 
-        """
-        # This code is crucial to take over low-level control.
-        if self.control_g1:
-            print("Requesting low-level control of the robot...")
-            self.msc = MotionSwitcherClient()
-            self.msc.SetTimeout(5.0)
-            self.msc.Init()
+        #height_cmd = 1.65 # 宇树遥控器上下按键可以改变这个
+        self.remote_control = UnitreeRemoteController(
+            height_limit=(1.0, 1.65))
+        # command 用json格式
 
-            status, result = self.msc.CheckMode()
-            while result["name"]:
-                print(result["name"])
-                self.msc.ReleaseMode()
-                status, result = self.msc.CheckMode()
-                time.sleep(1)
-            print("Successfully acquired low-level control.")
-        """
+        self.cmd_buffer = DataBuffer()
+        # 是否使用宇树遥控器的 vxyyaw_height指令
+        self.use_rc = use_rc
+        # 遥控器状态和机器人状态同时获取，遥控器应该低频点检查状态
+        self.REMOTE_CHECK_INTERVAL = 10 # 10 对应 50 Hz
+        self._remote_check_counter = 0
+
+
         # ================================================================
+
+        # --- FPS Logging Setup for Threads ---
+        self.motor_sub_fps_logger = SimpleFPSLogger(
+            name="MotorSubscribeThread", logger=logger_mp)
+        self.lowcmd_pub_fps_logger = SimpleFPSLogger(
+            name="LowCmdPublishThread", logger=logger_mp)
+
 
         # Homie原本腰部只用一个自由度作为观测
         self.joint_idxs = [0,1,2,3,4,5,6,7,8,9,10,11,12,15,16,17,18,19,20,21,22,23,24,25,26,27,28]
@@ -222,6 +272,7 @@ class G1_Control_Agent():
                 0.0000,  0.0000,  0.0000,  0.0000,  0.0000, 0.0000,  0.0000,  0.0000,
                 0.0000,  0.0000,  0.0000, 0.0000,  0.0000], dtype=float)
         # 关节电机pd参数代码位于在“HomieDeploy/unitree_sdk2unitree_sdk2/g1_control.cpp”下的第85行
+        # 按200Hz的控制频率
         self.Kp = [
             150, 150, 150, 300, 40, 40,      #// legs
             150, 150, 150, 300, 40, 40,      #// legs
@@ -236,6 +287,30 @@ class G1_Control_Agent():
             4, 4, 4, 1, 0.5, 0.5, 0.5,  #// arms
             4, 4, 4, 1, 0.5, 0.5, 0.5   #// arms
         ]
+        # 如果腿抖的话，降低Kp，增大Kd; 上面是原本C++ homie的
+        # 我们使用下面能改善抖动
+
+        self.Kp = [
+            120, 120, 120, 250, 35, 35,      #// legs (stiffer than before, but less than original)
+            120, 120, 120, 250, 35, 35,      #// legs
+            300, 300, 300,                   #// waist
+            150, 150, 150, 100,  10, 10, 5,  #// arms
+            150, 150, 150, 100,  10, 10, 5,  #// arms
+        ]
+        self.Kd = [
+            2.5, 2.5, 2.5, 4.0, 2.5, 2.5,    #// legs (slightly increased damping)
+            2.5, 2.5, 2.5, 4.0, 2.5, 2.5,    #// legs
+            5, 5, 5,              #// waist
+            4, 4, 4, 1, 0.5, 0.5, 0.5,  #// arms
+            4, 4, 4, 1, 0.5, 0.5, 0.5   #// arms
+        ]
+
+
+        # 腿部动作平滑
+        self.smoothed_actions = None
+        # 暂时不用
+        self.smoothing_alpha = 1.0 # TUNE THIS: 0.1=very smooth, 0.9=less smooth
+
         # 如teleop -> robot_arm.py设置
         self.kp_high = 300.0
         self.kd_high = 3.0
@@ -264,6 +339,13 @@ class G1_Control_Agent():
         self.num_history_length = 6
         self.num_envs = 1
 
+        # --- NEW: Watchdog Timer for Network Safety ---
+        # The maximum time in seconds to wait for a new LowState message
+        # before triggering an emergency stop. 200ms is a safe and
+        # conservative value, allowing for minor network jitter.
+        self.STATE_TIMEOUT_S = 0.2
+        self.last_lowstate_receipt_time = time.time()
+        # --- End Watchdog Timer Setup ---
 
         self.lowstate_subscriber = ChannelSubscriber("rt/lowstate", LowState_)
         self.lowstate_subscriber.Init()
@@ -273,24 +355,29 @@ class G1_Control_Agent():
         self.mode_machine_ = 0
 
         # initialize subscribe thread
-        self.subscribe_motor_thread = threading.Thread(target=self._subscribe_motor_state)
-        self.subscribe_motor_thread.daemon = True
-        self.subscribe_motor_thread.start()
+        #self.subscribe_motor_thread = threading.Thread(target=self._subscribe_motor_state)
+        #self.subscribe_motor_thread.daemon = True
+        #self.subscribe_motor_thread.start()
+        # 以下这个用linux内核计算时间 ，更准。
+        self.subscribe_motor_thread = RecurrentThread(
+            interval=0.005, target=self._subscribe_motor_state, name="subscribe_motor_state"
+        )
+        self.subscribe_motor_thread.Start() # .Wait() to exit
+
         while not self.lowstate_buffer.GetData():
             time.sleep(0.1)
             logger_mp.info("[G1_29_State] Waiting to subscribe dds...")
         logger_mp.info("[G1_29_State] Subscribe dds ok.")
 
-        # command 用string格式
-        self.cmd_subscriber = ChannelSubscriber("rt/loco_cmd", String_)
-        self.cmd_subscriber.Init()
-        self.cmd_buffer = DataBuffer()
+        if not self.use_rc: # 不使用宇树遥控器的话才subscribe外部的loco_cmd
+            self.cmd_subscriber = ChannelSubscriber("rt/loco_cmd", String_)
+            self.cmd_subscriber.Init()
 
-        # initialize subscribe thread
-        self.subscribe_cmd_thread = threading.Thread(target=self._subscribe_cmd)
-        self.subscribe_cmd_thread.daemon = True
-        self.subscribe_cmd_thread.start()
-        # 一开始可能cmd topic还没有publish
+            # initialize subscribe thread
+            self.subscribe_cmd_thread = threading.Thread(target=self._subscribe_cmd)
+            self.subscribe_cmd_thread.daemon = True
+            self.subscribe_cmd_thread.start()
+            # 一开始可能cmd topic还没有publish
 
         # 同时我们还要subscribe arm_cmd(包括手臂和腰部命令), 也是由teleop程序发布
         # 也是LowCmd_数据，只有手臂12+3腰的q有用
@@ -306,7 +393,29 @@ class G1_Control_Agent():
         # 默认手臂就是零位的
         self.arm_buffer.SetData(self._get_default_arm_cmd())
 
+
+        # 默认0力矩命令
+        self.low_cmd = unitree_hg_msg_dds__LowCmd_()
+        self.low_cmd.mode_pr = 0 # Series Control for Pitch/Roll Joints这是URDF的默认模式
+        #self.low_cmd.mode_machine = 5 # g1_low_level_example.py中获取到的; 锁腰后应该是6
+        self.low_cmd.mode_machine = self.mode_machine_
+        # 阻尼命令
+        self.low_cmd_damp = unitree_hg_msg_dds__LowCmd_()
+        self.low_cmd_damp.mode_pr = 0 # Series Control for Pitch/Roll Joints这是URDF的默认模式
+        self.low_cmd_damp.mode_machine = self.mode_machine_
+        for joint in G1_29_JointIndex:
+            joint_id = joint.value
+            self.low_cmd_damp.motor_cmd[joint_id].mode = 1
+            self.low_cmd_damp.motor_cmd[joint_id].q = 0.0
+            self.low_cmd_damp.motor_cmd[joint_id].dq = 0.0
+            self.low_cmd_damp.motor_cmd[joint_id].kp = 0.0
+            self.low_cmd_damp.motor_cmd[joint_id].kd = 2.0
+            self.low_cmd_damp.motor_cmd[joint_id].tau = 0.0
+
+        self.stop = False  # 用于指示motor_cmd替换成damping
+
         if self.control_g1:
+            self.lowcmd_buffer = DataBuffer()
             # create publisher #
             while not self.update_mode_machine_:
                 logger_mp.info("[G1_29_Control] Waiting to update mode machine...")
@@ -314,8 +423,66 @@ class G1_Control_Agent():
             logger_mp.info("[G1_29_Control] Done. mode machine set to %s" % self.mode_machine_)
             self.lowcmd_publisher = ChannelPublisher("rt/lowcmd", LowCmd_)
             self.lowcmd_publisher.Init()
-        # 默认命令
-        self.low_cmd = unitree_hg_msg_dds__LowCmd_()
+
+            #self.send_lowcmd_thread = threading.Thread(target=self._send_lowcmd)
+            #self.send_lowcmd_thread.daemon = True
+            #self.send_lowcmd_thread.start()
+            self.send_lowcmd_thread = RecurrentThread(
+                interval=0.005, target=self._send_lowcmd, name="send_lowcmd"
+            )
+            self.send_lowcmd_thread.Start()
+
+
+    def _send_lowcmd(self):
+
+
+        #while True:
+
+        # --- Watchdog Check for network issues ---
+        # This check runs at 500Hz.
+        if not self.stop:
+            time_since_last_state = time.time() - self.last_lowstate_receipt_time
+            if time_since_last_state > self.STATE_TIMEOUT_S:
+                logger_mp.info(
+                    f"STATE TIMEOUT: No LowState message received for {time_since_last_state:.2f}s. "
+                    f"Triggering emergency stop!"
+                )
+                self.stop = True
+        # --- End Watchdog Check ---
+
+        if self.stop:
+            self.low_cmd_damp.crc = self.crc.Crc(self.low_cmd_damp)
+            write_cmd = self.low_cmd_damp
+        else:
+            # 从缓存读取lowcmd
+            read_lowcmd = self.lowcmd_buffer.GetData()
+
+            if read_lowcmd is not None:
+
+                for joint in G1_29_JointIndex:
+                    joint_id = joint.value
+                    if joint_id in [13, 14]:
+                        # 腰部两个自由度锁住
+                        self.low_cmd.motor_cmd[joint_id].mode = 0 # 1:Enable, 0:Disable
+                    else:
+                        self.low_cmd.motor_cmd[joint_id].mode = 1 # 1:Enable, 0:Disable
+                    self.low_cmd.motor_cmd[joint_id].tau = read_lowcmd.motor_cmd[joint_id].tau
+                    self.low_cmd.motor_cmd[joint_id].q = read_lowcmd.motor_cmd[joint_id].q
+                    self.low_cmd.motor_cmd[joint_id].dq = read_lowcmd.motor_cmd[joint_id].dq
+                    self.low_cmd.motor_cmd[joint_id].kp = read_lowcmd.motor_cmd[joint_id].kp
+                    self.low_cmd.motor_cmd[joint_id].kd = read_lowcmd.motor_cmd[joint_id].kd
+
+            self.low_cmd.crc = self.crc.Crc(self.low_cmd)
+            write_cmd = self.low_cmd
+
+        self.lowcmd_publisher.Write(write_cmd)
+
+        # Log FPS for this thread, but only when actively publishing commands
+        if not self.stop:
+            self.lowcmd_pub_fps_logger.tick()
+
+            #time.sleep(0.002) # 500Hz
+            #time.sleep(0.004) # hoping to match 200Hz
 
     def _get_default_arm_cmd(self):
         # 与teleop的robot_arm.py同样设置，获取零位的手臂+腰的kp kd的默认cmd
@@ -344,34 +511,77 @@ class G1_Control_Agent():
         return motor_index in wrist_motors
 
     def _subscribe_motor_state(self):
-        while True:
-            msg = self.lowstate_subscriber.Read()
-            if msg is not None:
-                # default low state
-                lowstate = unitree_hg_msg_dds__LowState_()
-                # 确认是否需要copy
-                lowstate.motor_state = copy.deepcopy(msg.motor_state) # 0-28 is for G1
-                lowstate.imu_state = copy.deepcopy(msg.imu_state)
-                self.lowstate_buffer.SetData(lowstate)
 
-                # need this to update the mode_machine
-                # 这个值很重要，不对的话lowcmd就不work
-                if self.update_mode_machine_ == False:
-                    self.mode_machine_ = msg.mode_machine
-                    print("changed model machine using lowstate to %s" % self.mode_machine_)
-                    self.update_mode_machine_ = True
+        #while True:
+        msg = self.lowstate_subscriber.Read()
+        if msg is not None:
 
-                # TODO: 获取遥控器状态，多一个保险
+            # --- NEW: Update Watchdog Timestamp ---
+            # Every time we successfully receive a state message, we update the timestamp.
+            # This serves as the "heartbeat" from the robot.
+            self.last_lowstate_receipt_time = time.time()
+            # --- End Timestamp Update ---
 
-            time.sleep(0.002)
+            # Log FPS for this thread
+            self.motor_sub_fps_logger.tick()
+
+            # default low state
+            lowstate = unitree_hg_msg_dds__LowState_()
+            # 确认是否需要copy
+            lowstate.motor_state = copy.deepcopy(msg.motor_state) # 0-28 is for G1
+            lowstate.imu_state = copy.deepcopy(msg.imu_state)
+            self.lowstate_buffer.SetData(lowstate)
+
+            # need this to update the mode_machine
+            # 这个值很重要，不对的话lowcmd就不work
+            if self.update_mode_machine_ is False:
+                self.mode_machine_ = msg.mode_machine
+                print("changed model machine using lowstate to %s" % self.mode_machine_)
+                self.update_mode_machine_ = True
+
+            # 获取遥控器状态，多一个保险
+            # Only parse remote and check for E-stop every k steps.
+            if self._remote_check_counter % self.REMOTE_CHECK_INTERVAL == 0:
+                self.remote_control.parse(msg.wireless_remote)
+                # 同样L2+B就应该退出程序急停
+                if self.remote_control.L2 == 1 and self.remote_control.B == 1:
+                    # we set a shared 'stop' flag. The main loop will check this flag and exit.
+                    if not self.stop:
+                        logger_mp.info("Emergency stop (L2+B) detected! Initiating safe shutdown.")
+                        self.stop = True
+
+                if self.use_rc:
+                    # print了一下宇树遥控器，摇杆可能都有误差
+                    # 左摇杆，上下值 Ly=[0.95, -0.83], 左右值范围Lx=[-1.0, 1.0]
+                    # 右摇杆，上下值 Ry=[1.0, -1.0], 左右值范围Rx=[-0.92, 0.94]
+                    # 其他按键按下了就是持续是1值
+                    v_x = self.remote_control.Ly    # Forward/backward velocity
+                    # 左摇杆，往左，是负的，对应机器人左手，是y轴正方向
+                    v_y = -self.remote_control.Lx    # Sideways/strafing velocity
+                    v_yaw = -self.remote_control.Rx  # Turning/yaw velocity
+                    height = self.remote_control.height
+                    cmd_json = {
+                        "v_x": v_x,
+                        "v_y": v_y,
+                        "v_yaw": v_yaw,
+                        #"height": 1.65
+                        "height": height
+                    }
+                    #print(cmd_json)
+                    self.cmd_buffer.SetData(cmd_json)
+
+            #time.sleep(0.002) # 350Hz左右，好像会抖腿
+            #time.sleep(0.004) # hoping to match 200Hz
+
 
     def _subscribe_cmd(self):
         while True:
             msg = self.cmd_subscriber.Read()
             if msg is not None:
                 cmd_string = msg.data
-                self.cmd_buffer.SetData(cmd_string)
-            time.sleep(0.01) # 100Hz
+                cmd_json = json.loads(cmd_string)
+                self.cmd_buffer.SetData(cmd_json)
+            time.sleep(0.005) # 200Hz
 
     def _subscribe_arm(self):
         while True:
@@ -392,11 +602,11 @@ class G1_Control_Agent():
 
                 self.arm_buffer.SetData(lowcmd)
 
-            time.sleep(0.002) # 500Hz
+            time.sleep(0.005) # 200Hz
 
     def reset(self):
         self.actions = torch.zeros(12)
-
+        self.start_time = time.time()
         return self.get_obs()
 
     def _get_command(self):
@@ -405,28 +615,41 @@ class G1_Control_Agent():
         # 0.74
         cmd = np.array([0.0, 0.0, 0.0, 0.74])
 
-        cmd_string = self.cmd_buffer.GetData()
-        if cmd_string is not None:
-            try:
-                cmd_json = json.loads(cmd_string)
-                # 给定的cmd指令应该都是0-1.0之间
-                v_x = float(cmd_json["v_x"]) * 0.5
-                v_y = float(cmd_json["v_y"]) * 0.5
-                v_yaw = float(cmd_json["v_yaw"]) * 0.2
-                height = float(cmd_json["height"])
-                # height必须 1.65~0.74之间,下面就会得到0.74 ~ 0.08
-                height = max(1.2, min(height, 1.65))
-                height = 0.74 - 0.54 * (1.65-min(height, 1.65))*1.0/(1.65-0.91)
-                # TODO: 加 filter/ value check
-                cmd = np.array([v_x, v_y, v_yaw, height])
+        speed_filter = 0.1 # 摇杆漂移的值，小于这个就抹零
+        cmd_json = self.cmd_buffer.GetData()
+        if cmd_json is not None:
 
-            except json.JSONDecodeError:
-                logger_mp.warn("Received malformed command string. Ignoring.")
+            #cmd_json = json.loads(cmd_string)
+            # 给定的cmd指令应该都是-1.0+1.0之间
+            v_x = float(cmd_json["v_x"]) * 0.15
+            v_y = float(cmd_json["v_y"]) * 0.2
+            v_yaw = float(cmd_json["v_yaw"]) * 1.2
+
+            if v_x>0:
+                v_x=(max(np.abs(v_x)-speed_filter,0))
+            else:
+                v_x=-(max(np.abs(v_x)-speed_filter,0))
+            if v_y>0:
+                v_y=(max(np.abs(v_y)-speed_filter,0))
+            else:
+                v_y=-(max(np.abs(v_y)-speed_filter,0))
+            if v_yaw>0:
+                v_yaw=(max(np.abs(v_yaw)-speed_filter,0))
+            else:
+                v_yaw=-(max(np.abs(v_yaw)-speed_filter,0))
+
+            height = float(cmd_json["height"])
+            # height必须 1.65~0.74之间,下面就会得到0.74 ~ 0.08
+            height = max(1.0, min(height, 1.65))
+            height = 0.74 - 0.54 * (1.65-min(height, 1.65))*1.0/(1.65-0.91)
+            # TODO: 加 filter/ value check
+            cmd = np.array([v_x, v_y, v_yaw, height])
 
         return cmd
 
     def _get_robot_states(self):
         lowstate = self.lowstate_buffer.GetData()
+
         #motor_state = lowstate.motor_state[self.joint_idxs]
         motor_state = [lowstate.motor_state[idx] for idx in self.joint_idxs]
 
@@ -462,7 +685,7 @@ class G1_Control_Agent():
         # 还有一些数据要存到self中，会更新一些变量
 
         # (4, )
-        cmds = self._get_command()
+        cmds = self._get_command() * np.array([2.0, 2.0, 0.25, 1.0])
         self.cmds = cmds
         # 不知道Homie为啥乘这个
         #self.commands[:, :] * np.array([2.0, 2.0, 0.25, 1.0])
@@ -497,8 +720,17 @@ class G1_Control_Agent():
         # (12,)
         self.actions = torch.clip(actions[0:1, :], -clip_actions, clip_actions)
         actions = actions.cpu().numpy()
+         # --- START SMOOTHING LOGIC ---
+        if self.smoothed_actions is None:
+            self.smoothed_actions = actions
+        else:
+            self.smoothed_actions = self.smoothing_alpha * actions + \
+                                   (1 - self.smoothing_alpha) * self.smoothed_actions
+
         # 模型输出平滑这么多？
-        scaled_pos_target = actions * 0.25 + self.default_dof_pos[:12]
+        #scaled_pos_target = actions * 0.25 + self.default_dof_pos[:12]
+        scaled_pos_target = self.smoothed_actions * 0.25 + self.default_dof_pos[:12]
+
         # torques = (scaled_pos_target - self.dof_pos[:12]) * self.p_gains[:12]  - self.dof_vel[:12] * self.d_gains[:12]
         # torques = np.clip(torques[:12], -self.torque_limit[:12], self.torque_limit[:12])
         self.joint_pos_target[:12] = scaled_pos_target[:12]
@@ -506,393 +738,43 @@ class G1_Control_Agent():
         # 接收arm 和腰部的动作指令，一起控制G1
         arm_cmd = self.arm_buffer.GetData()
 
-        # arm_actions = self.se.get_arm_action()
-        # self.joint_pos_target[15:] = 0.#arm_actions
-        # self.joint_pos_target[12] = scaled_pos_target[12] # waist
-        # self.joint_pos_target[15:] = scaled_pos_target[13:]
-        # self.torques[:12] = torques[:12]
-        # print("torques: ", torques)
-        # print("==============================================================================")
-        # self.torques[15:] = torques[13:]
-        #command_for_robot.q_des = self.joint_pos_target
-        #command_for_robot.tau_ff = self.torques
 
-
-        self.low_cmd.mode_pr = 0 # Series Control for Pitch/Roll Joints这是URDF的默认模式
-        #self.low_cmd.mode_machine = 5 # g1_low_level_example.py中获取到的
-        self.low_cmd.mode_machine = self.mode_machine_
+        lowcmd_tmp = unitree_hg_msg_dds__LowCmd_()
         # 先设置腿部
         for i in range(12):
-            self.low_cmd.motor_cmd[i].mode = 1 # 1:Enable, 0:Disable
-            self.low_cmd.motor_cmd[i].tau = self.tauff[i] # 默认都是0
-            self.low_cmd.motor_cmd[i].q = self.joint_pos_target[i]
-            self.low_cmd.motor_cmd[i].dq = 0.
-            self.low_cmd.motor_cmd[i].kp = self.Kp[i]
-            self.low_cmd.motor_cmd[i].kd = self.Kd[i]
+            # lowcmd_tmp只有q/dq/kp/kd/tau被复制出去
+            #lowcmd_tmp.motor_cmd[i].mode = 1 # 1:Enable, 0:Disable
+            lowcmd_tmp.motor_cmd[i].tau = self.tauff[i] # 默认都是0
+            lowcmd_tmp.motor_cmd[i].q = self.joint_pos_target[i]
+            lowcmd_tmp.motor_cmd[i].dq = 0.
+            lowcmd_tmp.motor_cmd[i].kp = self.Kp[i]
+            lowcmd_tmp.motor_cmd[i].kd = self.Kd[i]
 
-        for joint in G1_29_ArmJointIndex: # 12+3
+        for joint in G1_29_ArmJointIndex: # 12+3 # 手臂加上腰部
             joint_id = joint.value
-            self.low_cmd.motor_cmd[joint_id].mode = 1 # 1:Enable, 0:Disable
-            self.low_cmd.motor_cmd[joint_id].tau = arm_cmd.motor_cmd[joint_id].tau
-            self.low_cmd.motor_cmd[joint_id].q = arm_cmd.motor_cmd[joint_id].q
-            self.low_cmd.motor_cmd[joint_id].dq = arm_cmd.motor_cmd[joint_id].dq
-            self.low_cmd.motor_cmd[joint_id].kp = arm_cmd.motor_cmd[joint_id].kp
-            self.low_cmd.motor_cmd[joint_id].kd = arm_cmd.motor_cmd[joint_id].kd
+
+            lowcmd_tmp.motor_cmd[joint_id].tau = arm_cmd.motor_cmd[joint_id].tau
+            lowcmd_tmp.motor_cmd[joint_id].q = arm_cmd.motor_cmd[joint_id].q
+            lowcmd_tmp.motor_cmd[joint_id].dq = arm_cmd.motor_cmd[joint_id].dq
+            lowcmd_tmp.motor_cmd[joint_id].kp = arm_cmd.motor_cmd[joint_id].kp
+            lowcmd_tmp.motor_cmd[joint_id].kd = arm_cmd.motor_cmd[joint_id].kd
+
 
         if self.control_g1:
-            # 发送指令控制G1
-            #print("--------------------------------")
-            #for i in range(29):
-            #    cmd = self.low_cmd.motor_cmd[i]
-            #    print(f"Motor {i}: mode={cmd.mode}, q={cmd.q:.3f}, kp={cmd.kp}, kd={cmd.kd}")
-            self.low_cmd.crc = self.crc.Crc(self.low_cmd)
-            self.lowcmd_publisher.Write(self.low_cmd)
-            #print(self.low_cmd)
+            self.lowcmd_buffer.SetData(lowcmd_tmp)
+
+        current_time = time.time()
+        time_elapsed = current_time - self.start_time
+        sleep_time = max(0, (1 / self.ctr_max_freq) - time_elapsed)
+        if sleep_time > 0:
+            time.sleep(sleep_time)
+        self.start_time = time.time()
 
         # 不发送指令，可以把low_cmd拿去可视化
 
-        obs = self.get_obs()
-        return obs, self.low_cmd
+        obs = self.get_obs() # 下一次循环的观测
+        return obs, lowcmd_tmp
 
-
-class HistoryWrapper:
-    def __init__(self, env):
-        self.env = env
-
-        self.obs_history_length = self.env.num_history_length
-        self.num_obs_history = self.obs_history_length * self.env.num_obs
-        self.obs_history = torch.zeros(self.env.num_envs, self.num_obs_history, dtype=torch.float,
-                                       device=self.env.device, requires_grad=False)
-
-    def step(self, action):
-        obs, low_cmd_targets = self.env.step(action)
-        self.obs_history = torch.cat((self.obs_history[:, self.env.num_obs:], obs), dim=-1)
-        return {'obs': obs, 'obs_history': self.obs_history}, low_cmd_targets
-
-    def get_obs(self):
-        obs = self.env.get_obs()
-        self.obs_history = torch.cat((self.obs_history[:, self.env.num_obs:], obs), dim=-1)
-        return {'obs': obs, 'obs_history': self.obs_history}
-
-    def reset(self):
-        ret = self.env.reset()
-        self.obs_history[:, :] = 0
-        return {"obs": ret, "obs_history": self.obs_history}
-
-    def __getattr__(self, name):
-        return getattr(self.env, name)
-
-
-class DataBuffer:
-    def __init__(self):
-        self.data = None
-        self.lock = threading.Lock()
-
-    def GetData(self):
-        with self.lock:
-            return self.data
-
-    def SetData(self, data):
-        with self.lock:
-            self.data = data
-
-def get_rotation_matrix_from_rpy(rpy):
-    """
-    Get rotation matrix from the given quaternion.
-    Args:
-        q (np.array[float[4]]): quaternion [w,x,y,z]
-    Returns:
-        np.array[float[3,3]]: rotation matrix.
-    """
-    r, p, y = rpy
-    R_x = np.array([[1, 0, 0],
-                    [0, math.cos(r), -math.sin(r)],
-                    [0, math.sin(r), math.cos(r)]
-                    ])
-
-    R_y = np.array([[math.cos(p), 0, math.sin(p)],
-                    [0, 1, 0],
-                    [-math.sin(p), 0, math.cos(p)]
-                    ])
-
-    R_z = np.array([[math.cos(y), -math.sin(y), 0],
-                    [math.sin(y), math.cos(y), 0],
-                    [0, 0, 1]
-                    ])
-
-    rot = np.dot(R_z, np.dot(R_y, R_x))
-    return rot
-
-
-# G1 DDS LowState 35个MotorState，对应的就是下面的顺序。12-28是上肢
-class G1_29_JointIndex(IntEnum):
-    # Left leg
-    kLeftHipPitch = 0
-    kLeftHipRoll = 1
-    kLeftHipYaw = 2
-    kLeftKnee = 3
-    kLeftAnklePitch = 4
-    kLeftAnkleRoll = 5
-
-    # Right leg
-    kRightHipPitch = 6
-    kRightHipRoll = 7
-    kRightHipYaw = 8
-    kRightKnee = 9
-    kRightAnklePitch = 10
-    kRightAnkleRoll = 11
-
-    kWaistYaw = 12
-    kWaistRoll = 13
-    kWaistPitch = 14
-
-    # Left arm
-    kLeftShoulderPitch = 15
-    kLeftShoulderRoll = 16
-    kLeftShoulderYaw = 17
-    kLeftElbow = 18
-    kLeftWristRoll = 19
-    kLeftWristPitch = 20
-    kLeftWristYaw = 21
-
-    # Right arm
-    kRightShoulderPitch = 22
-    kRightShoulderRoll = 23
-    kRightShoulderYaw = 24
-    kRightElbow = 25
-    kRightWristRoll = 26
-    kRightWristPitch = 27
-    kRightWristYaw = 28
-
-    # not used
-    kNotUsedJoint0 = 29
-    kNotUsedJoint1 = 30
-    kNotUsedJoint2 = 31
-    kNotUsedJoint3 = 32
-    kNotUsedJoint4 = 33
-    kNotUsedJoint5 = 34
-
-class G1_29_ArmJointIndex(IntEnum):
-    # 12 + 3
-
-    kWaistYaw = 12
-    kWaistRoll = 13
-    kWaistPitch = 14
-
-    # Left arm
-    kLeftShoulderPitch = 15
-    kLeftShoulderRoll = 16
-    kLeftShoulderYaw = 17
-    kLeftElbow = 18
-    kLeftWristRoll = 19
-    kLeftWristPitch = 20
-    kLeftWristYaw = 21
-
-    # Right arm
-    kRightShoulderPitch = 22
-    kRightShoulderRoll = 23
-    kRightShoulderYaw = 24
-    kRightElbow = 25
-    kRightWristRoll = 26
-    kRightWristPitch = 27
-    kRightWristYaw = 28
-
-
-# ----以下仅用于可视化
-class G1_29_Vis_WholeBody:
-    def __init__(self, urdf, hand_type="inspire1"):
-
-        np.set_printoptions(precision=5, suppress=True, linewidth=200)
-
-        self.robot = pin.RobotWrapper.BuildFromURDF(urdf, os.path.dirname(urdf))
-
-        # 五指手，三指手
-        assert hand_type in ["inspire1", "dex3"]
-
-        if hand_type == "inspire1":
-            self.mixed_jointsToLockIDs = [
-
-                # 单手URDF里，12个自由度，4个手指每个2个所以8个，剩4个自由度在拇指
-                # 实机单手只有6自由度，每个手指一个，拇指2个
-
-                # 这六个是主动关节， 我们锁定其他的被动关节
-                # 遥操作的时候也只有6个主动关节的数据
-                #'R_thumb_proximal_yaw_joint',
-                #'R_thumb_proximal_pitch_joint',
-                #'R_index_proximal_joint',
-                #'R_middle_proximal_joint',
-                #'R_ring_proximal_joint',
-                #'R_pinky_proximal_joint'
-
-                # 左手关节
-                #"L_pinky_proximal_joint",
-                "L_pinky_intermediate_joint",
-                #"L_ring_proximal_joint",
-                "L_ring_intermediate_joint",
-                "L_thumb_intermediate_joint",
-                #"L_thumb_proximal_yaw_joint",
-                #"L_thumb_proximal_pitch_joint",
-                "L_thumb_distal_joint",
-                #"L_middle_proximal_joint",
-                "L_middle_intermediate_joint",
-                #"L_index_proximal_joint",
-                "L_index_intermediate_joint",
-
-                # 右手关节（已更新）
-                #"R_pinky_proximal_joint",
-                "R_pinky_intermediate_joint",
-                #"R_ring_proximal_joint",
-                "R_ring_intermediate_joint",
-                "R_thumb_intermediate_joint",
-                #"R_thumb_proximal_yaw_joint",
-                #"R_thumb_proximal_pitch_joint",
-                "R_thumb_distal_joint",
-                #"R_index_proximal_joint",
-                "R_index_intermediate_joint",
-                #"R_middle_proximal_joint",
-                "R_middle_intermediate_joint"
-            ]
-        elif hand_type == "dex3":
-
-            self.mixed_jointsToLockIDs = [
-
-                # 用的宇树三指手的URDF，每个7自由度，都不用锁
-
-            ]
-
-        # https://docs.ros.org/en/kinetic/api/pinocchio/html/classpinocchio_1_1robot__wrapper_1_1RobotWrapper.html#aef341b27b4709b03c93d66c8c196bc0f
-        # the above joint will be locked, at 0.0
-        self.reduced_robot = self.robot.buildReducedRobot(
-            list_of_joints_to_lock=self.mixed_jointsToLockIDs,
-            reference_configuration=np.array([0.0] * self.robot.model.nq),
-        )
-
-        self.init_data = np.zeros(self.reduced_robot.model.nq)
-
-        self.current_q = np.zeros(self.reduced_robot.model.nq) # used to save the current q
-
-        # Initialize the Meshcat visualizer for visualization
-        self.vis = MeshcatVisualizer(
-            self.reduced_robot.model, self.reduced_robot.collision_model, self.reduced_robot.visual_model)
-        self.vis.initViewer(open=True)
-        self.vis.loadViewerModel("pinocchio")
-
-        self.vis.display(pin.neutral(self.reduced_robot.model))
-class G1_29_Dex3_JointIndex(IntEnum):
-    """Enumeration for the joint indices of the G1_29_Dex3 robot."""
-    # Left leg
-    kLeftHipPitch = 0
-    kLeftHipRoll = 1
-    kLeftHipYaw = 2
-    kLeftKnee = 3
-    kLeftAnklePitch = 4
-    kLeftAnkleRoll = 5
-
-    # Right leg
-    kRightHipPitch = 6
-    kRightHipRoll = 7
-    kRightHipYaw = 8
-    kRightKnee = 9
-    kRightAnklePitch = 10
-    kRightAnkleRoll = 11
-
-    # Waist
-    kWaistYaw = 12
-    kWaistRoll = 13
-    kWaistPitch = 14
-
-    # Left arm
-    kLeftShoulderPitch = 15
-    kLeftShoulderRoll = 16
-    kLeftShoulderYaw = 17
-    kLeftElbow = 18
-    kLeftWristRoll = 19
-    kLeftWristPitch = 20
-    kLeftWristYaw = 21
-
-    # Left hand
-    kLeftHandIndex0 = 22
-    kLeftHandIndex1 = 23
-    kLeftHandMiddle0 = 24
-    kLeftHandMiddle1 = 25
-    kLeftHandThumb0 = 26
-    kLeftHandThumb1 = 27
-    kLeftHandThumb2 = 28
-
-    # Right arm
-    kRightShoulderPitch = 29
-    kRightShoulderRoll = 30
-    kRightShoulderYaw = 31
-    kRightElbow = 32
-    kRightWristRoll = 33
-    kRightWristPitch = 34
-    kRightWristYaw = 35
-
-    # Right hand
-    kRightHandIndex0 = 36
-    kRightHandIndex1 = 37
-    kRightHandMiddle0 = 38
-    kRightHandMiddle1 = 39
-    kRightHandThumb0 = 40
-    kRightHandThumb1 = 41
-    kRightHandThumb2 = 42
-
-class G1_29_Inspire_JointIndex(IntEnum):
-    """Enumeration for the joint indices of the G1_29_Inspire robot."""
-    # Left leg
-    kLeftHipPitch = 0
-    kLeftHipRoll = 1
-    kLeftHipYaw = 2
-    kLeftKnee = 3
-    kLeftAnklePitch = 4
-    kLeftAnkleRoll = 5
-
-    # Right leg
-    kRightHipPitch = 6
-    kRightHipRoll = 7
-    kRightHipYaw = 8
-    kRightKnee = 9
-    kRightAnklePitch = 10
-    kRightAnkleRoll = 11
-
-    # Waist
-    kWaistYaw = 12
-    kWaistRoll = 13
-    kWaistPitch = 14
-
-    # Left arm
-    kLeftShoulderPitch = 15
-    kLeftShoulderRoll = 16
-    kLeftShoulderYaw = 17
-    kLeftElbow = 18
-    kLeftWristRoll = 19
-    kLeftWristPitch = 20
-    kLeftWristYaw = 21
-
-    # Left hand
-    kLeftHandIndex = 22
-    kLeftHandMiddle = 23
-    kLeftHandPinky = 24
-    kLeftHandRing = 25
-    kLeftHandThumbRotation = 26
-    kLeftHandThumbBend = 27
-
-    # Right arm
-    kRightShoulderPitch = 28
-    kRightShoulderRoll = 29
-    kRightShoulderYaw = 30
-    kRightElbow = 31
-    kRightWristRoll = 32
-    kRightWristPitch = 33
-    kRightWristYaw = 34
-
-    # Right hand
-    kRightHandIndex = 35
-    kRightHandMiddle = 36
-    kRightHandPinky = 37
-    kRightHandRing = 38
-    kRightHandThumbRotation = 39
-    kRightHandThumbBend = 40
 
 
 parser = argparse.ArgumentParser()
@@ -905,8 +787,8 @@ parser.add_argument("--no_control", action="store_true", help="visualize output 
 parser.add_argument("--only_calibrate", action="store_true", help="only run calibration, see if G1 cmd works")
 parser.add_argument("--network_interface", default=None)
 parser.add_argument("--hand_type", default="dex3", help="dex3 or inspire1")
-parser.add_argument("--max_freq", default=50.0, type=float, help="maximum freq")
-
+parser.add_argument("--max_freq", default=200.0, type=float, help="maximum freq")
+parser.add_argument("--use_rc", action="store_true", help="use unitree remote for loco cmd instead of teleop controller")
 
 if __name__ == "__main__":
     # 测试， 先开了G1 sim或者实机G1, 然后每次模型输出的q可视化到meshcat中
@@ -921,7 +803,23 @@ if __name__ == "__main__":
         control_g1=not args.no_control,
         sim=args.sim,
         only_calibrate=args.only_calibrate,
-        show_freq=True,
+        use_rc=args.use_rc,
         max_freq=args.max_freq)
-    # this will block until keyboard interrupt
-    locomotion_controller.run()
+    try:
+        # This loop will now exit gracefully when the 'stop' flag is set from the remote or Ctrl+C.
+        locomotion_controller.run()
+    except KeyboardInterrupt:
+        # This handles Ctrl+C.
+        print("\nKeyboard interrupt detected. Initiating safe shutdown.")
+    finally:
+        # This block executes on ANY exit condition (remote stop or Ctrl+C), ensuring safety.
+        print("Control loop exited. Starting safe shutdown procedure...")
+
+        if locomotion_controller and locomotion_controller.control_agent:
+            # Immediately switch to damping mode.
+            print("Activating damping mode for safety...")
+            locomotion_controller.control_agent.stop = True
+            time.sleep(3.0) # Allow time for damping command to be sent consistently.
+
+        print("Shutdown complete.")
+

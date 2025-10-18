@@ -1598,7 +1598,6 @@ exts."isaacsim.asset.browser".folders = [
     # [10/2025] 重新调试locomotion_v2, 用宇树遥控器
 
         # 1. 单独跑实机locomotion，
-        # laptop6 有线连接2号机，用龙门架。跑100Hz
             # 需要安装tv环境
 
             # G1开机自检完成后， L2+B进入阻尼，然后L2 + R2进入调试模式，灯应该会边
@@ -1641,8 +1640,12 @@ exts."isaacsim.asset.browser".folders = [
             # 底层的state subscribe和lowcmd send可以比较高
             # 默认机器人腰部13、14 pitch roll自由度锁住，电机的moter cmd直接enable=0
 
+            # G1开机自检完成后， L2+B进入阻尼，然后L2 + R2进入调试模式，灯应该会边
+            # 然后把g1的手放到前面，L2 + A会进入关节0位，然后再L2+B再次进入阻尼模式
+            # 开始程序后，R2零位，此时脚要触地，再R2开始底层控制
+
             # 尽量让cmd小
-            (tv) junweil@precognition-laptop6:~/projects/humanoid_teleop$ python g1_realrobot/locomotion_model_v2.py --model_path homie_deploy_official.onnx --urdf  assets/g1/g1_body29_hand14.urdf --hand_type dex3 --max_freq 50.0 --use_rc
+            (tv) junweil@precognition-laptop6:~/projects/humanoid_teleop$ python g1_realrobot/locomotion_model.py --model_path homie_deploy_official.onnx --urdf  assets/g1/g1_body29_hand14.urdf --hand_type dex3 --max_freq 50.0 --use_rc
 
                 loco-motion policy loaded.
                 changed model machine using lowstate to 5
