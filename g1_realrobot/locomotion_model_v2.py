@@ -288,7 +288,7 @@ class G1_Control_Agent():
             4, 4, 4, 1, 0.5, 0.5, 0.5   #// arms
         ]
         # 如果腿抖的话，降低Kp，增大Kd; 上面是原本C++ homie的
-        # 我们使用下面的就能改善抖动
+        # 我们使用下面能改善抖动
 
         self.Kp = [
             120, 120, 120, 250, 35, 35,      #// legs (stiffer than before, but less than original)
@@ -306,9 +306,9 @@ class G1_Control_Agent():
         ]
 
 
-
         # 腿部动作平滑
         self.smoothed_actions = None
+        # 暂时不用
         self.smoothing_alpha = 1.0 # TUNE THIS: 0.1=very smooth, 0.9=less smooth
 
         # 如teleop -> robot_arm.py设置
@@ -614,14 +614,15 @@ class G1_Control_Agent():
 
         # 0.74
         cmd = np.array([0.0, 0.0, 0.0, 0.74])
+
         speed_filter = 0.1 # 摇杆漂移的值，小于这个就抹零
         cmd_json = self.cmd_buffer.GetData()
         if cmd_json is not None:
 
             #cmd_json = json.loads(cmd_string)
             # 给定的cmd指令应该都是-1.0+1.0之间
-            v_x = float(cmd_json["v_x"]) * 0.3
-            v_y = float(cmd_json["v_y"]) * 0.3
+            v_x = float(cmd_json["v_x"]) * 0.15
+            v_y = float(cmd_json["v_y"]) * 0.2
             v_yaw = float(cmd_json["v_yaw"]) * 1.2
 
             if v_x>0:
@@ -639,7 +640,7 @@ class G1_Control_Agent():
 
             height = float(cmd_json["height"])
             # height必须 1.65~0.74之间,下面就会得到0.74 ~ 0.08
-            height = max(1.2, min(height, 1.65))
+            height = max(1.0, min(height, 1.65))
             height = 0.74 - 0.54 * (1.65-min(height, 1.65))*1.0/(1.65-0.91)
             # TODO: 加 filter/ value check
             cmd = np.array([v_x, v_y, v_yaw, height])

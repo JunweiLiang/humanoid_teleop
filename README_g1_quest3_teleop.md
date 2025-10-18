@@ -396,7 +396,7 @@
                 # 可视化样例
                     https://drive.google.com/drive/folders/1MkMhkSa_LnhpYDLptVZQF8Nald4V_Wjs?usp=drive_link
 
-    ## [10/2025] 录制基于宇树主运控的整身任务（移动和打开锅具）经验
+    ## [10/2025] 录制基于宇树主运控的整身任务（移动和打开锅具, move_and_open_pot）经验
         # 1. 使用3号机，开image server
             unitree@ubuntu:~/projects/image_server$ python3.8 image_server_timesync.py --rs 337122070060
 
@@ -408,6 +408,11 @@
                 v_x = -tele_data.tele_state.left_thumbstick_value[1]  * 0.15
                 v_y = -tele_data.tele_state.left_thumbstick_value[0]  * 0.2
                 v_yaw = -tele_data.tele_state.right_thumbstick_value[0] * 0.5
+
+        # 3. 数据replay
+            (tv) junweil@office-precognition:~/projects/humanoid_teleop$ python g1_realrobot/visualize_wbc_episodes.py ~/Downloads/move_and_open_pot/episode_0031/data.json assets/g1/g1_body29_hand14.urdf --fps 60 --image_path ~/Downloads/move_and_open_pot/episode_0031//colors/ --hand_type dex3
+
+            # 视频样例: https://drive.google.com/file/d/1AJx1e5fcDNRZL7uMs-dw8V4k-XbwIblJ/view?usp=drive_link
 
 ```
 ## 3-2. 实机遥操作 (宇树3指) + 自定义locomotion运控

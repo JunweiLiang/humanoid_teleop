@@ -1641,7 +1641,9 @@ exts."isaacsim.asset.browser".folders = [
             # 底层的state subscribe和lowcmd send可以比较高
             # 默认机器人腰部13、14 pitch roll自由度锁住，电机的moter cmd直接enable=0
 
+            # 尽量让cmd小
             (tv) junweil@precognition-laptop6:~/projects/humanoid_teleop$ python g1_realrobot/locomotion_model_v2.py --model_path homie_deploy_official.onnx --urdf  assets/g1/g1_body29_hand14.urdf --hand_type dex3 --max_freq 50.0 --use_rc
+
                 loco-motion policy loaded.
                 changed model machine using lowstate to 5
                 10:54:03:338758 INFO     [G1_29_State] Waiting to subscribe dds... locomotion_model_v2.py:365
@@ -1718,7 +1720,9 @@ exts."isaacsim.asset.browser".folders = [
 
         # 仿真replay
 
-        (tv) junweil@office-precognition:~/projects/humanoid_teleop$ python g1_realrobot/visualize_arm_episodes.py ~/Downloads/data/can_sorting/episode_0001/data.json assets/g1/g1_body29_hand14.urdf --fps 60 --image_path /home/junweil/Downloads/data/can_sorting/episode_0001/colors/ --use_waist --hand_type dex3
+        (tv) junweil@office-precognition:~/projects/humanoid_teleop$ python g1_realrobot/visualize_wbc_episodes.py ~/Downloads/move_and_open_pot/episode_0031/data.json assets/g1/g1_body29_hand14.urdf --fps 60 --image_path ~/Downloads/move_and_open_pot/episode_0031//colors/ --hand_type dex3
+
+    # 3. 基于我们的locomotion
 ```
 
 
