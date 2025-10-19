@@ -805,7 +805,7 @@ parser.add_argument("--network_interface", default=None)
 parser.add_argument("--hand_type", default="dex3", help="dex3 or inspire1")
 parser.add_argument("--max_freq", default=200.0, type=float, help="maximum freq")
 parser.add_argument("--use_rc", action="store_true", help="use unitree remote for loco cmd instead of teleop controller")
-parser.add_argument("--use_use_fixed_speed_cmd", action="store_true", help="use fixed speed cmd")
+parser.add_argument("--use_fixed_speed_cmd", action="store_true", help="use fixed speed cmd")
 
 if __name__ == "__main__":
     # 测试， 先开了G1 sim或者实机G1, 然后每次模型输出的q可视化到meshcat中
