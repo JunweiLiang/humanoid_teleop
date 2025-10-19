@@ -1645,8 +1645,9 @@ exts."isaacsim.asset.browser".folders = [
             # 开始程序后，R2零位，此时脚要触地多一点，再R2开始底层控制
 
             # 先松安全绳，感受一下各个控制，就可以脱开安全绳了。后退的时候看起来要倒了，可以给往前的指令就能恢复平衡.
+            # --use_fixed_speed_cmd 可以防止用遥控器给不稳定的速度值，会更稳
 
-            (tv) junweil@precognition-laptop6:~/projects/humanoid_teleop$ python g1_realrobot/locomotion_model.py --model_path homie_deploy_official.onnx --urdf  assets/g1/g1_body29_hand14.urdf --hand_type dex3 --max_freq 50.0 --use_rc
+            (tv) junweil@precognition-laptop6:~/projects/humanoid_teleop$ python g1_realrobot/locomotion_model.py --model_path homie_deploy_official.onnx --urdf  assets/g1/g1_body29_hand14.urdf --hand_type dex3 --max_freq 50.0 --use_rc --use_fixed_speed_cmd
 
 
 
