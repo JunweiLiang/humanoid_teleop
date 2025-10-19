@@ -438,7 +438,7 @@ def show_current_q(vis_model, step_data, leg_state_qpos, hand_type="inspire1"):
             left_ee_pos = left_ee_pos[left_inspire_api_to_urdf_index]
             target_q[22:28] = left_ee_pos
 
-        if step_data[right_ee_name]["qpos"]
+        if step_data[right_ee_name]["qpos"]:
             right_ee_pos = np.array(step_data[right_ee_name]["qpos"])
             denorm_inspire(right_ee_pos)
             right_ee_pos = right_ee_pos[right_inspire_api_to_urdf_index]
