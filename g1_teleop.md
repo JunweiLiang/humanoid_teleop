@@ -1644,7 +1644,8 @@ exts."isaacsim.asset.browser".folders = [
             # 然后把g1的手放到前面，L2 + A会进入关节0位，然后再L2+B再次进入阻尼模式
             # 开始程序后，R2零位，此时脚要触地多一点，再R2开始底层控制
 
-            # 尽量让cmd小
+            # 先松安全绳，感受一下各个控制，就可以脱开安全绳了。后退的时候看起来要倒了，可以给往前的指令就能恢复平衡.
+
             (tv) junweil@precognition-laptop6:~/projects/humanoid_teleop$ python g1_realrobot/locomotion_model.py --model_path homie_deploy_official.onnx --urdf  assets/g1/g1_body29_hand14.urdf --hand_type dex3 --max_freq 50.0 --use_rc
 
 

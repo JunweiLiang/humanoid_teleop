@@ -53,7 +53,7 @@ class LocoMotionInference:
             sim=False,
             only_calibrate=False,
             use_rc=False,
-
+            use_fixed_speed_cmd=False,
             max_freq=60.0):
 
         self.device = device
@@ -73,6 +73,7 @@ class LocoMotionInference:
         self.control_agent = G1_Control_Agent(
             network_interface, use_waist3=use_waist3,
             use_rc=use_rc,
+            use_fixed_speed_cmd=use_fixed_speed_cmd,
             ctr_max_freq=max_freq,
             device=device, control_g1=control_g1, sim=self.sim)
         # add obs
@@ -221,11 +222,13 @@ class G1_Control_Agent():
             network_interface, use_waist3=False, sim=False,
             device="cuda:0", control_g1=True,
             ctr_max_freq=50.0,
-            use_rc=False):
+            use_rc=False,
+            use_fixed_speed_cmd=False):
         self.ctr_max_freq = ctr_max_freq
         self.device = device
         self.control_g1 = control_g1
         self.sim = sim
+        self.use_fixed_speed_cmd = use_fixed_speed_cmd
         # channel factory只能 init一次
         if self.sim:
             # 仿真中测试
@@ -617,26 +620,39 @@ class G1_Control_Agent():
 
         speed_filter = 0.1 # 摇杆漂移的值，小于这个就抹零
         cmd_json = self.cmd_buffer.GetData()
-        if cmd_json is not None:
 
+        if cmd_json is not None:
             #cmd_json = json.loads(cmd_string)
+
             # 给定的cmd指令应该都是-1.0+1.0之间
             v_x = float(cmd_json["v_x"]) * 0.35 # 后退会慢慢碎步走
             v_y = float(cmd_json["v_y"]) * 0.25
             v_yaw = float(cmd_json["v_yaw"]) * 0.8 # homie原版，0.7就转不动了
 
-            if v_x>0:
-                v_x=(max(np.abs(v_x)-speed_filter,0))
-            else:
-                v_x=-(max(np.abs(v_x)-speed_filter,0))
-            if v_y>0:
-                v_y=(max(np.abs(v_y)-speed_filter,0))
-            else:
-                v_y=-(max(np.abs(v_y)-speed_filter,0))
-            if v_yaw>0:
-                v_yaw=(max(np.abs(v_yaw)-speed_filter,0))
-            else:
-                v_yaw=-(max(np.abs(v_yaw)-speed_filter,0))
+            # 然后所有值再抹零+全部减少speed_filter
+            # This is a deadzone filter. It zeroes any value where abs(v) < speed_filter
+            # and subtracts speed_filter from the magnitude otherwise.
+            v_x = np.sign(v_x) * max(np.abs(v_x) - speed_filter, 0)
+            v_y = np.sign(v_y) * max(np.abs(v_y) - speed_filter, 0)
+            v_yaw = np.sign(v_yaw) * max(np.abs(v_yaw) - speed_filter, 0)
+
+            if self.use_fixed_speed_cmd:
+                # After the filter, any non-zero value means the
+                # original command was > 0.1 or < -0.1.
+                # Here, we set that to a fixed speed.
+                self.fixed_vx_speed = 0.25
+                self.fixed_vy_speed = 0.15
+                self.fixed_vyaw_speed = 0.7
+
+                if v_x != 0:
+                    v_x = np.sign(v_x) * self.fixed_vx_speed
+
+                if v_y != 0:
+                    v_y = np.sign(v_y) * self.fixed_vy_speed
+
+                if v_yaw != 0:
+                    v_yaw = np.sign(v_yaw) * self.fixed_vyaw_speed
+                # --- End of new logic ---
 
             height = float(cmd_json["height"])
             # height必须 1.65~0.74之间,下面就会得到0.74 ~ 0.08
@@ -789,6 +805,7 @@ parser.add_argument("--network_interface", default=None)
 parser.add_argument("--hand_type", default="dex3", help="dex3 or inspire1")
 parser.add_argument("--max_freq", default=200.0, type=float, help="maximum freq")
 parser.add_argument("--use_rc", action="store_true", help="use unitree remote for loco cmd instead of teleop controller")
+parser.add_argument("--use_use_fixed_speed_cmd", action="store_true", help="use fixed speed cmd")
 
 if __name__ == "__main__":
     # 测试， 先开了G1 sim或者实机G1, 然后每次模型输出的q可视化到meshcat中
@@ -804,6 +821,7 @@ if __name__ == "__main__":
         sim=args.sim,
         only_calibrate=args.only_calibrate,
         use_rc=args.use_rc,
+        use_fixed_speed_cmd=args.use_fixed_speed_cmd,
         max_freq=args.max_freq)
     try:
         # This loop will now exit gracefully when the 'stop' flag is set from the remote or Ctrl+C.
