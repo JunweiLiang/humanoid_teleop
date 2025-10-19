@@ -641,7 +641,7 @@ class G1_Control_Agent():
                 # original command was > 0.1 or < -0.1.
                 # Here, we set that to a fixed speed.
                 self.fixed_vx_speed_forward = 0.25
-                self.fixed_vx_speed_backward = 0.2 # 后退不稳所以要更小的cmd # 0.15就原地不动了
+                self.fixed_vx_speed_backward = -0.2 # 后退不稳所以要更小的cmd # 0.15就原地不动了
                 self.fixed_vy_speed = 0.15
                 self.fixed_vyaw_speed = 0.7
 
