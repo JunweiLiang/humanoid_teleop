@@ -1657,10 +1657,11 @@ exts."isaacsim.asset.browser".folders = [
                     # 原地下蹲稳，起身可能会晃
                     # 测试视频:
 
-        # 测试29观测版本的
-            # 先--only_calibrate跑通
-                (tv) junweil@precognition-laptop6:~/projects/humanoid_teleop$ python g1_realrobot/locomotion_model.py --model_path waist_homie.onnx --urdf  assets/g1/g1_body29_hand14.urdf --hand_type dex3 --use_waist3 --max_freq 50.0 --use_rc --use_fixed_speed_cmd --only_calibrate
+        # [10/19/2025] 测试29观测版本的homie模型
 
+            (tv) junweil@precognition-laptop6:~/projects/humanoid_teleop$ python g1_realrobot/locomotion_model.py --model_path waist_homie.onnx --urdf  assets/g1/g1_body29_hand14.urdf --hand_type dex3 --use_waist3 --max_freq 50.0 --use_rc --use_fixed_speed_cmd
+
+            # 太差了，原地站不稳，难得站稳然后往前给指令，又停不下来会一直往前走，往后拉摇杆才好歹原地踏步
 
 
 ```
@@ -1717,6 +1718,12 @@ exts."isaacsim.asset.browser".folders = [
             (tv) junweil@office-precognition:~/projects/humanoid_teleop$ python g1_realrobot/visualize_wbc_episodes.py ~/Downloads/move_and_open_pot/episode_0031/data.json assets/g1/g1_body29_hand14.urdf --fps 60 --image_path ~/Downloads/move_and_open_pot/episode_0031//colors/ --hand_type dex3
 
     # 3. 基于我们的locomotion
+
+        # 3.1 开启locomotion，速度指令由Quest 3s给，所以Quest 3s退出前要移动回安全架
+            # 宇树遥控器可以L2+B急停
+            (tv) junweil@precognition-laptop6:~/projects/humanoid_teleop$ python g1_realrobot/locomotion_model.py --model_path homie_deploy_official.onnx --urdf assets/g1/g1_body29_hand14.urdf --hand_type dex3 --max_freq 50.0 --use_fixed_speed_cmd
+
+        # 开启--lock_arm --no_hand 调试
 ```
 
 
