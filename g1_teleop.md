@@ -1649,6 +1649,18 @@ exts."isaacsim.asset.browser".folders = [
 
             (tv) junweil@precognition-laptop6:~/projects/humanoid_teleop$ python g1_realrobot/locomotion_model.py --model_path homie_deploy_official.onnx --urdf  assets/g1/g1_body29_hand14.urdf --hand_type dex3 --max_freq 50.0 --use_rc --use_fixed_speed_cmd
 
+                # Homie原版运控特点
+                    # 代码中的kp调低25%，kd调高25%, loco cmd固定为 [(0.25, -0.23), 0.15, 0.7]
+                    # 前后稳，后退有时会不动这个时候右边摇杆给个yaw指令就可以动了
+                    # 左右侧移动，会往前飘
+                    # yaw，旋转，会往前飘然后以脚后20厘米的圆心画圈
+                    # 原地下蹲稳，起身可能会晃
+                    # 测试视频:
+
+        # 测试29观测版本的
+            # 先--only_calibrate跑通
+                (tv) junweil@precognition-laptop6:~/projects/humanoid_teleop$ python g1_realrobot/locomotion_model.py --model_path waist_homie.onnx --urdf  assets/g1/g1_body29_hand14.urdf --hand_type dex3 --use_waist3 --max_freq 50.0 --use_rc --use_fixed_speed_cmd --only_calibrate
+
 
 
 ```
