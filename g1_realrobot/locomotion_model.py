@@ -640,12 +640,17 @@ class G1_Control_Agent():
                 # After the filter, any non-zero value means the
                 # original command was > 0.1 or < -0.1.
                 # Here, we set that to a fixed speed.
-                self.fixed_vx_speed = 0.25
+                self.fixed_vx_speed_forward = 0.25
+                self.fixed_vx_speed_backward = 0.15 # 后退不稳所以要更小的cmd
                 self.fixed_vy_speed = 0.15
                 self.fixed_vyaw_speed = 0.7
 
                 if v_x != 0:
-                    v_x = np.sign(v_x) * self.fixed_vx_speed
+                    #v_x = np.sign(v_x) * self.fixed_vx_speed
+                    if v_x > 0:
+                        v_x = self.fixed_vx_speed_forward
+                    else:
+                        v_x = self.fixed_vx_speed_backward
 
                 if v_y != 0:
                     v_y = np.sign(v_y) * self.fixed_vy_speed
