@@ -431,34 +431,42 @@ def show_current_q(vis_model, step_data, leg_state_qpos, hand_type="inspire1"):
 
     if hand_type == "inspire1":
 
-        left_ee_pos = np.array(step_data[left_ee_name]["qpos"])
-        denorm_inspire(left_ee_pos) # 先按telop_hand_and_arm.py denorm之后再换成URDF ID
-        left_ee_pos = left_ee_pos[left_inspire_api_to_urdf_index]
+        # 可能没有手的数据
+        if step_data[left_ee_name]["qpos"]:
+            left_ee_pos = np.array(step_data[left_ee_name]["qpos"])
+            denorm_inspire(left_ee_pos) # 先按telop_hand_and_arm.py denorm之后再换成URDF ID
+            left_ee_pos = left_ee_pos[left_inspire_api_to_urdf_index]
+            target_q[22:28] = left_ee_pos
 
-        right_ee_pos = np.array(step_data[right_ee_name]["qpos"])
-        denorm_inspire(right_ee_pos)
-        right_ee_pos = right_ee_pos[right_inspire_api_to_urdf_index]
+        if step_data[right_ee_name]["qpos"]
+            right_ee_pos = np.array(step_data[right_ee_name]["qpos"])
+            denorm_inspire(right_ee_pos)
+            right_ee_pos = right_ee_pos[right_inspire_api_to_urdf_index]
+            target_q[35:] = right_ee_pos
 
         target_q[:12] = leg_state_qpos
         target_q[12:15] = waist_q
         target_q[15:22] = left_arm_pos
-        target_q[22:28] = left_ee_pos
         target_q[28:35] = right_arm_pos
-        target_q[35:] = right_ee_pos
+
 
     elif hand_type == "dex3":
-        left_ee_pos = np.array(step_data[left_ee_name]["qpos"])
-        left_ee_pos = left_ee_pos[left_dex3_api_to_urdf_index]
+        if step_data[left_ee_name]["qpos"]:
+            left_ee_pos = np.array(step_data[left_ee_name]["qpos"])
+            left_ee_pos = left_ee_pos[left_dex3_api_to_urdf_index]
+            target_q[22:29] = left_ee_pos
 
-        right_ee_pos = np.array(step_data[right_ee_name]["qpos"])
-        right_ee_pos = right_ee_pos[right_dex3_api_to_urdf_index]
+        if step_data[right_ee_name]["qpos"]:
+            right_ee_pos = np.array(step_data[right_ee_name]["qpos"])
+            right_ee_pos = right_ee_pos[right_dex3_api_to_urdf_index]
+            target_q[36:] = right_ee_pos
 
         target_q[:12] = leg_state_qpos
         target_q[12:15] = waist_q
         target_q[15:22] = left_arm_pos
-        target_q[22:29] = left_ee_pos
+
         target_q[29:36] = right_arm_pos
-        target_q[36:] = right_ee_pos
+
 
     vis_model.vis.display(target_q)
 

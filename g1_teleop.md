@@ -1723,7 +1723,13 @@ exts."isaacsim.asset.browser".folders = [
             # 宇树遥控器可以L2+B急停
             (tv) junweil@precognition-laptop6:~/projects/humanoid_teleop$ python g1_realrobot/locomotion_model.py --model_path homie_deploy_official.onnx --urdf assets/g1/g1_body29_hand14.urdf --hand_type dex3 --max_freq 50.0 --use_fixed_speed_cmd
 
-        # 开启--lock_arm --no_hand 调试
+
+
+        # 3.2 开启image server, 1号机没有PC2要usbc直连realsense
+            (tv) junweil@precognition-laptop6:~/projects/xr_teleoperate/teleop/image_server$ python image_server_timesync.py --rs 242222070727
+
+        # 3.3 开启--lock_arm --no_hand 调试
+              (tv) junweil@precognition-laptop6:~/projects/xr_teleoperate/teleop$ python teleop_hand_and_arm_with_loco.py --xr-mode=controller --arm=G1_29 --ee=dex3 --record --network_interface enp131s0 --use_waist  --task_name open_washer_door --task_dir ../data/open_washer_door --lock_arm --no_hand --image_server_ip 127.0.0.1
 ```
 
 
