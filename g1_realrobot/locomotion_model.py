@@ -642,8 +642,8 @@ class G1_Control_Agent():
                 # Here, we set that to a fixed speed.
                 self.fixed_vx_speed_forward = 0.25
                 # # 后退不稳所以要更小的cmd # 0.2就原地不动了 # 0.23就不稳了
-                # 0.22会小碎步后退
-                self.fixed_vx_speed_backward = -0.22
+                # 0.23会小碎步后退
+                self.fixed_vx_speed_backward = -0.23
                 self.fixed_vy_speed = 0.15
                 self.fixed_vyaw_speed = 0.7
 
