@@ -591,7 +591,7 @@ if __name__ == "__main__":
                             cv2.LINE_AA
                         )
                     # show the trigger value if any
-                    if "left_trigger" in episode["data"][current_step]["actions"] and episode["data"][current_step]["actions"]["left_trigger"]:
+                    if "left_trigger" in episode["data"][current_step]["actions"]:
                         left_trigger_value = float(episode["data"][current_step]["actions"]["left_trigger"])
                         right_trigger_value = float(episode["data"][current_step]["actions"]["right_trigger"])
                         trigger_text = f"Trigger value, l: {left_trigger_value:.2f}, r: {right_trigger_value:.2f}"

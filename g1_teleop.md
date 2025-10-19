@@ -1655,7 +1655,7 @@ exts."isaacsim.asset.browser".folders = [
                     # 左右侧移动，会往前飘
                     # yaw，旋转，会往前飘然后以脚后20厘米的圆心画圈
                     # 原地下蹲稳，起身可能会晃
-                    # 测试视频:
+                    # 测试视频: https://drive.google.com/file/d/1ik5p0InDg0Vn_uHw72hCmzx7zprAQSD6/view?usp=drive_link
 
         # [10/19/2025] 测试29观测版本的homie模型
 
@@ -1699,7 +1699,6 @@ exts."isaacsim.asset.browser".folders = [
                         13:02:58:248637 INFO       └─ [record] Avg: 0.00 ms (593 calls)         helper_utils.py:83
 
 
-
     # 2. 遥操作收集整身数据 [move_and_open_pot/]基于宇树主运控
 
         # 3号机
@@ -1717,19 +1716,40 @@ exts."isaacsim.asset.browser".folders = [
 
             (tv) junweil@office-precognition:~/projects/humanoid_teleop$ python g1_realrobot/visualize_wbc_episodes.py ~/Downloads/move_and_open_pot/episode_0031/data.json assets/g1/g1_body29_hand14.urdf --fps 60 --image_path ~/Downloads/move_and_open_pot/episode_0031//colors/ --hand_type dex3
 
+            # 样例视频 move_and_open_pot: https://drive.google.com/file/d/1AJx1e5fcDNRZL7uMs-dw8V4k-XbwIblJ/view?usp=drive_link
+
     # 3. 基于我们的locomotion
+
+        # 用VR的高度作为height指令，需要重新编译一下 televuer包裹
+            (tv) junweil@office-precognition:~/projects/xr_teleoperate/teleop/televuer$ pip install -e .
 
         # 3.1 开启locomotion，速度指令由Quest 3s给，所以Quest 3s退出前要移动回安全架
             # 宇树遥控器可以L2+B急停
+            # 遥控器给恒定的cmd，这样比较稳
             (tv) junweil@precognition-laptop6:~/projects/humanoid_teleop$ python g1_realrobot/locomotion_model.py --model_path homie_deploy_official.onnx --urdf assets/g1/g1_body29_hand14.urdf --hand_type dex3 --max_freq 50.0 --use_fixed_speed_cmd
-
-
 
         # 3.2 开启image server, 1号机没有PC2要usbc直连realsense
             (tv) junweil@precognition-laptop6:~/projects/xr_teleoperate/teleop/image_server$ python image_server_timesync.py --rs 242222070727
 
         # 3.3 开启--lock_arm --no_hand 调试
               (tv) junweil@precognition-laptop6:~/projects/xr_teleoperate/teleop$ python teleop_hand_and_arm_with_loco.py --xr-mode=controller --arm=G1_29 --ee=dex3 --record --network_interface enp131s0 --use_waist  --task_name open_washer_door --task_dir ../data/open_washer_door --lock_arm --no_hand --image_server_ip 127.0.0.1
+
+        # 上述没问题，开启遥操作
+            # 数据采集基本58Hz
+            # 机器人速度指令与使用宇树主运控类似，用Quest 3s控制器摇杆给，但是注意：
+                # 前后稳，后退有时会不动这个时候右边摇杆给个yaw指令就可以动了
+                # 左右侧移动，会往前飘
+                # yaw，旋转，会往前飘然后以脚后20厘米的圆心画圈
+            # 机器人高度指令原理：Quest 3s控制器按B按键开启遥操作时，会获取操作者此时的高度
+                # 操作者后续下蹲，就会给height_delta给底层控制，进行下蹲
+
+            (tv) junweil@precognition-laptop6:~/projects/xr_teleoperate/teleop$ python teleop_hand_and_arm_with_loco.py --xr-mode=controller --arm=G1_29 --ee=dex3 --record --network_interface enp131s0 --use_waist  --task_name open_washer_door --task_dir ../data/open_washer_door
+
+        # 仿真replay:
+            # open_washer_door
+
+            (tv) junweil@office-precognition:~/projects/humanoid_teleop$ python g1_realrobot/visualize_wbc_episodes.py ~/projects/huawei_data/wbc_task4/open_washer_door/episode_0031/data.json assets/g1/g1_body29_hand14.urdf --fps 60 --image_path ~/projects/huawei_data/wbc_task4/open_washer_door/episode_0031/colors/ --hand_type dex3
+
 ```
 
 
