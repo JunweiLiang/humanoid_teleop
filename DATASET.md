@@ -1,9 +1,12 @@
 # 数据集说明
 
-### [09/2025] 桌面5个任务，各收集了50 episode, 60fps
+### [09/2025] 桌面5个任务，整身控制任务4个，各收集了大于等于50 episode, 60fps
 
-* **数据地址：** [Google Drive Link](https://drive.google.com/file/d/15PEmHs3PT6LVK9LfDirtgjoya5NoH_4O/view?usp=sharing)
-* **数据可视化样例：** [Google Drive Link](https://drive.google.com/drive/folders/1AijEc_0u05rftFne_xciJ_3YHOXZ-q9P?usp=drive_link)
+* **桌面任务数据地址：** [Google Drive Link](https://drive.google.com/file/d/15PEmHs3PT6LVK9LfDirtgjoya5NoH_4O/view?usp=sharing)
+* **桌面任务数据可视化样例：** [Google Drive Link](https://drive.google.com/drive/folders/1AijEc_0u05rftFne_xciJ_3YHOXZ-q9P?usp=drive_link)
+* **整身任务数据地址：** [Google Drive Link](https://drive.google.com/file/d/1ij8oJeD0YHdmE6q4hXXMLQPJ7a5zux0z/view?usp=sharing)
+* **整身任务数据可视化样例：** [Google Drive Link](https://drive.google.com/drive/folders/120JGNOUmESJtJZ3OTWuyyHOllV9xOLBc?usp=drive_link)
+* **遥操作代码说明：** [README_g1_quest3_teleop.md](./README_g1_quest3_teleop.md)
 
 ---
 
@@ -25,6 +28,10 @@
 ├── towel_folding
 ├── twist_off_bottle_cap
 └── unloading
+└── close_washer_door
+└── open_washer_door
+└── pick_up_object_from_ground
+└── move_and_open_pot
 ```
 ### 数据说明
 
@@ -32,15 +39,15 @@
 +   图像数据在 `colors` 文件夹下，包含头部D435、双手腕部D435的RGB图像（640x480）, 60FPS。
 +   具体数据存储请查看: [`teleop_hand_and_arm.py` L699](https://github.com/hkustgz-hw/xr_teleoperate_hkustgz-hw/blob/main/teleop/teleop_hand_and_arm.py#L699)
 +   可视化效果图：
-    ![桌面5任务可视化](./desk5_tasks_visualization.png)
-
+    ![桌面5任务可视化](./docs/desk5_tasks_visualization.png)
+    ![整身控制4任务可视化](./docs/wbc4_tasks_visualization.png)
 ---
 
 ## 采集注意事项
 
 1.  **初始位置为：** 两臂垂直放于身体两侧，按住两手扳机，手部为close状态。
 2.  **结束episode前** 要将手部状态恢复为初始位置。
-
+3. (整身遥操作) VR操作者身体高度控制机器人下蹲幅度
 ---
 
 ## 任务自由度说明
@@ -50,7 +57,7 @@
 * **双手操作任务 (共17自由度):** 手臂(14) + 手(2) + 腰(1)
     * *任务包括: [Towel Folding], [Twist off the bottle cap]*
 * **双手整身控制任务 (共29自由度):** 手臂(14) + 手(2) + 腿(12) + 腰(1)
-    * *任务包括: [Move box], [Open Cabinet] , [Move and Open Pot]*
+    * *任务包括: [close_washer_door], [open_washer_door] , [pick_up_object_from_ground], [move_and_open_pot]*
 
 ---
 
@@ -120,15 +127,60 @@
 
 ---
 
-## 整身控制任务
+## 整身控制任务4个
 
-### [Move Box] 搬箱子【整身】
 
-* **任务目标:** Move the box from the ground to the table.
-* **任务描述:** Move the box from the ground to the table.
-* **中文描述:** 下蹲，双手拿起地上的箱子，然后站起来，走到旁边的桌子，最后把箱子放到桌子上。
+### [Open Washer Door] 打开洗衣机门【整身】
+
+* **任务目标:** Open Washer Door
+* **任务描述:** Open Washer Door
+* **中文描述:** 假设已经走到洗衣机附近，蹲下，然后打开洗衣机门
 * **任务步骤:**
-    1.  Search for the box.
-    2.  Lower the body and hold the box using both hands.
-    3.  Stand up and turn to move to the table.
-    4.  Put the box on the table.
+    1.  Crouch down.
+    2.  Search for washer door handle.
+    3.  Open washer door.
+
+### [Close Washer Door] 关闭洗衣机门【整身】
+
+* **任务目标:** Close Washer Door
+* **任务描述:** Close Washer Door
+* **中文描述:** 假设蹲下在打开的洗衣机柜门前面，关闭洗衣机柜门，然后站起来
+* **任务步骤:**
+    1.  Search for washer door handle.
+    2.  Close washer door.
+    3.  Stand up
+
+### 洗衣机道具说明
+
+洗衣机整体高83厘米，把手区域45-62厘米高：[图片说明](./docs/washer_note.png)
+
+
+### [Pick Up Object from Ground] 地上捡物品到桌子的篮子中【整身】【长程】
+
+* **任务目标:** Pick Object from ground to the table basket
+* **任务描述:** Pick Object from ground to the table basket
+* **中文描述:** 下蹲单手捡起地上的瓶罐物品，站起来，转身/走到旁边的桌子，放物品到桌子上的篮子中。桌子高度大于70cm
+* **任务步骤:**
+    1.  Search for the can/bottle object on the ground.
+    2. Lower the body and pick up can using one hand.
+    3. Stand up and turn and/or move to the table.
+    4. Put the can on the table basket
+
+### 桌面高度说明
+
+桌面篮子高98厘米，桌面高88厘米，地面最好垫高30厘米：[图片说明](./docs/ground_table_note.png)
+
+### [Move and Open Pot] 移动锅具和打开锅盖【整身】【长程】
+
+* **任务目标:** Move and open pot
+* **任务描述:** Move and open pot
+* **中文描述:** 从一个桌子上拿取锅，转身走并放到另一个桌子上，然后打开锅盖
+* **任务步骤:**
+    1. Pick up pot from one table.
+    2. Turn, and walk to another table.
+    3. Put pot on the table.
+    4. Open pot.
+
+### 锅具道具说明
+
+锅把手长14厘米直径3厘米，锅盖把手高5厘米直径4厘米：[图片说明](./docs/pot_note.png)

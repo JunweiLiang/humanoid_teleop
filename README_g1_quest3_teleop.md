@@ -414,9 +414,10 @@
 
             # 视频样例: https://drive.google.com/file/d/1AJx1e5fcDNRZL7uMs-dw8V4k-XbwIblJ/view?usp=drive_link
 
+
 ```
 ## 3-2. 实机遥操作 (宇树3指) + 自定义locomotion运控
-+ 自定义运控程序`locomotion_model.py`的DDS通讯[流程图](./wbc_teleop_dds_pipeline.png)
++ 自定义运控程序`locomotion_model.py`的DDS通讯[流程图](./docs/wbc_teleop_dds_pipeline.png)
 ```
     ## [10/2025] 使用自定义locomotion模型
         # 需要在tv环境下安装的东西
@@ -430,55 +431,62 @@
 
                 可以忽略 dex-retargeting 0.4.7 requires torch==2.3.0
 
-        # Homie 的指令input: Vx, Vy + 转向角速度 (yaw) + 身体高度 (0.74m以下，)，4D；输出12 DoF脚 Joint Pos
-        # 观测输入: 身体角速度、重力向量，全身关节位置，全身关节速度，还有上一步action
+    ## [10/2025] 录制基于自定义locomotion policy的整身任务（ 打开洗衣机门、关闭洗衣机门、地上捡物品到桌子的篮子中）经验
 
+        # 0. locomotion 控制
+            # homie本身是50Hz训练推理的，所以这里主循环也要50Hz
+            # 底层的state subscribe和lowcmd send可以比较高
+            # 默认机器人腰部13、14 pitch roll自由度锁住，电机的moter cmd直接enable=0
 
-        # 实验准备
-            # laptop6 有线连接2号机，用龙门架。小心龙门架跑车会横移
-                # G1开机自检完成后， L2+B进入阻尼，然后L2 + R2进入调试模式，灯应该会边
-                # 然后把g1的手放到前面，L2 + A会进入关节0位，然后再L2+B再次进入阻尼模式
-                # 脚要触地
+            # G1开机自检完成后， L2+B进入阻尼，然后L2 + R2进入调试模式，灯应该会边
+            # 然后把g1的手放到前面，L2 + A会进入关节0位，然后再L2+B再次进入阻尼模式
+            # 开始程序后，R2零位，此时脚要触地多一点，再R2开始底层控制
 
-            # 1. 开启 locomotion运控
+            # 先松安全绳，感受一下各个控制，就可以脱开安全绳了。后退的时候看起来要倒了，可以给往前的指令就能恢复平衡.
+            # --use_fixed_speed_cmd 可以防止用遥控器给不稳定的速度值，会更稳
 
-                # 实机跑，max_freq=100 一开始可能剧烈抖动踏步, 所以max_freq 设置为50.0,然后站稳后就不动了，可以松掉安全绳
+            (tv) junweil@precognition-laptop6:~/projects/humanoid_teleop$ python g1_realrobot/locomotion_model.py --model_path homie_deploy_official.onnx --urdf  assets/g1/g1_body29_hand14.urdf --hand_type dex3 --max_freq 50.0 --use_rc --use_fixed_speed_cmd
 
-                (tv) junweil@precognition-laptop6:~/projects/humanoid_teleop$ python g1_realrobot/locomotion_model.py --model_path homie_deploy_official.onnx --urdf  assets/g1/g1_body29_hand14.urdf --hand_type dex3 --max_freq 50.0
+                # Homie原版运控特点
+                    # 代码中的kp调低25%，kd调高25%, loco cmd固定为 [(0.25, -0.23), 0.15, 0.7]
+                    # 前后稳，后退有时会不动这个时候右边摇杆给个yaw指令就可以动了
+                    # 左右侧移动，会往前飘
+                    # yaw，旋转，会往前飘然后以脚后20厘米的圆心画圈
+                    # 原地下蹲稳，起身可能会晃
+                    # 测试视频: https://drive.google.com/file/d/1ik5p0InDg0Vn_uHw72hCmzx7zprAQSD6/view?usp=drive_link
 
-                # 注意！！开启运控后，遥控器应该就失效了（L2+B都没用），所以出现问题只能ctr+c掉locomotion_model.py
+        # 0. 用VR的高度作为height指令，需要重新编译一下 televuer包裹
+            (tv) junweil@office-precognition:~/projects/xr_teleoperate/teleop/televuer$ pip install -e .
 
-            # 2. 开启图像服务器
+        # 1 开启locomotion，速度指令由Quest 3s给，所以Quest 3s退出前要移动回安全架
+            # 宇树遥控器可以L2+B急停
+            # 遥控器给恒定的cmd，这样比较稳
+            (tv) junweil@precognition-laptop6:~/projects/humanoid_teleop$ python g1_realrobot/locomotion_model.py --model_path homie_deploy_official.onnx --urdf assets/g1/g1_body29_hand14.urdf --hand_type dex3 --max_freq 50.0 --use_fixed_speed_cmd
 
-                (base) unitree@ubuntu:~/projects/image_server$ python3.8 image_server_timesync.py
+        # 2 开启image server # 3号机
+            unitree@ubuntu:~/projects/image_server$ python3.8 image_server_timesync.py --rs 337122070060
 
-            # 3. 开启teleop
-                # 控制说明:
-                    # 右手 B按键开启遥操作，右手A按键结束遥操作程序，手会自动握拳
-                    # 左手x按键开启、结束一个episode的录制
-                    # 左右手板机控制手开合
-                    # 左手 中指 按钮（名字叫left_squeeze_ctrl）控制身体下蹲
-                        # 不按left_squeeze_ctrl_value是0.0, 完全按下对应1.0，homie的高度现在我写死在1.65米到1.2米之间映射到这个[0.0, 1.0]
-                        # 想要修改这个需要同时修改 teleop_hand_and_arm_loco.py:
-                            # sport_client.set_cmd(v_x, v_y, v_yaw, height)
-                        # 以及locomotion_model.py def _get_command(self): 里
-                    # 移动用quest 3 摇杆控制，左手前进后退左平移右平移，右手转向
-                    # 注意用quest 3 的摇杆，你感觉的前进方向，可能不对；所以慢慢推摇杆
-                    # 速度可以在locomotion_model.py def _get_command(self): 里调整系数
+        # 3.3 开启--lock_arm --no_hand 调试，可以感受一下VR给的高度指令控制机器人下蹲
+              (tv) junweil@precognition-laptop6:~/projects/xr_teleoperate/teleop$ python teleop_hand_and_arm_with_loco.py --xr-mode=controller --arm=G1_29 --ee=dex3 --record --network_interface enp131s0 --use_waist  --task_name open_washer_door --task_dir ../data/open_washer_door --lock_arm --no_hand
 
+        # 上述没问题，开启遥操作
+            # 数据采集基本58Hz
+            # 机器人速度指令与使用宇树主运控类似，用Quest 3s控制器摇杆给，但是注意：
+                # 前后稳，后退有时会不动这个时候右边摇杆给个yaw指令就可以动了
+                # 左右侧移动，会往前飘
+                # yaw，旋转，会往前飘然后以脚后20厘米的圆心画圈
+            # 机器人高度指令原理：Quest 3s控制器按B按键开启遥操作时，会获取操作者此时的高度
+                # 操作者后续下蹲，就会给height_delta给底层控制，进行下蹲
 
+            (tv) junweil@precognition-laptop6:~/projects/xr_teleoperate/teleop$ python teleop_hand_and_arm_with_loco.py --xr-mode=controller --arm=G1_29 --ee=dex3 --record --network_interface enp131s0 --use_waist  --task_name open_washer_door --task_dir ../data/open_washer_door
 
-                (tv) junweil@precognition-laptop6:~/projects/xr_teleoperate/teleop$ python teleop_hand_and_arm_with_loco.py --xr-mode=controller  --arm=G1_29 --ee=dex3 --record --network_interface enp131s0 --task_name move_box --task_dir ../data/move_box
+        # 仿真replay:
+            # open_washer_door
 
-                # 可以看情况添加 腰部 yaw控制：--use_waist
+            (tv) junweil@office-precognition:~/projects/humanoid_teleop$ python g1_realrobot/visualize_wbc_episodes.py ~/projects/huawei_data/wbc_task4/open_washer_door/episode_0031/data.json assets/g1/g1_body29_hand14.urdf --fps 60 --image_path ~/projects/huawei_data/wbc_task4/open_washer_door/episode_0031/colors/ --hand_type dex3
 
-                # 可以添加 --lock_arm ，这样按下右手B按键后程序不会控制手臂，手臂保持在零位，此时按键摇杆都可以使用，方便调试locomotion
-
-
-
-            # 4. 可视化全身的data episode
-                (tv) junweil@office-precognition:~/projects/humanoid_teleop$ python g1_realrobot/visualize_wbc_episodes.py ~/Downloads/data/move_box/episode_0010/data.json assets/g1/g1_body29_hand14.urdf --fps 60 --image_path ~/Downloads/data/move_box/episode_0010//colors/ --hand_type dex3
-                    # 视频: https://drive.google.com/drive/folders/120JGNOUmESJtJZ3OTWuyyHOllV9xOLBc?usp=drive_link
+            # 数据可视化合集: https://drive.google.com/drive/folders/120JGNOUmESJtJZ3OTWuyyHOllV9xOLBc?usp=drive_link
+            # 遥操作测试视频合集：https://drive.google.com/drive/folders/1kpmB1j2ZmkKclLanWkWsj_I3UOkvyDxo?usp=drive_link
 
 ```
 4. 用仿真验证遥操作

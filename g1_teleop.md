@@ -1750,6 +1750,9 @@ exts."isaacsim.asset.browser".folders = [
 
             (tv) junweil@office-precognition:~/projects/humanoid_teleop$ python g1_realrobot/visualize_wbc_episodes.py ~/projects/huawei_data/wbc_task4/open_washer_door/episode_0031/data.json assets/g1/g1_body29_hand14.urdf --fps 60 --image_path ~/projects/huawei_data/wbc_task4/open_washer_door/episode_0031/colors/ --hand_type dex3
 
+            # 数据可视化合集: https://drive.google.com/drive/folders/120JGNOUmESJtJZ3OTWuyyHOllV9xOLBc?usp=drive_link
+            # 遥操作测试视频合集：https://drive.google.com/drive/folders/1kpmB1j2ZmkKclLanWkWsj_I3UOkvyDxo?usp=drive_link
+
 ```
 
 
