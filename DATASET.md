@@ -1,10 +1,9 @@
 # 数据集说明
 
-### [09/2025] 桌面5个任务，整身控制任务4个，各收集了大于等于50 episode, 60fps
+### [09/2025] 桌面5个任务，整身控制任务5个，各收集了大于等于50 episode, 60fps
 
-* **桌面任务数据地址：** [Google Drive Link](https://drive.google.com/file/d/15PEmHs3PT6LVK9LfDirtgjoya5NoH_4O/view?usp=sharing)
+* **数据地址：** [Google Drive Link](https://drive.google.com/drive/folders/1SbB8BDBF807uV-ZlPntP52akBHN-4zwv?usp=sharing)
 * **桌面任务数据可视化样例：** [Google Drive Link](https://drive.google.com/drive/folders/1AijEc_0u05rftFne_xciJ_3YHOXZ-q9P?usp=drive_link)
-* **整身任务数据地址：** [Google Drive Link](https://drive.google.com/file/d/1ij8oJeD0YHdmE6q4hXXMLQPJ7a5zux0z/view?usp=sharing)
 * **整身任务数据可视化样例：** [Google Drive Link](https://drive.google.com/drive/folders/120JGNOUmESJtJZ3OTWuyyHOllV9xOLBc?usp=drive_link)
 * **遥操作代码说明：** [README_g1_quest3_teleop.md](./README_g1_quest3_teleop.md)
 
@@ -32,6 +31,7 @@
 └── open_washer_door
 └── pick_up_object_from_ground
 └── move_and_open_pot
+└── move_box
 ```
 ### 数据说明
 
@@ -40,7 +40,7 @@
 +   具体数据存储请查看: [`teleop_hand_and_arm.py` L699](https://github.com/hkustgz-hw/xr_teleoperate_hkustgz-hw/blob/main/teleop/teleop_hand_and_arm.py#L699)
 +   可视化效果图：
     ![桌面5任务可视化](./docs/desk5_tasks_visualization.png)
-    ![整身控制4任务可视化](./docs/wbc4_tasks_visualization.png)
+    ![整身控制5任务可视化](./docs/wbc4_tasks_visualization.png)
 ---
 
 ## 采集注意事项
@@ -57,7 +57,7 @@
 * **双手操作任务 (共17自由度):** 手臂(14) + 手(2) + 腰(1)
     * *任务包括: [Towel Folding], [Twist off the bottle cap]*
 * **双手整身控制任务 (共29自由度):** 手臂(14) + 手(2) + 腿(12) + 腰(1)
-    * *任务包括: [close_washer_door], [open_washer_door] , [pick_up_object_from_ground], [move_and_open_pot]*
+    * *任务包括: [close_washer_door], [open_washer_door] , [move_box], [pick_up_object_from_ground], [move_and_open_pot]*
 
 ---
 
@@ -127,7 +127,7 @@
 
 ---
 
-## 整身控制任务4个
+## 整身控制任务5个
 
 
 ### [Open Washer Door] 打开洗衣机门【整身】
@@ -153,6 +153,23 @@
 ### 洗衣机道具说明
 
 洗衣机整体高83厘米，把手区域45-62厘米高：[图片说明](./docs/washer_note.png)
+
+
+### [Move Box] 搬箱子【整身】
+
+* **任务目标:** Move box from the ground to the table
+* **任务描述:** Move box from the ground to the table
+* **中文描述:** 下蹲双手拿起地上的箱子，站起来，转身/走到旁边的桌子，放箱子到桌子上
+* **任务步骤:**
+    1. Search for the box.
+    2. Lower the body and hold box using both hand.
+    3. Stand up;
+    4. Turn and/or move to the table.
+    5. Put the box on the table
+
+### 搬箱子道具说明
+
+箱子高30厘米，重量500g以内，放箱子的桌面高度50厘米：[图片说明](./docs/washer_note.png)
 
 
 ### [Pick Up Object from Ground] 地上捡物品到桌子的篮子中【整身】【长程】
