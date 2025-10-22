@@ -627,8 +627,7 @@ if __name__ == "__main__":
                     else:
                         step_data = episode["data"][current_step]["actions"]
 
-                    print(step_data["waist"])
-                    yaw, roll, pitch = step_data["waist"]
+                    yaw, roll, pitch = step_data["waist"]["qpos"]
                     waist_text = "waist yrp: [%.3f, %.3f, %.3f]" % (yaw, roll, pitch)
                     cv2.putText(
                         image,
