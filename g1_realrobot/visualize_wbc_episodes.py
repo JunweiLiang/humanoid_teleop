@@ -594,7 +594,7 @@ if __name__ == "__main__":
                     if "left_trigger" in episode["data"][current_step]["actions"]:
                         left_trigger_value = float(episode["data"][current_step]["actions"]["left_trigger"])
                         right_trigger_value = float(episode["data"][current_step]["actions"]["right_trigger"])
-                        trigger_text = f"Trigger value, l: {left_trigger_value:.2f}, r: {right_trigger_value:.2f}"
+                        trigger_text = f"trigger l: {left_trigger_value:.2f}, r: {right_trigger_value:.2f}"
                         cv2.putText(
                             image,
                             trigger_text,
@@ -609,7 +609,7 @@ if __name__ == "__main__":
                     # show the trigger value if any
                     if "loco_cmd" in episode["data"][current_step]["actions"]:
                         v_x, v_y, v_yaw, height = episode["data"][current_step]["actions"]["loco_cmd"]
-                        loco_cmd_text = "Loco cmd: [%.3f, %.3f, %.3f, %.3f]" % (v_x, v_y, v_yaw, height)
+                        loco_cmd_text = "loco: [%.3f, %.3f, %.3f, %.3f]" % (v_x, v_y, v_yaw, height)
                         cv2.putText(
                             image,
                             loco_cmd_text,
@@ -620,6 +620,25 @@ if __name__ == "__main__":
                             2,
                             cv2.LINE_AA
                         )
+
+                    # show the waist value
+                    if args.show_states:
+                        step_data = episode["data"][current_step]["states"]
+                    else:
+                        step_data = episode["data"][current_step]["actions"]
+
+                    yaw, roll, pitch = step_data["waist"]
+                    waist_text = "waist yrp: [%.3f, %.3f, %.3f]" % (yaw, roll, pitch)
+                    cv2.putText(
+                        image,
+                        waist_text,
+                        (10, 120),
+                        cv2.FONT_HERSHEY_SIMPLEX,
+                        0.8,
+                        (255, 255, 0),
+                        2,
+                        cv2.LINE_AA
+                    )
                     # bino image might be too wide, resize
                     if args.bino:
                         image = resize_image_to_width(image, 1920)
