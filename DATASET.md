@@ -74,6 +74,7 @@
     3.  Pick up the can.
     4.  Move to the grid storage box.
     5.  Place the can into the box.
+* **[10/2025]遥操作成功率:** 50/55
 
 ### [Can Sorting] 罐子分类
 
@@ -86,6 +87,7 @@
     3.  Pick up the can.
     4.  If the can is green, move to the grid storage box. Otherwise, move to the basket.
     5.  Place the can into the box or basket.
+* **[10/2025]遥操作成功率:** 50/56
 
 ### [Unloading] 取出货物(苹果香蕉)
 
@@ -99,6 +101,7 @@
     4.  Move to the table.
     5.  Place the item on the table.
     6.  Repeat until the basket is empty of apples and bananas.
+* **[10/2025]遥操作成功率:** 50/56
 
 ### [Towel Folding] 折叠毛巾【双手】
 
@@ -113,6 +116,7 @@
     5.  Fold the towel once from front to back.
     6.  Turn the towel if needed.
     7.  Repeat the folding process.
+    * **[10/2025]遥操作成功率:** 50/71
 
 ### [Twist Off Bottle Cap] 拧开瓶盖【双手】
 
@@ -124,6 +128,7 @@
     2.  Grasp the bottle with the left hand.
     3.  Twist off the bottle cap using the right hand.
     4.  Put the bottle and the cap on the table.
+* **[10/2025]遥操作成功率:** 50/65
 
 ---
 
@@ -139,6 +144,7 @@
     1.  Crouch down.
     2.  Search for washer door handle.
     3.  Open washer door.
+* **[10/2025]遥操作成功率:** 54/62
 
 ### [Close Washer Door] 关闭洗衣机门【整身】
 
@@ -149,6 +155,7 @@
     1.  Search for washer door handle.
     2.  Close washer door.
     3.  Stand up
+* **[10/2025]遥操作成功率:** 52/64
 
 ### 洗衣机道具说明
 
@@ -166,6 +173,7 @@
     3. Stand up;
     4. Turn and/or move to the table.
     5. Put the box on the table
+* **[10/2025]遥操作成功率:** 57/112
 
 ### 搬箱子道具说明
 
@@ -182,6 +190,7 @@
     2. Lower the body and pick up can using one hand.
     3. Stand up and turn and/or move to the table.
     4. Put the can on the table basket
+* **[10/2025]遥操作成功率:** 61/94
 
 ### 桌面高度说明
 
@@ -197,6 +206,7 @@
     2. Turn, and walk to another table.
     3. Put pot on the table.
     4. Open pot.
+* **[10/2025]遥操作成功率:** 57/75
 
 ### 锅具道具说明
 
