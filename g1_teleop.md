@@ -1754,7 +1754,69 @@ exts."isaacsim.asset.browser".folders = [
             # 遥操作测试视频合集：https://drive.google.com/drive/folders/1kpmB1j2ZmkKclLanWkWsj_I3UOkvyDxo?usp=drive_link
 
 ```
+## 整身控制，4070 TI Super单机测试
+```
+    1. 安装tv环境
+        (base) junweil@ai-precog-machine23:~/projects$ git clone https://github.com/JunweiLiang/xr_teleoperate
 
+        (base) junweil@ai-precog-machine23:~/projects$ conda create -n tv python=3.10 pinocchio=3.1.0 numpy=1.26.4  -c conda-forge
+
+        $ pip install opencv-python==4.10.0.84
+
+        (tv) junweil@ai-precog-machine23:~/projects/xr_teleoperate/teleop/televuer$ pip install -e .
+
+        (tv) junweil@ai-precog-machine23:~/projects/xr_teleoperate/teleop/televuer$ openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout key.pem -out cert.pem
+
+        $ cd ../robot_control/dex-retargeting/
+        $ pip install -e .
+
+        (tv) junweil@ai-precog-machine23:~/projects/xr_teleoperate$ pip install -r requirements.txt
+
+        (tv) junweil@ai-precog-machine23:~/projects/xr_teleoperate/unitree_sdk2_python$ pip install -e .
+
+        # 其他包裹
+            pip install onnxruntime-gpu pygame
+
+        # 安装灵巧手程序 for inspire1 [未做]
+
+            $ sudo apt update
+            $ sudo apt install build-essential libeigen3-dev libyaml-cpp-dev libboost-all-dev libspdlog-dev cmake
+
+            # 要先安装unitree SDK2 到system 目录 (ROS2)
+                (tv) junweil@precognition-laptop6:~/projects/xr_teleoperate$ git clone https://github.com/unitreerobotics/unitree_sdk2
+
+                (tv) junweil@precognition-laptop6:~/projects/xr_teleoperate/unitree_sdk2/build$ cmake ..
+
+                (tv) junweil@precognition-laptop6:~/projects/xr_teleoperate/unitree_sdk2/build$ sudo make install
+
+
+    2. 测试
+        # 1 开启locomotion，速度指令由Quest 3s给，所以Quest 3s退出前要移动回安全架
+            # 宇树遥控器可以L2+B急停
+            # --only_cal # 先确保代码没问题
+            (tv) junweil@ai-precog-machine23:~/projects/humanoid_teleop$ python g1_realrobot/locomotion_model.py --model_path homie_deploy_official.onnx --urdf assets/g1/g1_body29_hand14.urdf --hand_type dex3 --max_freq 50.0 --use_fixed_speed_cmd
+
+            # 很稳，4070 Super TI + Ultra 7 265k CPU台式机，1% GPU利用率，CPU 11%利用率
+
+        # 3.2 开启image server, 2号机
+            image_server$ python image_server_timesync.py --rs 243222072371
+
+        # 上述没问题，开启遥操作
+            # 数据采集基本58Hz
+            # 机器人速度指令与使用宇树主运控类似，用Quest 3s控制器摇杆给，但是注意：
+                # 前后稳，后退有时会不动这个时候右边摇杆给个yaw指令就可以动了
+                # 左右侧移动，会往前飘
+                # yaw，旋转，会往前飘然后以脚后20厘米的圆心画圈
+            # 机器人高度指令原理：Quest 3s控制器按B按键开启遥操作时，会获取操作者此时的高度
+                # 操作者后续下蹲，就会给height_delta给底层控制，进行下蹲
+
+            (tv) junweil@ai-precog-machine23:~/projects/xr_teleoperate/teleop$ python teleop_hand_and_arm_with_loco.py --xr-mode=controller --arm=G1_29 --ee=dex3 --record --network_interface eno1 --use_waist  --task_name open_washer_door --task_dir ../data/open_washer_door
+
+        # 速度对比5090 (Ultra 9 CPU)笔记本
+            # 5090: homie推理~1ms，teleop ik解算4~8ms
+            # 4070 Super TI + Ultra 7 265k台式机: homie推理~0.1ms，teleop ik解算2~3ms
+
+```
 
 ## 收集数据训练测试
 ```
