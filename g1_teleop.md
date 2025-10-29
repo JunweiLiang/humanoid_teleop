@@ -1821,10 +1821,19 @@ exts."isaacsim.asset.browser".folders = [
 ```
     # 数据采集
         0. 开启宇树主运控，脱掉安全绳
+
         1. 开图像服务器，这里用双目
-        2. 开启遥操作录制walking
+            (base) unitree@ubuntu:~/projects/image_server$ python3.8 image_server_timesync.py --bino
+                15:30:17:227567 INFO     Initializing ImageServer with config: {'fps': 30, 'head_camera_type':    image_server_timesync.py:181
+                                         'opencv', 'head_camera_image_shape': [720, 2560],
+                                         'head_camera_id_numbers': [0]}
+
+        2. 开启遥操作录制walking, 注意要--bino --motion； teleop_hand_and_arm_with_loco.py用自己的底层运控不需要这个参数
+            (tv) junweil@ai-precog-machine23:~/projects/xr_teleoperate/teleop$ python teleop_hand_and_arm.py --xr-mode=controller --arm=G1_29 --ee=dex3 --record --network_interface eno1 --bino --use_waist  --task_name walking --task_dir ../data/walking --motion
 
     # 数据replay
+
+        (tv) junweil@office-precognition:~/projects/humanoid_teleop$ python g1_realrobot/visualize_wbc_episodes.py ~/Downloads/data/move_box/episode_0010/data.json assets/g1/g1_body29_hand14.urdf --fps 60 --image_path ~/Downloads/data/move_box/episode_0010//colors/ --hand_type dex3
 
 ```
 ## 收集数据训练测试
