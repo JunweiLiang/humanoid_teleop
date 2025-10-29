@@ -327,7 +327,12 @@
 
                 # 想要加入腰的yaw控制加 --use_waist; 我们只使用yaw，可以不解锁宇树腰部自由度
 
-            # 戴上VR，刷新浏览器，enter passthrough，图像应该在地板上，这时图像就是实际的图像
+            # 确保Quest 3和电脑都连上了同一个局域网
+            # 看到terminal提示后就可以带上头显了，拿起controller，
+                # 浏览器打开https://lt4.precognition.team:8012?ws=wss://lt4.precognition.team:8012
+                # 或点击浏览器刷新，确保前面终端显示已连接websocket
+                # 点击 pass through，开启遥操作数据传输，图像应该在地板上，这时图像就是实际的图像
+
                 # 虽然延迟可能看起来只有10几ms，在VR中至少有1秒，那是因为图像是laptop分发到wifi，wifi再给VR. 延迟算的是g1到laptop
 
                 # 确保开始之前，VR一定要水平于地面！！passthrough时以此时pose作为世界坐标原点

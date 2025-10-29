@@ -1817,7 +1817,16 @@ exts."isaacsim.asset.browser".folders = [
             # 4070 Super TI + Ultra 7 265k台式机: homie推理~0.1ms，teleop ik解算2~3ms
 
 ```
+## 收集走路states，并replay
+```
+    # 数据采集
+        0. 开启宇树主运控，脱掉安全绳
+        1. 开图像服务器，这里用双目
+        2. 开启遥操作录制walking
 
+    # 数据replay
+
+```
 ## 收集数据训练测试
 ```
     # 对比不同视觉延迟的训练测试效果？没必要，g1分发图像延迟在5ms以内
