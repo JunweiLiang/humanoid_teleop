@@ -1817,7 +1817,7 @@ exts."isaacsim.asset.browser".folders = [
             # 4070 Super TI + Ultra 7 265k台式机: homie推理~0.1ms，teleop ik解算2~3ms
 
 ```
-## 收集走路states，并replay
+## 用双目相机，收集走路states，并replay
 ```
     # 数据采集
         0. 开启宇树主运控，脱掉安全绳
@@ -1877,8 +1877,6 @@ exts."isaacsim.asset.browser".folders = [
 
         # [TODO]训练优化，加tensorboard，数据集如何分割，训练同时validate，等, FP8, DDP等
             # https://github.com/huggingface/lerobot/pull/1246
-
-
 
 ```
 
