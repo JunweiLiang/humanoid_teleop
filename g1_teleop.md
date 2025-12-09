@@ -1663,6 +1663,16 @@ exts."isaacsim.asset.browser".folders = [
 
             # 太差了，原地站不稳，难得站稳然后往前给指令，又停不下来会一直往前走，往后拉摇杆才好歹原地踏步
 
+        # [11/2025] 想尝试地上捡网球任务
+
+            # 双目相机
+
+                (base) unitree@ubuntu:~/projects/image_server$ python3.8 image_server_timesync.py --bino --bino_res 2560x720
+
+            # 用homie，高度已经设置最低1.0米，还是够不着
+
+            (tv) junweil@ai-precog-machine23:~/projects/xr_teleoperate/teleop$ python teleop_hand_and_arm_with_loco.py --xr-mode=controller --arm=G1_29 --ee=dex3 --record --network_interface eno1 --use_waist  --task_name pick_up_tennis_ball_from_ground --task_dir ../data/pick_up_tennis_ball_from_ground --bino
+
 
 ```
 
@@ -1833,7 +1843,34 @@ exts."isaacsim.asset.browser".folders = [
 
     # 数据replay
 
-        (tv) junweil@office-precognition:~/projects/humanoid_teleop$ python g1_realrobot/visualize_wbc_episodes.py ~/Downloads/data/move_box/episode_0010/data.json assets/g1/g1_body29_hand14.urdf --fps 60 --image_path ~/Downloads/data/move_box/episode_0010//colors/ --hand_type dex3
+        (tv) junweil@office-precognition:~/projects/humanoid_teleop$ python g1_realrobot/visualize_wbc_episodes.py ~/projects/huawei_data/wbc_task5/move_box/episode_0015/data.json assets/g1/g1_body29_hand14.urdf --fps 60 --image_path ~/projects/huawei_data/wbc_task5/episode_0015/colors/ --hand_type dex3
+
+```
+## [12/2025] m23，用realsense跑teleop
+```
+    # 0. 开机，进入调试模式
+        # G1开机自检完成后， L2+B进入阻尼，然后L2 + R2进入调试模式，灯应该会边
+        # 然后把g1的手放到前面，L2 + A会进入关节0位，然后再L2+B再次进入阻尼模式
+
+    # 1. 开启locomotion，速度指令由Quest 3s给，所以Quest 3s退出前要移动回安全架
+            # 宇树遥控器可以L2+B急停
+            (tv) junweil@ai-precog-machine23:~/projects/humanoid_teleop$ python g1_realrobot/locomotion_model.py --model_path homie_deploy_official.onnx --urdf assets/g1/g1_body29_hand14.urdf --hand_type dex3 --max_freq 50.0 --use_fixed_speed_cmd
+
+            # 很稳，4070 Super TI + Ultra 7 265k CPU台式机，1% GPU利用率，CPU 11%利用率
+
+        # 3.2 开启image server, 2号机
+            image_server$ python image_server_timesync.py --rs 243222072371
+
+        # 上述没问题，开启遥操作
+            # 数据采集基本58Hz
+            # 机器人速度指令与使用宇树主运控类似，用Quest 3s控制器摇杆给，但是注意：
+                # 前后稳，后退有时会不动这个时候右边摇杆给个yaw指令就可以动了
+                # 左右侧移动，会往前飘
+                # yaw，旋转，会往前飘然后以脚后20厘米的圆心画圈
+            # 机器人高度指令原理：Quest 3s控制器按B按键开启遥操作时，会获取操作者此时的高度
+                # 操作者后续下蹲，就会给height_delta给底层控制，进行下蹲
+
+            (tv) junweil@ai-precog-machine23:~/projects/xr_teleoperate/teleop$ python teleop_hand_and_arm_with_loco.py --xr-mode=controller --arm=G1_29 --ee=dex3 --record --network_interface eno1 --use_waist  --task_name open_washer_door --task_dir ../data/open_washer_door
 
 ```
 ## 收集数据训练测试

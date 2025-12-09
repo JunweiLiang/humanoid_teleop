@@ -464,11 +464,12 @@ class G1_Control_Agent():
 
                 for joint in G1_29_JointIndex:
                     joint_id = joint.value
-                    if joint_id in [13, 14]:
+                    #if joint_id in [13, 14]:
                         # 腰部两个自由度锁住
-                        self.low_cmd.motor_cmd[joint_id].mode = 0 # 1:Enable, 0:Disable
-                    else:
-                        self.low_cmd.motor_cmd[joint_id].mode = 1 # 1:Enable, 0:Disable
+                        #self.low_cmd.motor_cmd[joint_id].mode = 0 # 1:Enable, 0:Disable
+                    #else:
+                        #self.low_cmd.motor_cmd[joint_id].mode = 1 # 1:Enable, 0:Disable
+                    self.low_cmd.motor_cmd[joint_id].mode = 1 # 1:Enable, 0:Disable
                     self.low_cmd.motor_cmd[joint_id].tau = read_lowcmd.motor_cmd[joint_id].tau
                     self.low_cmd.motor_cmd[joint_id].q = read_lowcmd.motor_cmd[joint_id].q
                     self.low_cmd.motor_cmd[joint_id].dq = read_lowcmd.motor_cmd[joint_id].dq
