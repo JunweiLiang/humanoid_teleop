@@ -299,6 +299,8 @@ PY
 
             # install the lerobot package (copied from https://github.com/unitreerobotics/unitree_lerobot/unitree_lerobot/lerobot)
 
+            (tv) junweil@office-precognition:~/projects/humanoid_teleop/g1_realrobot/lerobot$ pip install -e .
+
         (tv) junweil@office-precognition:~/projects/huawei_data$ python ~/projects/humanoid_teleop/g1_realrobot/convert_unitree_json_to_lerobot.py --raw-dir wbc_task5_lerobotv2/ --repo-id junweiliang/wbc_5tasks --robot_type Unitree_G1_Dex3
 
 
