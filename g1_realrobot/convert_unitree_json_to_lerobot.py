@@ -1,16 +1,14 @@
 """
-Script Json to Lerobot.
+Script Json to Lerobot (Modified for Whole Body Control with Locomotion).
 
 # --raw-dir     Corresponds to the directory of your JSON dataset
 # --repo-id     Your unique repo ID on Hugging Face Hub
-# --robot_type  The type of the robot used in the dataset (e.g., Unitree_Z1_Single, Unitree_Z1_Dual, Unitree_G1_Dex1, Unitree_G1_Dex3, Unitree_G1_Brainco, Unitree_G1_Inspire)
-# --push_to_hub Whether or not to upload the dataset to Hugging Face Hub (true or false)
 
 python unitree_lerobot/utils/convert_unitree_json_to_lerobot.py \
     --raw-dir $HOME/datasets/g1_grabcube_double_hand \
-    --repo-id your_name/g1_grabcube_double_hand \
-    --robot_type Unitree_G1_Dex3 \
-    --push_to_hub
+    --repo-id your_name/g1_wbc_dataset \
+    --downsample-factor 2 \
+    --use-future-state-as-action True
 """
 
 import os
@@ -29,7 +27,75 @@ from typing import Literal
 from lerobot.utils.constants import HF_LEROBOT_HOME
 from lerobot.datasets.lerobot_dataset import LeRobotDataset
 
-from unitree_lerobot.utils.constants import ROBOT_CONFIGS
+@dataclasses.dataclass
+class RobotConfig:
+    state_names: list[str]
+    action_names: list[str]
+    cameras: list[str]
+    camera_to_image_key: dict[str, str]
+    json_state_data_name: list[str]
+    json_action_data_name: list[str]
+
+# Base Arm and Hand joint names
+ARM_HAND_JOINTS = [
+    "kLeftShoulderPitch", "kLeftShoulderRoll", "kLeftShoulderYaw", "kLeftElbow", "kLeftWristRoll", "kLeftWristPitch", "kLeftWristYaw",
+    "kRightShoulderPitch", "kRightShoulderRoll", "kRightShoulderYaw", "kRightElbow", "kRightWristRoll", "kRightWristPitch", "kRightWristYaw",
+    "kLeftHandThumb0", "kLeftHandThumb1", "kLeftHandThumb2", "kLeftHandMiddle0", "kLeftHandMiddle1", "kLeftHandIndex0", "kLeftHandIndex1",
+    "kRightHandThumb0", "kRightHandThumb1", "kRightHandThumb2", "kRightHandIndex0", "kRightHandIndex1", "kRightHandMiddle0", "kRightHandMiddle1",
+]
+
+WAIST_JOINTS = [
+    "kWaistYaw",
+    "kWaistRoll",
+    "kWaistPitch"
+]
+
+LEG_JOINTS = [
+    # Left leg
+    "kLeftHipPitch",
+    "kLeftHipRoll",
+    "kLeftHipYaw",
+    "kLeftKnee",
+    "kLeftAnklePitch",
+    "kLeftAnkleRoll",
+
+    # Right leg
+    "kRightHipPitch",
+    "kRightHipRoll",
+    "kRightHipYaw",
+    "kRightKnee",
+    "kRightAnklePitch",
+    "kRightAnkleRoll"
+]
+
+# height: 1. -> 1.65
+LOCO_CMD_NAMES = ["loco_v_x", "loco_v_y", "loco_v_yaw", "loco_height"]
+TRIGGER_NAMES = ["left_trigger", "right_trigger"]
+
+G1_WBC_CONFIG = RobotConfig(
+    state_names=ARM_HAND_JOINTS + WAIST_JOINTS + LEG_JOINTS, # 28 + 3 + 12 = 43D
+    action_names=ARM_HAND_JOINTS + WAIST_JOINTS + TRIGGER_NAMES + LOCO_CMD_NAMES, # 28 + 3 + 2 + 4 = 37D
+    cameras=[
+        "cam_high",
+        # "cam_left_wrist", # Uncomment if using wrist cameras
+        # "cam_right_wrist",
+    ],
+    camera_to_image_key={
+        "color_0": "cam_high",
+        # "color_1": "cam_left_wrist",
+        # "color_2": "cam_right_wrist",
+    },
+    json_state_data_name=[
+        "left_arm.qpos", "right_arm.qpos",
+        "left_ee.qpos", "right_ee.qpos",
+        "waist.qpos", "leg.qpos"
+    ],
+    json_action_data_name=[
+        "left_arm.qpos", "right_arm.qpos",
+        "left_ee.qpos", "right_ee.qpos",
+        "waist.qpos", "left_trigger", "right_trigger", "loco_cmd"
+    ],
+)
 
 
 @dataclasses.dataclass(frozen=True)
@@ -47,26 +113,21 @@ DEFAULT_DATASET_CONFIG = DatasetConfig()
 class JsonDataset:
     def __init__(self, data_dirs: Path, robot_type: str) -> None:
         """
-        Initialize the dataset for loading and processing HDF5 files containing robot manipulation data.
-
-        Args:
-            data_dirs: Path to directory containing training data
+        Initialize the dataset for loading and processing JSON files containing robot manipulation data.
         """
         assert data_dirs is not None, "Data directory cannot be None"
-        assert robot_type is not None, "Robot type cannot be None"
         self.data_dirs = data_dirs
         self.json_file = "data.json"
 
         # Initialize paths and cache
         self._init_paths()
         self._init_cache()
-        self.json_state_data_name = ROBOT_CONFIGS[robot_type].json_state_data_name
-        self.json_action_data_name = ROBOT_CONFIGS[robot_type].json_action_data_name
-        self.camera_to_image_key = ROBOT_CONFIGS[robot_type].camera_to_image_key
+
+        self.json_state_data_name = G1_WBC_CONFIG.json_state_data_name
+        self.json_action_data_name = G1_WBC_CONFIG.json_action_data_name
+        self.camera_to_image_key = G1_WBC_CONFIG.camera_to_image_key
 
     def _init_paths(self) -> None:
-        """Initialize episode and task paths."""
-
         self.episode_paths = []
         self.task_paths = []
 
@@ -81,12 +142,9 @@ class JsonDataset:
         self.episode_ids = list(range(len(self.episode_paths)))
 
     def __len__(self) -> int:
-        """Return the number of episodes in the dataset."""
         return len(self.episode_paths)
 
     def _init_cache(self) -> list:
-        """Initialize data cache if enabled."""
-
         self.episodes_data_cached = []
         for episode_path in tqdm.tqdm(self.episode_paths, desc="Loading Cache Json"):
             json_path = os.path.join(episode_path, self.json_file)
@@ -94,21 +152,9 @@ class JsonDataset:
                 self.episodes_data_cached.append(json.load(jsonf))
 
         print(f"==> Cached {len(self.episodes_data_cached)} episodes")
-
         return self.episodes_data_cached
 
     def _extract_data(self, episode_data: dict, key: str, parts: list[str]) -> np.ndarray:
-        """
-        Extract data from episode dictionary for specified parts.
-
-        Args:
-            episode_data: Dictionary containing episode data
-            key: Data key to extract ('states' or 'actions')
-            parts: List of parts to include ('left_arm', 'right_arm')
-
-        Returns:
-            Concatenated numpy array of the requested data
-        """
         result = []
         for sample_data in episode_data["data"]:
             data_array = np.array([], dtype=np.float32)
@@ -120,11 +166,11 @@ class JsonDataset:
                         qpos = sample_data[key][key_part]
                     else:
                         if qpos is None:
-                            raise ValueError(f"qpos is None for part: {part}")
-                        qpos = qpos[key_part]
-                if qpos is None:
-                    raise ValueError(f"qpos is None for part: {part}")
-                print(qpos)
+                            # Handle potential None values for triggers/loco cmds if controller wasn't used
+                            qpos = 0.0
+                        elif isinstance(qpos, dict):
+                            qpos = qpos.get(key_part, 0.0)
+
                 if isinstance(qpos, list):
                     qpos = np.array(qpos, dtype=np.float32).flatten()
                 else:
@@ -134,10 +180,7 @@ class JsonDataset:
         return np.array(result)
 
     def _parse_images(self, episode_path: str, episode_data) -> dict[str, list[np.ndarray]]:
-        """Load and stack images for a given camera key."""
-
         images = defaultdict(list)
-
         keys = episode_data["data"][0]["colors"].keys()
         cameras = [key for key in keys if "depth" not in key]
 
@@ -164,30 +207,26 @@ class JsonDataset:
 
         return images
 
-    def get_item(
-        self,
-        index: int | None = None,
-    ) -> dict:
-        """Get a training sample from the dataset."""
-
+    def get_item(self, index: int | None = None) -> dict:
         file_path = np.random.choice(self.episode_paths) if index is None else self.episode_paths[index]
         episode_data = self.episodes_data_cached[index]
 
-        # Load state and action data
         action = self._extract_data(episode_data, "actions", self.json_action_data_name)
         state = self._extract_data(episode_data, "states", self.json_state_data_name)
         episode_length = len(state)
         state_dim = state.shape[1] if len(state.shape) == 2 else state.shape[0]
-        action_dim = action.shape[1] if len(action.shape) == 2 else state.shape[0]
+        action_dim = action.shape[1] if len(action.shape) == 2 else action.shape[0]
 
-        # Load task description
-        task = episode_data.get("text", {}).get("goal", "")
-
-        # Load camera images
+        task = episode_data.get("text", {}).get("goal", "teleop task")
         cameras = self._parse_images(file_path, episode_data)
 
-        # Extract camera configuration
-        cam_height, cam_width = next(img for imgs in cameras.values() if imgs for img in imgs).shape[:2]
+        # Fallback shapes if cameras are missing
+        cam_height, cam_width = 480, 640
+        for imgs in cameras.values():
+            if imgs:
+                cam_height, cam_width = imgs[0].shape[:2]
+                break
+
         data_cfg = {
             "camera_names": list(cameras.keys()),
             "cam_height": cam_height,
@@ -212,57 +251,31 @@ def create_empty_dataset(
     robot_type: str,
     mode: Literal["video", "image"] = "video",
     *,
-    has_velocity: bool = False,
-    has_effort: bool = False,
     dataset_config: DatasetConfig = DEFAULT_DATASET_CONFIG,
 ) -> LeRobotDataset:
-    motors = ROBOT_CONFIGS[robot_type].motors
-    cameras = ROBOT_CONFIGS[robot_type].cameras
+
+    state_names = G1_WBC_CONFIG.state_names
+    action_names = G1_WBC_CONFIG.action_names
+    cameras = G1_WBC_CONFIG.cameras
 
     features = {
         "observation.state": {
             "dtype": "float32",
-            "shape": (len(motors),),
-            "names": [
-                motors,
-            ],
+            "shape": (len(state_names),),
+            "names": [state_names],
         },
         "action": {
             "dtype": "float32",
-            "shape": (len(motors),),
-            "names": [
-                motors,
-            ],
+            "shape": (len(action_names),),
+            "names": [action_names],
         },
     }
-
-    if has_velocity:
-        features["observation.velocity"] = {
-            "dtype": "float32",
-            "shape": (len(motors),),
-            "names": [
-                motors,
-            ],
-        }
-
-    if has_effort:
-        features["observation.effort"] = {
-            "dtype": "float32",
-            "shape": (len(motors),),
-            "names": [
-                motors,
-            ],
-        }
 
     for cam in cameras:
         features[f"observation.images.{cam}"] = {
             "dtype": mode,
-            "shape": (480, 640, 3),
-            "names": [
-                "height",
-                "width",
-                "channel",
-            ],
+            "shape": (480, 640, 3), # Matches your 640x480 setting
+            "names": ["height", "width", "channel"],
         }
 
     if Path(HF_LEROBOT_HOME / repo_id).exists():
@@ -270,8 +283,8 @@ def create_empty_dataset(
 
     return LeRobotDataset.create(
         repo_id=repo_id,
-        fps=30,
-        robot_type=robot_type,
+        fps=30, # Change this to 60 if you want to keep raw FPS, but 30 is standard
+        robot_type="Unitree_G1_WBC",
         features=features,
         use_videos=dataset_config.use_videos,
         tolerance_s=dataset_config.tolerance_s,
@@ -285,6 +298,8 @@ def populate_dataset(
     dataset: LeRobotDataset,
     raw_dir: Path,
     robot_type: str,
+    downsample_factor: int = 2,
+    use_future_state_as_action: bool = True
 ) -> LeRobotDataset:
     json_dataset = JsonDataset(raw_dir, robot_type)
     for i in tqdm.tqdm(range(len(json_dataset))):
@@ -294,21 +309,52 @@ def populate_dataset(
         action = episode["action"]
         cameras = episode["cameras"]
         task = episode["task"]
-        episode_length = episode["episode_length"]
 
-        num_frames = episode_length
-        for i in range(num_frames):
+        # --- 1. DOWNSAMPLING MODULE ---
+        # 60 FPS -> 30 FPS (if downsample_factor == 2)
+        state = state[::downsample_factor]
+        action = action[::downsample_factor]
+        for cam in cameras.keys():
+            cameras[cam] = cameras[cam][::downsample_factor]
+
+        num_frames = len(state)
+
+        # --- 2. ACTION SHIFTING (t = state t+1) ---
+        # If we use future state as action, we must drop the very last frame
+        # because it does not have a t+1 frame to pull a target from.
+        loop_end = num_frames - 1 if use_future_state_as_action else num_frames
+
+        for f_idx in range(loop_end):
+            current_state = state[f_idx]
+
+            if use_future_state_as_action:
+                future_state = state[f_idx + 1]
+
+                # The first 31 dims are arms (28) + waist (3). We want the robot's
+                # ACTUAL reached future state to act as the clean command.
+                future_joints = future_state[:31]
+
+                # The last 6 dims are triggers (2) + loco_cmd (4). These remain
+                # what the user explicitly commanded at time t.
+                current_triggers_loco = action[f_idx][31:]
+
+                # Combine them into the new 37D action vector
+                actual_action = np.concatenate([future_joints, current_triggers_loco])
+            else:
+                actual_action = action[f_idx]
+
             frame = {
-                "observation.state": state[i],
-                "action": action[i],
+                "observation.state": current_state,
+                "action": actual_action,
             }
 
             for camera, img_array in cameras.items():
-                frame[f"observation.images.{camera}"] = img_array[i]
+                frame[f"observation.images.{camera}"] = img_array[f_idx]
 
             frame["task"] = task
 
             dataset.add_frame(frame)
+
         dataset.save_episode()
 
     return dataset
@@ -317,39 +363,46 @@ def populate_dataset(
 def json_to_lerobot(
     raw_dir: Path,
     repo_id: str,
-    robot_type: str,  # e.g., Unitree_Z1_Single, Unitree_Z1_Dual, Unitree_G1_Dex1, Unitree_G1_Dex3, Unitree_G1_Brainco, Unitree_G1_Inspire
+    robot_type: str = "Unitree_G1_WBC",
+    downsample_factor: int = 2,
+    use_future_state_as_action: bool = True,
     *,
-    push_to_hub: bool = False,
     mode: Literal["video", "image"] = "video",
     dataset_config: DatasetConfig = DEFAULT_DATASET_CONFIG,
 ):
+    """
+    Convert JSON to LeRobot format.
+
+    Args:
+        raw_dir: Path to raw JSON data.
+        repo_id: HuggingFace Hub ID.
+        robot_type: Robot configuration to use.
+        downsample_factor: 1 means keep original FPS, 2 means halve the FPS (e.g., 60->30).
+        use_future_state_as_action: Replaces commanded arm/waist joints with the achieved future state.
+    """
     if (HF_LEROBOT_HOME / repo_id).exists():
         shutil.rmtree(HF_LEROBOT_HOME / repo_id)
+
+    # Note: If you downsample 60fps by 2, you should tell the dataset it is now 30fps
+    target_fps = 60 // downsample_factor
 
     dataset = create_empty_dataset(
         repo_id,
         robot_type=robot_type,
         mode=mode,
-        has_effort=False,
-        has_velocity=False,
         dataset_config=dataset_config,
     )
+    # Override default FPS creation if needed (though create_empty_dataset hardcodes 30 right now)
+    dataset.fps = target_fps
+
     dataset = populate_dataset(
         dataset,
         raw_dir,
         robot_type=robot_type,
+        downsample_factor=downsample_factor,
+        use_future_state_as_action=use_future_state_as_action
     )
 
-    if push_to_hub:
-        dataset.push_to_hub(upload_large_folder=True)
-
-
-def local_push_to_hub(
-    repo_id: str,
-    root_path: Path,
-):
-    dataset = LeRobotDataset(repo_id=repo_id, root=root_path)
-    dataset.push_to_hub(upload_large_folder=True)
 
 
 if __name__ == "__main__":
