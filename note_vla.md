@@ -276,6 +276,8 @@ PY
 ```
 + 转换中期数据到LeRobot v2 格式
 ```
+    # LeRoBot v2数据格式
+
     # 参考代码
         # 宇树官方遥操作采的数据转换代码
             # https://github.com/unitreerobotics/unitree_lerobot/tree/main?tab=readme-ov-file#23-%EF%B8%8F-data-conversion
@@ -286,6 +288,19 @@ PY
     # 转换华为wbc 5 tasks数据
 
         (base) junweil@office-precognition:~/projects/huawei_data$ cp -r wbc_task5 wbc_task5_lerobotv2
+
+        # 原来的数据集中可能有缺失的episode，要重新按顺序命名
+
+        (tv) junweil@office-precognition:~/projects/huawei_data$ python ~/projects/humanoid_teleop/g1_realrobot/sort_and_rename_folders.py --data_dir wbc_task5_lerobotv2/move_box/
+            close_washer_door/          move_box/                   pick_up_object_from_ground/
+            move_and_open_pot/          open_washer_door/
+
+        # convert based on the data.json
+
+            # install the lerobot package (copied from https://github.com/unitreerobotics/unitree_lerobot/unitree_lerobot/lerobot)
+
+        (tv) junweil@office-precognition:~/projects/huawei_data$ python ~/projects/humanoid_teleop/g1_realrobot/convert_unitree_json_to_lerobot.py --raw-dir wbc_task5_lerobotv2/ --repo-id junweiliang/wbc_5tasks --robot_type Unitree_G1_Dex3
+
 
 
 ```
