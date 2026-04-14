@@ -464,6 +464,7 @@ class G1_Control_Agent():
 
                 for joint in G1_29_JointIndex:
                     joint_id = joint.value
+                    # 如果腰部锁住了，就启用下面这些
                     #if joint_id in [13, 14]:
                         # 腰部两个自由度锁住
                         #self.low_cmd.motor_cmd[joint_id].mode = 0 # 1:Enable, 0:Disable

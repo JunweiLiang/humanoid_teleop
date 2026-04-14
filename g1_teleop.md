@@ -1859,7 +1859,7 @@ exts."isaacsim.asset.browser".folders = [
             # 很稳，4070 Super TI + Ultra 7 265k CPU台式机，1% GPU利用率，CPU 11%利用率
 
         # 3.2 开启image server, 2号机
-            image_server$ python image_server_timesync.py --rs 243222072371
+            image_server$ python3.8 image_server_timesync.py --rs 243222072371
 
         # 上述没问题，开启遥操作
             # 数据采集基本58Hz
@@ -1870,7 +1870,12 @@ exts."isaacsim.asset.browser".folders = [
             # 机器人高度指令原理：Quest 3s控制器按B按键开启遥操作时，会获取操作者此时的高度
                 # 操作者后续下蹲，就会给height_delta给底层控制，进行下蹲
 
-            (tv) junweil@ai-precog-machine23:~/projects/xr_teleoperate/teleop$ python teleop_hand_and_arm_with_loco.py --xr-mode=controller --arm=G1_29 --ee=dex3 --record --network_interface eno1 --use_waist  --task_name open_washer_door --task_dir ../data/open_washer_door
+            (tv) junweil@ai-precog-machine23:~/projects/xr_teleoperate/teleop$ python teleop_hand_and_arm_with_loco.py --xr-mode=controller --arm=G1_29 --ee=dex3 --record --network_interface eno1 --use_waist  --task_name open_washer_door --task_dir ../data/open_washer_door --no_hand
+                # 注意没有灵巧手
+
+                # 右手B开启遥操作，A结束遥操作(手臂、手指都会自动复位)
+                # 左手遥杆控制行走,注意轻轻推！推一下就复位，以免走太多太快失去平衡
+                # 左手 x按键是开启结束episode录制
 
 ```
 ## 收集数据训练测试
@@ -1911,6 +1916,7 @@ exts."isaacsim.asset.browser".folders = [
             # batch_size=128, 35GB显存， 200 step: 2分52秒
 
             # [TODO] check why L40 is slow
+            # [04/14/2026] 关闭IOMMU让L40可以p2p就可以了
 
         # [TODO]训练优化，加tensorboard，数据集如何分割，训练同时validate，等, FP8, DDP等
             # https://github.com/huggingface/lerobot/pull/1246
