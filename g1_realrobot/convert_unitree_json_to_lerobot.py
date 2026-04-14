@@ -12,9 +12,9 @@ python unitree_lerobot/utils/convert_unitree_json_to_lerobot.py \
 """
 
 import os
+import argparse
 import cv2
 import tqdm
-import tyro
 import json
 import glob
 import dataclasses
@@ -281,6 +281,7 @@ def create_empty_dataset(
     if Path(HF_LEROBOT_HOME / repo_id).exists():
         shutil.rmtree(HF_LEROBOT_HOME / repo_id)
 
+    # 这里lerobot 会自动加time stamp
     return LeRobotDataset.create(
         repo_id=repo_id,
         fps=30, # Change this to 60 if you want to keep raw FPS, but 30 is standard
@@ -359,6 +360,48 @@ def populate_dataset(
 
     return dataset
 
+def generate_modality_json(repo_id: str):
+    """
+    Generates the GR00T-specific meta/modality.json file.
+    This tells GR00T exactly how to slice the 1D state/action vectors.
+    """
+    meta_dir = HF_LEROBOT_HOME / repo_id / "meta"
+    meta_dir.mkdir(parents=True, exist_ok=True)
+    """
+    When you write your GR00T fine-tuning config YAML later, you can simply
+    tell the model to use actions: ["arms", "waist", "triggers", "loco_cmd"].
+    GR00T's dataloader will look at modality.json, grab those specific chunks,
+    concatenate them, and completely ignore the hands indices without you ever
+    having to rewrite the underlying parquet files.
+    """
+    # Define the precise slicing for your 43D state and 37D action vectors
+    modality_config = {
+        "state": {
+            "arms": {"start": 0, "end": 14},      # 7 left arm + 7 right arm
+            "hands": {"start": 14, "end": 28},    # 7 left fingers + 7 right fingers
+            "waist": {"start": 28, "end": 31},    # 3 waist joints
+            "legs": {"start": 31, "end": 43}      # 12 leg joints
+        },
+        "action": {
+            "arms": {"start": 0, "end": 14},      # 7 left arm + 7 right arm
+            "hands": {"start": 14, "end": 28},    # 7 left fingers + 7 right fingers
+            "waist": {"start": 28, "end": 31},    # 3 waist joints
+            "triggers": {"start": 31, "end": 33}, # left_trigger, right_trigger
+            "loco_cmd": {"start": 33, "end": 37}  # vx, vy, vyaw, height
+        },
+        "video": {
+            "cam_high": {
+                "original_key": "observation.images.cam_high"
+            }
+        }
+        # "annotation": {} # Omitted since you are using standard LeRobot task_index for now
+    }
+
+    modality_path = meta_dir / "modality.json"
+    with open(modality_path, "w", encoding="utf-8") as f:
+        json.dump(modality_config, f, indent=4)
+
+    print(f"==> Successfully wrote GR00T modality config to {modality_path}")
 
 def json_to_lerobot(
     raw_dir: Path,
@@ -366,7 +409,6 @@ def json_to_lerobot(
     robot_type: str = "Unitree_G1_WBC",
     downsample_factor: int = 2,
     use_future_state_as_action: bool = True,
-    *,
     mode: Literal["video", "image"] = "video",
     dataset_config: DatasetConfig = DEFAULT_DATASET_CONFIG,
 ):
@@ -384,16 +426,16 @@ def json_to_lerobot(
         shutil.rmtree(HF_LEROBOT_HOME / repo_id)
 
     # Note: If you downsample 60fps by 2, you should tell the dataset it is now 30fps
-    target_fps = 60 // downsample_factor
+    original_data_fps = 60
+    target_fps = original_data_fps // downsample_factor
 
+    # hardcode to be 30 fps
     dataset = create_empty_dataset(
         repo_id,
         robot_type=robot_type,
         mode=mode,
         dataset_config=dataset_config,
     )
-    # Override default FPS creation if needed (though create_empty_dataset hardcodes 30 right now)
-    dataset.fps = target_fps
 
     dataset = populate_dataset(
         dataset,
@@ -403,7 +445,37 @@ def json_to_lerobot(
         use_future_state_as_action=use_future_state_as_action
     )
 
+    generate_modality_json(repo_id)
+
 
 
 if __name__ == "__main__":
-    tyro.cli(json_to_lerobot)
+    parser = argparse.ArgumentParser(description="Convert Unitree JSON WBC data to LeRobot Dataset format.")
+
+    # Required arguments
+    parser.add_argument("--raw-dir", type=Path, required=True,
+                        help="Corresponds to the directory of your JSON dataset")
+    parser.add_argument("--repo-id", type=str, required=True,
+                        help="Your unique repo ID on Hugging Face Hub (e.g., your_name/g1_wbc_dataset)")
+
+    # Optional arguments with defaults
+    parser.add_argument("--robot-type", type=str, default="Unitree_G1_WBC",
+                        help="The type of the robot used in the dataset")
+    parser.add_argument("--downsample-factor", type=int, default=2,
+                        help="Downsampling factor. 1 means original FPS, 2 means halve the FPS (60 -> 30)")
+    parser.add_argument("--use-future-state-as-action", action="store_true",
+                        help="Replace commanded arm/waist joints with the achieved future state")
+    parser.add_argument("--mode", type=str, choices=["video", "image"], default="video",
+                        help="Store visual data as videos or discrete images")
+
+    args = parser.parse_args()
+
+    # Call the conversion function
+    json_to_lerobot(
+        raw_dir=args.raw_dir,
+        repo_id=args.repo_id,
+        robot_type=args.robot_type,
+        downsample_factor=args.downsample_factor,
+        use_future_state_as_action=args.use_future_state_as_action,
+        mode=args.mode
+    )
