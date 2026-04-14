@@ -124,6 +124,7 @@ class JsonDataset:
                         qpos = qpos[key_part]
                 if qpos is None:
                     raise ValueError(f"qpos is None for part: {part}")
+                print(qpos)
                 if isinstance(qpos, list):
                     qpos = np.array(qpos, dtype=np.float32).flatten()
                 else:
