@@ -301,8 +301,24 @@ PY
 
             (tv) junweil@office-precognition:~/projects/humanoid_teleop/g1_realrobot/lerobot$ pip install -e .
 
-        (tv) junweil@office-precognition:~/projects/huawei_data$ python ~/projects/humanoid_teleop/g1_realrobot/convert_unitree_json_to_lerobot.py --raw-dir wbc_task5_lerobotv2/ --repo-id junweiliang/wbc_5tasks --robot_type Unitree_G1_Dex3
+        # convert to LeRobot v2 and Gr00T complient (就是多一个modality.json)
+            # https://github.com/NVIDIA/Isaac-GR00T/blob/main/getting_started/data_preparation.md
 
+        (tv) junweil@office-precognition:~/projects/huawei_data$ python ~/projects/humanoid_teleop/g1_realrobot/convert_unitree_json_to_lerobot.py --raw-dir wbc_task5_lerobotv2/ --repo-id junweiliang/wbc_5tasks --downsample-factor 2 --use-future-state-as-action
 
+            # LeRobot 会提取jpg 生成mp4文件
+
+            # 要一个小时，数据会存在
+                ~/.cache/huggingface/lerobot/junweiliang/wbc_5tasks
+
+```
++ 微调Gr00T N1.6
+```
+    [04/14/2026] # fork and install
+        # https://github.com/JunweiLiang/Isaac-GR00T
+        # office 已经安装了uv, CUDA 12.6 在根环境
+        junweil@office-precognition:~/projects/wbc_manipulation$ git clone https://github.com/JunweiLiang/Isaac-GR00T
+
+        junweil@office-precognition:~/projects/wbc_manipulation/Isaac-GR00T$ git submodule update --init --recursive
 
 ```

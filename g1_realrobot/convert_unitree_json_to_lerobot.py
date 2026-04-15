@@ -300,63 +300,77 @@ def populate_dataset(
     raw_dir: Path,
     robot_type: str,
     downsample_factor: int = 2,
-    use_future_state_as_action: bool = True
+    use_future_state_as_action: bool = True,
+    start_episode: int = 0
 ) -> LeRobotDataset:
     json_dataset = JsonDataset(raw_dir, robot_type)
-    for i in tqdm.tqdm(range(len(json_dataset))):
-        episode = json_dataset.get_item(i)
 
-        state = episode["state"]
-        action = episode["action"]
-        cameras = episode["cameras"]
-        task = episode["task"]
+    # Start the loop from where we left off
+    for i in tqdm.tqdm(range(start_episode, len(json_dataset))):
+        episode_path = json_dataset.episode_paths[i]
 
-        # --- 1. DOWNSAMPLING MODULE ---
-        # 60 FPS -> 30 FPS (if downsample_factor == 2)
-        state = state[::downsample_factor]
-        action = action[::downsample_factor]
-        for cam in cameras.keys():
-            cameras[cam] = cameras[cam][::downsample_factor]
+        try:
+            episode = json_dataset.get_item(i)
+            state = episode["state"]
+            action = episode["action"]
 
-        num_frames = len(state)
+            # --- 1. PRE-FLIGHT VALIDATION ---
+            expected_state_dim = len(G1_WBC_CONFIG.state_names)
+            expected_action_dim = len(G1_WBC_CONFIG.action_names)
 
-        # --- 2. ACTION SHIFTING (t = state t+1) ---
-        # If we use future state as action, we must drop the very last frame
-        # because it does not have a t+1 frame to pull a target from.
-        loop_end = num_frames - 1 if use_future_state_as_action else num_frames
+            if state.shape[-1] != expected_state_dim or action.shape[-1] != expected_action_dim:
+                print(f"\n[WARNING] Skipping Episode {i} ({episode_path})")
+                print(f"          Reason: Shape mismatch. State: {state.shape[-1]} (expected {expected_state_dim}).")
+                print("          (This usually means hand tracking data was absent during recording).")
+                continue # Skip this episode completely
 
-        for f_idx in range(loop_end):
-            current_state = state[f_idx]
+            cameras = episode["cameras"]
+            task = episode["task"]
 
-            if use_future_state_as_action:
-                future_state = state[f_idx + 1]
+            # --- 2. DOWNSAMPLING MODULE ---
+            state = state[::downsample_factor]
+            action = action[::downsample_factor]
+            for cam in cameras.keys():
+                cameras[cam] = cameras[cam][::downsample_factor]
 
-                # The first 31 dims are arms (28) + waist (3). We want the robot's
-                # ACTUAL reached future state to act as the clean command.
-                future_joints = future_state[:31]
+            num_frames = len(state)
 
-                # The last 6 dims are triggers (2) + loco_cmd (4). These remain
-                # what the user explicitly commanded at time t.
-                current_triggers_loco = action[f_idx][31:]
+            # --- 3. ACTION SHIFTING (t = state t+1) ---
+            loop_end = num_frames - 1 if use_future_state_as_action else num_frames
 
-                # Combine them into the new 37D action vector
-                actual_action = np.concatenate([future_joints, current_triggers_loco])
-            else:
-                actual_action = action[f_idx]
+            for f_idx in range(loop_end):
+                current_state = state[f_idx]
 
-            frame = {
-                "observation.state": current_state,
-                "action": actual_action,
-            }
+                if use_future_state_as_action:
+                    future_state = state[f_idx + 1]
+                    future_joints = future_state[:31]
+                    current_triggers_loco = action[f_idx][31:]
+                    actual_action = np.concatenate([future_joints, current_triggers_loco])
+                else:
+                    actual_action = action[f_idx]
 
-            for camera, img_array in cameras.items():
-                frame[f"observation.images.{camera}"] = img_array[f_idx]
+                frame = {
+                    "observation.state": current_state,
+                    "action": actual_action,
+                }
 
-            frame["task"] = task
+                for camera, img_array in cameras.items():
+                    frame[f"observation.images.{camera}"] = img_array[f_idx]
 
-            dataset.add_frame(frame)
+                frame["task"] = task
+                dataset.add_frame(frame)
 
-        dataset.save_episode()
+            dataset.save_episode()
+
+        except Exception as e:
+            # Verbose logging so you know exactly which file caused a crash
+            print(f"\n[ERROR] Failed to process Episode {i}: {episode_path}")
+            print(f"        Exception: {e}")
+
+            # Clear the buffer so the corrupted episode doesn't ruin the next one
+            if hasattr(dataset, "clear_episode_buffer"):
+                dataset.clear_episode_buffer()
+            continue
 
     return dataset
 
@@ -409,73 +423,75 @@ def json_to_lerobot(
     robot_type: str = "Unitree_G1_WBC",
     downsample_factor: int = 2,
     use_future_state_as_action: bool = True,
+    resume: bool = False,
     mode: Literal["video", "image"] = "video",
     dataset_config: DatasetConfig = DEFAULT_DATASET_CONFIG,
 ):
-    """
-    Convert JSON to LeRobot format.
-
-    Args:
-        raw_dir: Path to raw JSON data.
-        repo_id: HuggingFace Hub ID.
-        robot_type: Robot configuration to use.
-        downsample_factor: 1 means keep original FPS, 2 means halve the FPS (e.g., 60->30).
-        use_future_state_as_action: Replaces commanded arm/waist joints with the achieved future state.
-    """
-    if (HF_LEROBOT_HOME / repo_id).exists():
-        shutil.rmtree(HF_LEROBOT_HOME / repo_id)
-
-    # Note: If you downsample 60fps by 2, you should tell the dataset it is now 30fps
     original_data_fps = 60
     target_fps = original_data_fps // downsample_factor
+    repo_path = HF_LEROBOT_HOME / repo_id
 
-    # hardcode to be 30 fps
-    dataset = create_empty_dataset(
-        repo_id,
-        robot_type=robot_type,
-        mode=mode,
-        dataset_config=dataset_config,
-    )
+    # --- RESUME LOGIC ---
+    if resume and repo_path.exists():
+        print(f"==> Resuming existing dataset at {repo_id}")
+        dataset = LeRobotDataset(repo_id)
+        start_episode = dataset.num_episodes
+        print(f"==> Found {start_episode} successfully saved episodes. Skipping them.")
+    else:
+        if repo_path.exists():
+            shutil.rmtree(repo_path)
+
+        dataset = create_empty_dataset(
+            repo_id,
+            robot_type=robot_type,
+            mode=mode,
+            dataset_config=dataset_config,
+        )
+        dataset.fps = target_fps
+        start_episode = 0
 
     dataset = populate_dataset(
         dataset,
         raw_dir,
         robot_type=robot_type,
         downsample_factor=downsample_factor,
-        use_future_state_as_action=use_future_state_as_action
+        use_future_state_as_action=use_future_state_as_action,
+        start_episode=start_episode
     )
 
+    # From the GR00T modification earlier
     generate_modality_json(repo_id)
 
 
 
+import argparse
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Convert Unitree JSON WBC data to LeRobot Dataset format.")
 
-    # Required arguments
     parser.add_argument("--raw-dir", type=Path, required=True,
                         help="Corresponds to the directory of your JSON dataset")
     parser.add_argument("--repo-id", type=str, required=True,
-                        help="Your unique repo ID on Hugging Face Hub (e.g., your_name/g1_wbc_dataset)")
-
-    # Optional arguments with defaults
+                        help="Your unique repo ID on Hugging Face Hub")
     parser.add_argument("--robot-type", type=str, default="Unitree_G1_WBC",
                         help="The type of the robot used in the dataset")
     parser.add_argument("--downsample-factor", type=int, default=2,
-                        help="Downsampling factor. 1 means original FPS, 2 means halve the FPS (60 -> 30)")
+                        help="Downsampling factor (60 -> 30)")
     parser.add_argument("--use-future-state-as-action", action="store_true",
                         help="Replace commanded arm/waist joints with the achieved future state")
+    parser.add_argument("--resume", action="store_true",
+                        help="Resume processing an existing dataset without deleting it")
     parser.add_argument("--mode", type=str, choices=["video", "image"], default="video",
                         help="Store visual data as videos or discrete images")
 
     args = parser.parse_args()
 
-    # Call the conversion function
     json_to_lerobot(
         raw_dir=args.raw_dir,
         repo_id=args.repo_id,
         robot_type=args.robot_type,
         downsample_factor=args.downsample_factor,
         use_future_state_as_action=args.use_future_state_as_action,
+        resume=args.resume,
         mode=args.mode
     )
