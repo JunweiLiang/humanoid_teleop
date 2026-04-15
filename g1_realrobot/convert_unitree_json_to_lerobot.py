@@ -217,7 +217,14 @@ class JsonDataset:
         state_dim = state.shape[1] if len(state.shape) == 2 else state.shape[0]
         action_dim = action.shape[1] if len(action.shape) == 2 else action.shape[0]
 
-        task = episode_data.get("text", {}).get("goal", "teleop task")
+        # 改成读文件夹名字作为task name
+        #task = episode_data.get("text", {}).get("goal", "teleop task")
+        # Extract the parent folder name (e.g., "close_washer_door")
+        parent_folder = os.path.basename(os.path.dirname(file_path))
+
+        task = parent_folder
+        # ----------
+
         cameras = self._parse_images(file_path, episode_data)
 
         # Fallback shapes if cameras are missing
