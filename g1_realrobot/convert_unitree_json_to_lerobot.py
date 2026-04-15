@@ -351,12 +351,30 @@ def create_empty_dataset(
 def populate_dataset(
     dataset: LeRobotDataset,
     raw_dir: Path,
+    repo_id: str,  # <-- Added repo_id to locate the meta directory
     robot_type: str,
     downsample_factor: int = 2,
     use_future_state_as_action: bool = True,
     start_episode: int = 0
 ) -> LeRobotDataset:
     json_dataset = JsonDataset(raw_dir, robot_type)
+
+    # --- NEW GR00T METADATA TRACKERS ---
+    tasks_dict = {}
+    episodes_records = []
+    meta_dir = HF_LEROBOT_HOME / repo_id / "meta"
+    meta_dir.mkdir(parents=True, exist_ok=True)
+
+    # Load existing metadata if resuming
+    if start_episode > 0 and (meta_dir / "tasks.jsonl").exists():
+        with open(meta_dir / "tasks.jsonl", "r", encoding="utf-8") as f:
+            for line in f:
+                t = json.loads(line)
+                tasks_dict[t["task"]] = t["task_index"]
+    if start_episode > 0 and (meta_dir / "episodes.jsonl").exists():
+        with open(meta_dir / "episodes.jsonl", "r", encoding="utf-8") as f:
+            for line in f:
+                episodes_records.append(json.loads(line))
 
     # Start the loop from where we left off
     for i in tqdm.tqdm(range(start_episode, len(json_dataset))):
@@ -368,18 +386,19 @@ def populate_dataset(
             action = episode["action"]
 
             # --- 1. PRE-FLIGHT VALIDATION ---
-            # Check against the RAW extracted JSON dimensions, not the final 49D shape
-            raw_expected_state_dim = 43  # Arms(14) + Hands(14) + Waist(3) + Legs(12)
-            raw_expected_action_dim = 37 # Arms(14) + Hands(14) + Waist(3) + Triggers(2) + Loco(4)
+            expected_state_dim = len(G1_WBC_CONFIG.state_names)
+            expected_action_dim = len(G1_WBC_CONFIG.action_names)
 
-            if state.shape[-1] != raw_expected_state_dim or action.shape[-1] != raw_expected_action_dim:
+            if state.shape[-1] != expected_state_dim or action.shape[-1] != expected_action_dim:
                 print(f"\n[WARNING] Skipping Episode {i} ({episode_path})")
-                print(f"          Reason: Raw Shape mismatch. State: {state.shape[-1]} (expected {raw_expected_state_dim}), Action: {action.shape[-1]} (expected {raw_expected_action_dim}).")
-                print("          (This usually means hand tracking or loco_cmd data was absent during recording).")
-                continue # Skip this episode completely
+                continue
 
             cameras = episode["cameras"]
             task = episode["task"]
+
+            # Add to our task dictionary if we haven't seen it yet
+            if task not in tasks_dict:
+                tasks_dict[task] = len(tasks_dict)
 
             # --- 2. DOWNSAMPLING MODULE ---
             state = state[::downsample_factor]
@@ -389,59 +408,60 @@ def populate_dataset(
 
             num_frames = len(state)
 
-            # --- 3. ACTION SHIFTING AND CROSS-STITCHING ---
+            # --- 3. ACTION SHIFTING (t = state t+1) ---
             loop_end = num_frames - 1 if use_future_state_as_action else num_frames
 
             for f_idx in range(loop_end):
-                # raw_state is 43D: Arms(14) + Hands(14) + Waist(3) + Legs(12)
-                # raw_action is 37D: Arms(14) + Hands(14) + Waist(3) + Triggers(2) + Loco(4)
+                current_state = state[f_idx]
 
-                # The index where physical upper body ends in raw_action
-                upper_body_end = 31 # 14 + 14 + 3
-
-                # 1. BUILD THE 49D STATE
-                current_physical_state = state[f_idx] # 43D
-                # We pull the high-level commands from the raw ACTION array
-                current_commands = action[f_idx][upper_body_end:] # 6D
-
-                current_state_49d = np.concatenate([current_physical_state, current_commands])
-
-                # 2. BUILD THE 49D ACTION
                 if use_future_state_as_action:
-                    # Future state has Arms, Hands, Waist, and Legs (43D)
-                    future_physical_state = state[f_idx + 1]
-
-                    # Stitch future physical joints with current high-level commands
-                    actual_action_49d = np.concatenate([future_physical_state, current_commands])
+                    future_state = state[f_idx + 1]
+                    future_joints = future_state[:31]
+                    current_triggers_loco = action[f_idx][31:]
+                    actual_action = np.concatenate([future_joints, current_triggers_loco])
                 else:
-                    # If not using future state, build action from raw action + current legs
-                    current_physical_action = action[f_idx][:upper_body_end] # 31D
-                    current_legs = state[f_idx][31:43] # 12D (Extracted from state)
-
-                    actual_action_49d = np.concatenate([current_physical_action, current_legs, current_commands])
+                    actual_action = action[f_idx]
 
                 frame = {
-                    "observation.state": current_state_49d,
-                    "action": actual_action_49d,
+                    "observation.state": current_state,
+                    "action": actual_action,
+                    "task": task  # Attach the task string to every frame
                 }
 
                 for camera, img_array in cameras.items():
                     frame[f"observation.images.{camera}"] = img_array[f_idx]
 
-                frame["task"] = task
                 dataset.add_frame(frame)
+
+            # Get the exact index LeRobot is assigning this episode
+            current_ep_idx = dataset.num_episodes
 
             dataset.save_episode()
 
+            # Record successful episode metadata for GR00T
+            episodes_records.append({
+                "episode_index": current_ep_idx,
+                "tasks": [tasks_dict[task]],
+                "length": loop_end
+            })
+
         except Exception as e:
-            # Verbose logging so you know exactly which file caused a crash
             print(f"\n[ERROR] Failed to process Episode {i}: {episode_path}")
             print(f"        Exception: {e}")
-
-            # Clear the buffer so the corrupted episode doesn't ruin the next one
             if hasattr(dataset, "clear_episode_buffer"):
                 dataset.clear_episode_buffer()
             continue
+
+    # --- WRITE GR00T METADATA FILES ---
+    print("\n==> Generating GR00T tasks.jsonl...")
+    with open(meta_dir / "tasks.jsonl", "w", encoding="utf-8") as f:
+        for task_str, task_idx in tasks_dict.items():
+            f.write(json.dumps({"task_index": task_idx, "task": task_str}) + "\n")
+
+    print("==> Generating GR00T episodes.jsonl...")
+    with open(meta_dir / "episodes.jsonl", "w", encoding="utf-8") as f:
+        for ep in episodes_records:
+            f.write(json.dumps(ep) + "\n")
 
     return dataset
 
@@ -510,17 +530,15 @@ def json_to_lerobot(
     dataset = populate_dataset(
         dataset,
         raw_dir,
+        repo_id,  # <--- Make sure to pass repo_id here!
         robot_type=robot_type,
         downsample_factor=downsample_factor,
         use_future_state_as_action=use_future_state_as_action,
         start_episode=start_episode
     )
 
-    # for Gr00T modality.json
+    # Generate GR00T modality config
     generate_modality_json(repo_id)
-
-    # And add old jsonl file
-    generate_jsonl_metadata(repo_id)
 
 
 import argparse
