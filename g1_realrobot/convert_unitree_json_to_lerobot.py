@@ -252,10 +252,10 @@ class JsonDataset:
             "data_cfg": data_cfg,
         }
 
-
 def create_empty_dataset(
     repo_id: str,
     robot_type: str,
+    fps: int = 30,  # <-- Added fps parameter
     mode: Literal["video", "image"] = "video",
     *,
     dataset_config: DatasetConfig = DEFAULT_DATASET_CONFIG,
@@ -281,17 +281,16 @@ def create_empty_dataset(
     for cam in cameras:
         features[f"observation.images.{cam}"] = {
             "dtype": mode,
-            "shape": (480, 640, 3), # Matches your 640x480 setting
+            "shape": (480, 640, 3),
             "names": ["height", "width", "channel"],
         }
 
     if Path(HF_LEROBOT_HOME / repo_id).exists():
         shutil.rmtree(HF_LEROBOT_HOME / repo_id)
 
-    # 这里lerobot 会自动加time stamp
     return LeRobotDataset.create(
         repo_id=repo_id,
-        fps=30, # Change this to 60 if you want to keep raw FPS, but 30 is standard
+        fps=fps, # <-- Pass the variable here instead of hardcoding 30
         robot_type="Unitree_G1_WBC",
         features=features,
         use_videos=dataset_config.use_videos,
@@ -451,10 +450,10 @@ def json_to_lerobot(
         dataset = create_empty_dataset(
             repo_id,
             robot_type=robot_type,
+            fps=target_fps,  # <-- Pass it here!
             mode=mode,
             dataset_config=dataset_config,
         )
-        dataset.fps = target_fps
         start_episode = 0
 
     dataset = populate_dataset(
