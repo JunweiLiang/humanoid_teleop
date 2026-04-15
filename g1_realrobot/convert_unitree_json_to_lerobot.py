@@ -74,8 +74,9 @@ LOCO_CMD_NAMES = ["loco_v_x", "loco_v_y", "loco_v_yaw", "loco_height"]
 TRIGGER_NAMES = ["left_trigger", "right_trigger"]
 
 G1_WBC_CONFIG = RobotConfig(
-    state_names=ARM_HAND_JOINTS + WAIST_JOINTS + LEG_JOINTS, # 28 + 3 + 12 = 43D
-    action_names=ARM_HAND_JOINTS + WAIST_JOINTS + TRIGGER_NAMES + LOCO_CMD_NAMES, # 28 + 3 + 2 + 4 = 37D
+    # State and Action are now perfectly identical 49D vectors
+    state_names=ARM_HAND_JOINTS + WAIST_JOINTS + LEG_JOINTS + TRIGGER_NAMES + LOCO_CMD_NAMES,
+    action_names=ARM_HAND_JOINTS + WAIST_JOINTS + LEG_JOINTS + TRIGGER_NAMES + LOCO_CMD_NAMES,
     cameras=[
         "cam_high",
         # "cam_left_wrist", # Uncomment if using wrist cameras
@@ -89,14 +90,17 @@ G1_WBC_CONFIG = RobotConfig(
     json_state_data_name=[
         "left_arm.qpos", "right_arm.qpos",
         "left_ee.qpos", "right_ee.qpos",
-        "waist.qpos", "leg.qpos"
+        "waist.qpos", "leg.qpos",
+        "left_trigger", "right_trigger", "loco_cmd"
     ],
     json_action_data_name=[
         "left_arm.qpos", "right_arm.qpos",
         "left_ee.qpos", "right_ee.qpos",
-        "waist.qpos", "left_trigger", "right_trigger", "loco_cmd"
+        "waist.qpos", "leg.qpos", # <-- ADDED leg.qpos HERE
+        "left_trigger", "right_trigger", "loco_cmd"
     ],
 )
+
 
 
 @dataclasses.dataclass(frozen=True)
@@ -397,8 +401,10 @@ def populate_dataset(
 
                 if use_future_state_as_action:
                     future_state = state[f_idx + 1]
-                    future_joints = future_state[:31]
-                    current_triggers_loco = action[f_idx][31:]
+                    # We want t+1 for all 43 physical joints (Arms, Hands, Waist, Legs)
+                    future_joints = future_state[:43]
+                    # We want t for the 6 high-level commands (Triggers, Loco)
+                    current_triggers_loco = action[f_idx][43:]
                     actual_action = np.concatenate([future_joints, current_triggers_loco])
                 else:
                     actual_action = action[f_idx]
@@ -429,47 +435,33 @@ def populate_dataset(
     return dataset
 
 def generate_modality_json(repo_id: str):
-    """
-    Generates the GR00T-specific meta/modality.json file.
-    This tells GR00T exactly how to slice the 1D state/action vectors.
-    """
     meta_dir = HF_LEROBOT_HOME / repo_id / "meta"
     meta_dir.mkdir(parents=True, exist_ok=True)
-    """
-    When you write your GR00T fine-tuning config YAML later, you can simply
-    tell the model to use actions: ["arms", "waist", "triggers", "loco_cmd"].
-    GR00T's dataloader will look at modality.json, grab those specific chunks,
-    concatenate them, and completely ignore the hands indices without you ever
-    having to rewrite the underlying parquet files.
-    """
-    # Define the precise slicing for your 43D state and 37D action vectors
+
+    # State and Action slices are now perfectly 1:1
+    modality_slice = {
+        "arms": {"start": 0, "end": 14},
+        "hands": {"start": 14, "end": 28},
+        "waist": {"start": 28, "end": 31},
+        "legs": {"start": 31, "end": 43},
+        "triggers": {"start": 43, "end": 45},
+        "loco_cmd": {"start": 45, "end": 49}
+    }
+
     modality_config = {
-        "state": {
-            "arms": {"start": 0, "end": 14},      # 7 left arm + 7 right arm
-            "hands": {"start": 14, "end": 28},    # 7 left fingers + 7 right fingers
-            "waist": {"start": 28, "end": 31},    # 3 waist joints
-            "legs": {"start": 31, "end": 43}      # 12 leg joints
-        },
-        "action": {
-            "arms": {"start": 0, "end": 14},      # 7 left arm + 7 right arm
-            "hands": {"start": 14, "end": 28},    # 7 left fingers + 7 right fingers
-            "waist": {"start": 28, "end": 31},    # 3 waist joints
-            "triggers": {"start": 31, "end": 33}, # left_trigger, right_trigger
-            "loco_cmd": {"start": 33, "end": 37}  # vx, vy, vyaw, height
-        },
+        "state": modality_slice,
+        "action": modality_slice,
         "video": {
-            "cam_high": {
-                "original_key": "observation.images.cam_high"
-            }
+            "cam_high": {"original_key": "observation.images.cam_high"}
+        },
+        "annotation": {
+            "human.task_description": {"original_key": "task_index"}
         }
-        # "annotation": {} # Omitted since you are using standard LeRobot task_index for now
     }
 
     modality_path = meta_dir / "modality.json"
     with open(modality_path, "w", encoding="utf-8") as f:
         json.dump(modality_config, f, indent=4)
-
-    print(f"==> Successfully wrote GR00T modality config to {modality_path}")
 
 def json_to_lerobot(
     raw_dir: Path,
@@ -512,6 +504,9 @@ def json_to_lerobot(
         use_future_state_as_action=use_future_state_as_action,
         start_episode=start_episode
     )
+
+    # Force LeRobot to write the .parquet files to disk
+    dataset.consolidate()
 
     # for Gr00T modality.json
     generate_modality_json(repo_id)

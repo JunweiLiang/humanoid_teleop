@@ -317,6 +317,10 @@ PY
 
                 有一些episode可能手的states 没有录制，没有数据就跳过。lerobot会跳过这个episode
 
+                # 会按照 Gr00T说的，额外生成modality.json，还有旧版的.jsonl meta文件
+                    # https://github.com/NVIDIA/Isaac-GR00T/blob/main/getting_started/data_preparation.md
+
+
             # 转换完后查看数据集
 
             # 可视化lerobot 数据
@@ -363,7 +367,28 @@ export LD_LIBRARY_PATH=$CUDA_HOME/lib64:$LD_LIBRARY_PATH
                 junweil@precognition-gpu3:~/projects/wbc_manipulation$ git clone https://github.com/JunweiLiang/Isaac-GR00T
                 junweil@precognition-gpu3:~/projects/wbc_manipulation/Isaac-GR00T$ git submodule update --init --recursive
 
-                junweil@precognition-gpu3:~/projects/wbc_manipulation/Isaac-GR00T$ UV_CONCURRENT_DOWNLOADS=1 UV_HTTP_TIMEOUT=60 bash scripts/deployment/dgpu/install_deps.sh
+                # 要用清华源
+                junweil@precognition-gpu3:~/projects/wbc_manipulation/Isaac-GR00T$ UV_DEFAULT_INDEX="https://pypi.tuna.tsinghua.edu.cn/simple" UV_CONCURRENT_DOWNLOADS=10 UV_HTTP_TIMEOUT=60 bash scripts/deployment/dgpu/install_deps.sh
+
+    # 数据和config note
+
+        # Gr00T 在数据集中有meta/modality.json，说明了lerobot里面的数据的维度和机器人本体 的对应
+        # finetune模型需要写一个config 说明如何使用这些数据
+            # https://github.com/NVIDIA/Isaac-GR00T/blob/main/getting_started/data_config.md
+
+                # Last 3 frames for video (temporal stacking)
+                delta_indices=[-2, -1, 0]
+
+                # 16-step action prediction horizon
+                delta_indices=list(range(0, 16))
+
+                modality_keys -> match the ones in modality.json
+            1. video:
+            2. state:
+            3. action:
+            4. language:
+
+
 
 ```
 + Psi微调
