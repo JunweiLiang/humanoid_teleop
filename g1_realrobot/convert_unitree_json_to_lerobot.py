@@ -23,6 +23,7 @@ import numpy as np
 from pathlib import Path
 from collections import defaultdict
 from typing import Literal
+import pandas as pd
 
 from lerobot.utils.constants import HF_LEROBOT_HOME
 from lerobot.datasets.lerobot_dataset import LeRobotDataset
@@ -252,6 +253,53 @@ class JsonDataset:
             "data_cfg": data_cfg,
         }
 
+def generate_jsonl_metadata(repo_id: str):
+    """
+    Converts LeRobot's default .parquet metadata into the .jsonl format
+    strictly required by the GR00T dataloader.
+    """
+    meta_dir = HF_LEROBOT_HOME / repo_id / "meta"
+
+    # --- 1. Convert tasks.parquet to tasks.jsonl ---
+    tasks_parquet = meta_dir / "tasks.parquet"
+    if tasks_parquet.exists():
+        df_tasks = pd.read_parquet(tasks_parquet)
+
+        # Dynamically find the task column just like our inspection script
+        task_col = next((col for col in ['task', 'tasks', 'instruction', 'goal', 'name'] if col in df_tasks.columns), None)
+
+        if task_col and 'task_index' in df_tasks.columns:
+            with open(meta_dir / "tasks.jsonl", "w", encoding="utf-8") as f:
+                for _, row in df_tasks.iterrows():
+                    task_dict = {
+                        "task_index": int(row['task_index']),
+                        "task": str(row[task_col])
+                    }
+                    f.write(json.dumps(task_dict) + "\n")
+            print(f"==> Successfully generated GR00T tasks.jsonl")
+
+    # --- 2. Convert episodes.parquet to episodes.jsonl ---
+    episodes_parquet = meta_dir / "episodes.parquet"
+    if episodes_parquet.exists():
+        df_episodes = pd.read_parquet(episodes_parquet)
+
+        with open(meta_dir / "episodes.jsonl", "w", encoding="utf-8") as f:
+            for _, row in df_episodes.iterrows():
+                # Handle how LeRobot stores tasks (could be a list or a single int)
+                tasks_val = row.get('tasks', row.get('task_index', [0]))
+                if isinstance(tasks_val, (int, np.integer)):
+                    tasks_list = [int(tasks_val)]
+                else:
+                    tasks_list = [int(x) for x in tasks_val]
+
+                episode_dict = {
+                    "episode_index": int(row['episode_index']),
+                    "tasks": tasks_list,
+                    "length": int(row['length'])
+                }
+                f.write(json.dumps(episode_dict) + "\n")
+        print(f"==> Successfully generated GR00T episodes.jsonl")
+
 def create_empty_dataset(
     repo_id: str,
     robot_type: str,
@@ -465,9 +513,11 @@ def json_to_lerobot(
         start_episode=start_episode
     )
 
-    # From the GR00T modification earlier
+    # for Gr00T modality.json
     generate_modality_json(repo_id)
 
+    # And add old jsonl file
+    generate_jsonl_metadata(repo_id)
 
 
 import argparse

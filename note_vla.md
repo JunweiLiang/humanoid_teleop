@@ -317,11 +317,13 @@ PY
 
                 有一些episode可能手的states 没有录制，没有数据就跳过。lerobot会跳过这个episode
 
-        # 可视化lerobot 数据
+            # 转换完后查看数据集
 
-            (tv) junweil@office-precognition:~/projects$ python ~/projects/humanoid_teleop/g1_realrobot/lerobot/src/lerobot/scripts/lerobot_dataset_viz.py --repo-id junweiliang/wbc_5tasks --episode-index 0
+            # 可视化lerobot 数据
 
-                # 会打开rerun窗口，看到视频，还有各个关节的曲线图
+                (tv) junweil@office-precognition:~/projects$ python ~/projects/humanoid_teleop/g1_realrobot/lerobot/src/lerobot/scripts/lerobot_dataset_viz.py --repo-id junweiliang/wbc_5tasks --episode-index 0
+
+                    # 会打开rerun窗口，看到视频，还有各个关节的曲线图
 
 
 ```
@@ -360,6 +362,23 @@ export LD_LIBRARY_PATH=$CUDA_HOME/lib64:$LD_LIBRARY_PATH
             # 3. gr00t
                 junweil@precognition-gpu3:~/projects/wbc_manipulation$ git clone https://github.com/JunweiLiang/Isaac-GR00T
                 junweil@precognition-gpu3:~/projects/wbc_manipulation/Isaac-GR00T$ git submodule update --init --recursive
+
+                junweil@precognition-gpu3:~/projects/wbc_manipulation/Isaac-GR00T$ UV_CONCURRENT_DOWNLOADS=1 UV_HTTP_TIMEOUT=60 bash scripts/deployment/dgpu/install_deps.sh
+
+```
++ Psi微调
+```
+    # 安装 (不fork，因为作者还在努力更新)
+        junweil@office-precognition:~/projects/psi$ git clone git@github.com:physical-superintelligence-lab/Psi0.git
+
+        junweil@office-precognition:~/projects/psi/Psi0$ git submodule update --init --recursive
+
+            # third party里面有AMO， XRoboToolKit和他们的环境SIMPLE
+
+        uv venv .venv-psi --python 3.10
+        source .venv-psi/bin/activate
+        GIT_LFS_SKIP_SMUDGE=1 uv sync --all-groups --index-strategy unsafe-best-match --active
+        uv pip install flash_attn==2.7.4.post1 --no-build-isolation
 
 
 ```
