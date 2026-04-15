@@ -33,10 +33,22 @@ def inspect_lerobot_dataset(repo_id):
         tasks_df = pd.read_parquet(tasks_path)
         print("\n[Available Tasks]")
 
-        # Create a dictionary mapping index -> task string
-        task_dict = dict(zip(tasks_df['task_index'], tasks_df['task']))
-        for idx, task_name in task_dict.items():
-            print(f"- Index {idx}: '{task_name}'")
+        # Dynamically find the column containing the task string
+        task_col = None
+        for col in ['task', 'tasks', 'instruction', 'goal', 'name']:
+            if col in tasks_df.columns:
+                task_col = col
+                break
+
+        if task_col and 'task_index' in tasks_df.columns:
+            task_dict = dict(zip(tasks_df['task_index'], tasks_df[task_col]))
+            for idx, task_name in task_dict.items():
+                print(f"- Index {idx}: '{task_name}'")
+        else:
+            print(f"[!] Could not map tasks automatically.")
+            print(f"    Available columns in tasks.parquet: {tasks_df.columns.tolist()}")
+            print("    Raw data preview:")
+            print(tasks_df.head())
 
     # 3. Read episodes metadata to get the distribution
     episodes_path = meta_dir / "episodes.parquet"
