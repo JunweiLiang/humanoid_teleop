@@ -386,12 +386,15 @@ def populate_dataset(
             action = episode["action"]
 
             # --- 1. PRE-FLIGHT VALIDATION ---
-            expected_state_dim = len(G1_WBC_CONFIG.state_names)
-            expected_action_dim = len(G1_WBC_CONFIG.action_names)
+            # Check against the RAW extracted JSON dimensions, not the final 49D shape
+            raw_expected_state_dim = 43  # Arms(14) + Hands(14) + Waist(3) + Legs(12)
+            raw_expected_action_dim = 37 # Arms(14) + Hands(14) + Waist(3) + Triggers(2) + Loco(4)
 
-            if state.shape[-1] != expected_state_dim or action.shape[-1] != expected_action_dim:
+            if state.shape[-1] != raw_expected_state_dim or action.shape[-1] != raw_expected_action_dim:
                 print(f"\n[WARNING] Skipping Episode {i} ({episode_path})")
-                continue
+                print(f"          Reason: Raw Shape mismatch. State: {state.shape[-1]} (expected {raw_expected_state_dim}), Action: {action.shape[-1]} (expected {raw_expected_action_dim}).")
+                print("          (This usually means hand tracking or loco_cmd data was absent during recording).")
+                continue # Skip this episode completely
 
             cameras = episode["cameras"]
             task = episode["task"]
@@ -412,26 +415,45 @@ def populate_dataset(
             loop_end = num_frames - 1 if use_future_state_as_action else num_frames
 
             for f_idx in range(loop_end):
-                current_state = state[f_idx]
+                # raw_state is 43D: Arms(14) + Hands(14) + Waist(3) + Legs(12)
+                # raw_action is 37D: Arms(14) + Hands(14) + Waist(3) + Triggers(2) + Loco(4)
 
+                # The index where physical upper body ends in raw_action
+                upper_body_end = 31 # 14 + 14 + 3
+
+                # 1. BUILD THE 49D STATE
+                current_physical_state = state[f_idx] # 43D
+                # We pull the high-level commands from the raw ACTION array
+                current_commands = action[f_idx][upper_body_end:] # 6D
+
+                current_state_49d = np.concatenate([current_physical_state, current_commands])
+
+                # 2. BUILD THE 49D ACTION
                 if use_future_state_as_action:
-                    future_state = state[f_idx + 1]
-                    future_joints = future_state[:31]
-                    current_triggers_loco = action[f_idx][31:]
-                    actual_action = np.concatenate([future_joints, current_triggers_loco])
+                    # Future state has Arms, Hands, Waist, and Legs (43D)
+                    future_physical_state = state[f_idx + 1]
+
+                    # Stitch future physical joints with current high-level commands
+                    actual_action_49d = np.concatenate([future_physical_state, current_commands])
                 else:
-                    actual_action = action[f_idx]
+                    # If not using future state, build action from raw action + current legs
+                    current_physical_action = action[f_idx][:upper_body_end] # 31D
+                    current_legs = state[f_idx][31:43] # 12D (Extracted from state)
+
+                    actual_action_49d = np.concatenate([current_physical_action, current_legs, current_commands])
 
                 frame = {
-                    "observation.state": current_state,
-                    "action": actual_action,
+                    "observation.state": current_state_49d,
+                    "action": actual_action_49d,
                     "task": task  # Attach the task string to every frame
                 }
 
                 for camera, img_array in cameras.items():
                     frame[f"observation.images.{camera}"] = img_array[f_idx]
 
+                frame["task"] = task
                 dataset.add_frame(frame)
+
 
             # Get the exact index LeRobot is assigning this episode
             current_ep_idx = dataset.num_episodes
