@@ -326,7 +326,7 @@ PY
                     # https://github.com/NVIDIA/Isaac-GR00T/blob/main/getting_started/data_preparation.md
 
 
-            # 转换完后查看数据集
+            # 转换完后查看数据集, 原本是5个任务一共281 episode，可能有个报错用了 --no_hand
 
             # 可视化lerobot 数据
 
@@ -392,6 +392,8 @@ export LD_LIBRARY_PATH=$CUDA_HOME/lib64:$LD_LIBRARY_PATH
             2. state:
             3. action:
             4. language:
+
+        # 添加 my_configs/g1_dex3_gripper_homie.py, 还有修改gr00t.data.embodiment_tags加入G1_DEX3_GRIPPER_HOMIE
 
 
 

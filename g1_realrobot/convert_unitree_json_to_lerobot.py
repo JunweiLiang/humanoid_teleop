@@ -516,9 +516,6 @@ def json_to_lerobot(
         start_episode=start_episode
     )
 
-    # Force LeRobot to write the .parquet files to disk
-    dataset.consolidate()
-
     # for Gr00T modality.json
     generate_modality_json(repo_id)
 
