@@ -1,12 +1,13 @@
 import os
 import json
+import argparse
 import pandas as pd
 from pathlib import Path
 
-def inspect_lerobot_dataset(repo_id="junweiliang/wbc_5tasks"):
+def inspect_lerobot_dataset(repo_id):
     # Resolve the path to the hidden Hugging Face cache
     meta_dir = Path(os.path.expanduser(f"~/.cache/huggingface/lerobot/{repo_id}/meta"))
-    
+
     if not meta_dir.exists():
         print(f"Directory not found: {meta_dir}")
         return
@@ -31,23 +32,22 @@ def inspect_lerobot_dataset(repo_id="junweiliang/wbc_5tasks"):
     if tasks_path.exists():
         tasks_df = pd.read_parquet(tasks_path)
         print("\n[Available Tasks]")
-        
+
         # Create a dictionary mapping index -> task string
         task_dict = dict(zip(tasks_df['task_index'], tasks_df['task']))
         for idx, task_name in task_dict.items():
             print(f"- Index {idx}: '{task_name}'")
 
     # 3. Read episodes metadata to get the distribution
-    # (LeRobot sometimes saves 'episodes' as a dir or a .parquet file)
     episodes_path = meta_dir / "episodes.parquet"
     if not episodes_path.exists():
-        episodes_path = meta_dir / "episodes" 
+        episodes_path = meta_dir / "episodes"
 
     if episodes_path.exists():
         try:
             episodes_df = pd.read_parquet(episodes_path)
             print("\n[Episodes per Task]")
-            
+
             # In LeRobot V2, the episodes metadata usually maps to tasks via a list
             if 'tasks' in episodes_df.columns:
                 # Explode the lists so we can count them easily
@@ -62,7 +62,7 @@ def inspect_lerobot_dataset(repo_id="junweiliang/wbc_5tasks"):
             for task_idx, count in counts.items():
                 task_name = task_dict.get(task_idx, f"Unknown Task (Index {task_idx})")
                 print(f"- '{task_name}': {count} episodes")
-                
+
             # Print episode length statistics
             if 'length' in episodes_df.columns:
                 print("\n[Episode Length Stats (Frames)]")
@@ -74,4 +74,13 @@ def inspect_lerobot_dataset(repo_id="junweiliang/wbc_5tasks"):
             print(f"\n[!] Could not parse episodes data: {e}")
 
 if __name__ == "__main__":
-    inspect_lerobot_dataset()
+    parser = argparse.ArgumentParser(description="Inspect LeRobot dataset metadata.")
+    parser.add_argument(
+        "--repo-id",
+        type=str,
+        default="junweiliang/wbc_5tasks",
+        help="The Hugging Face repo ID of the dataset to inspect (e.g., junweiliang/wbc_5tasks)."
+    )
+
+    args = parser.parse_args()
+    inspect_lerobot_dataset(repo_id=args.repo_id)
