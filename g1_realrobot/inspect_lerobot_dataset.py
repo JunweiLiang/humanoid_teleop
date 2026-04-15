@@ -37,25 +37,39 @@ def inspect_lerobot_dataset(repo_id):
             if req in ["episodes.jsonl", "tasks.jsonl"] and (meta_dir / req.replace(".jsonl", ".parquet")).exists():
                 print(f"     ⚠️ Note: Found {req.replace('.jsonl', '.parquet')} instead. GR00T strictly requires .jsonl.")
 
-    # 2. Check modality.json schema
-    print("\n[2. modality.json Schema]")
+    # 2. Check modality.json schema & dimensions
+    print("\n[2. modality.json Schema & Slicing]")
     modality_path = meta_dir / "modality.json"
     if modality_path.exists():
         try:
             with open(modality_path, "r") as f:
                 modality = json.load(f)
-            for key in ["state", "action", "video"]:
+            for key in ["state", "action", "video", "annotation"]:
                 if key in modality:
                     print(f"  ✅ Contains '{key}' definition")
                 else:
                     print(f"  ❌ Missing '{key}' definition")
                     compliance_passed = False
+
+            # --- Check if modality slicing maxes out at 49D ---
+            state_slices = modality.get("state", {})
+            max_end = 0
+            for k, v in state_slices.items():
+                if isinstance(v, dict) and "end" in v:
+                    max_end = max(max_end, v["end"])
+
+            if max_end == 49:
+                print(f"  ✅ Modality slices correctly end at index 49 (Full 49D space mapped)")
+            else:
+                print(f"  ⚠️ Modality slices end at index {max_end}. Expected 49 for the Dex3 WBC configuration.")
+                compliance_passed = False
+
         except Exception as e:
             print(f"  ❌ Failed to parse modality.json: {e}")
             compliance_passed = False
 
     # 3. Check data parquet schema (Sample the first episode)
-    print("\n[3. Data Parquet Schema]")
+    print("\n[3. Data Parquet Schema & Dimensions]")
     data_dir = base_dir / "data"
     parquet_files = list(data_dir.rglob("*.parquet"))
     if parquet_files:
@@ -69,11 +83,30 @@ def inspect_lerobot_dataset(repo_id):
                 else:
                     print(f"  ❌ Parquet missing '{col}'")
                     compliance_passed = False
+
+            # --- Check physical array dimensions in the Parquet file ---
+            if "observation.state" in df_sample.columns and "action" in df_sample.columns:
+                state_dim = len(df_sample.iloc[0]["observation.state"])
+                action_dim = len(df_sample.iloc[0]["action"])
+                expected_dim = 49
+
+                if state_dim == expected_dim:
+                    print(f"  ✅ 'observation.state' array is exactly {state_dim}D")
+                else:
+                    print(f"  ❌ 'observation.state' array is {state_dim}D (Expected {expected_dim}D)")
+                    compliance_passed = False
+
+                if action_dim == expected_dim:
+                    print(f"  ✅ 'action' array is exactly {action_dim}D")
+                else:
+                    print(f"  ❌ 'action' array is {action_dim}D (Expected {expected_dim}D)")
+                    compliance_passed = False
+
         except Exception as e:
             print(f"  ❌ Failed to read sample parquet {sample_parquet.name}: {e}")
             compliance_passed = False
     else:
-        print("  ❌ No parquet files found in data/ directory")
+        print("  ❌ No parquet files found in data/ directory (Did you forget dataset.consolidate()?)")
         compliance_passed = False
 
     # 4. Check video observations
@@ -92,9 +125,9 @@ def inspect_lerobot_dataset(repo_id):
 
     print("\n[Compliance Summary]")
     if compliance_passed:
-        print("  🎉 PASSED: Dataset structure meets GR00T requirements!")
+        print("  🎉 PASSED: Dataset structure and 49D tensor shapes meet requirements!")
     else:
-        print("  ⚠️ FAILED: Dataset is missing required GR00T components. Check the ❌ marks above.")
+        print("  ⚠️ FAILED: Dataset is missing components or has dimensional mismatches. Check the ❌/⚠️ marks above.")
 
     print("\n" + "="*60)
 

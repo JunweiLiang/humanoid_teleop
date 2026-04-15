@@ -74,29 +74,24 @@ LOCO_CMD_NAMES = ["loco_v_x", "loco_v_y", "loco_v_yaw", "loco_height"]
 TRIGGER_NAMES = ["left_trigger", "right_trigger"]
 
 G1_WBC_CONFIG = RobotConfig(
-    # State and Action are now perfectly identical 49D vectors
+    # The final LeRobot dataset will still be 49D
     state_names=ARM_HAND_JOINTS + WAIST_JOINTS + LEG_JOINTS + TRIGGER_NAMES + LOCO_CMD_NAMES,
     action_names=ARM_HAND_JOINTS + WAIST_JOINTS + LEG_JOINTS + TRIGGER_NAMES + LOCO_CMD_NAMES,
-    cameras=[
-        "cam_high",
-        # "cam_left_wrist", # Uncomment if using wrist cameras
-        # "cam_right_wrist",
-    ],
-    camera_to_image_key={
-        "color_0": "cam_high",
-        # "color_1": "cam_left_wrist",
-        # "color_2": "cam_right_wrist",
-    },
+    cameras=["cam_high"],
+    camera_to_image_key={"color_0": "cam_high"},
+
+    # What is ACTUALLY in the JSON "states" dict (43 Dimensions)
     json_state_data_name=[
         "left_arm.qpos", "right_arm.qpos",
         "left_ee.qpos", "right_ee.qpos",
-        "waist.qpos", "leg.qpos",
-        "left_trigger", "right_trigger", "loco_cmd"
+        "waist.qpos", "leg.qpos"
     ],
+
+    # What is ACTUALLY in the JSON "actions" dict (37 Dimensions)
     json_action_data_name=[
         "left_arm.qpos", "right_arm.qpos",
         "left_ee.qpos", "right_ee.qpos",
-        "waist.qpos", "leg.qpos", # <-- ADDED leg.qpos HERE
+        "waist.qpos",
         "left_trigger", "right_trigger", "loco_cmd"
     ],
 )
@@ -393,25 +388,40 @@ def populate_dataset(
 
             num_frames = len(state)
 
-            # --- 3. ACTION SHIFTING (t = state t+1) ---
+            # --- 3. ACTION SHIFTING AND CROSS-STITCHING ---
             loop_end = num_frames - 1 if use_future_state_as_action else num_frames
 
             for f_idx in range(loop_end):
-                current_state = state[f_idx]
+                # raw_state is 43D: Arms(14) + Hands(14) + Waist(3) + Legs(12)
+                # raw_action is 37D: Arms(14) + Hands(14) + Waist(3) + Triggers(2) + Loco(4)
 
+                # The index where physical upper body ends in raw_action
+                upper_body_end = 31 # 14 + 14 + 3
+
+                # 1. BUILD THE 49D STATE
+                current_physical_state = state[f_idx] # 43D
+                # We pull the high-level commands from the raw ACTION array
+                current_commands = action[f_idx][upper_body_end:] # 6D
+
+                current_state_49d = np.concatenate([current_physical_state, current_commands])
+
+                # 2. BUILD THE 49D ACTION
                 if use_future_state_as_action:
-                    future_state = state[f_idx + 1]
-                    # We want t+1 for all 43 physical joints (Arms, Hands, Waist, Legs)
-                    future_joints = future_state[:43]
-                    # We want t for the 6 high-level commands (Triggers, Loco)
-                    current_triggers_loco = action[f_idx][43:]
-                    actual_action = np.concatenate([future_joints, current_triggers_loco])
+                    # Future state has Arms, Hands, Waist, and Legs (43D)
+                    future_physical_state = state[f_idx + 1]
+
+                    # Stitch future physical joints with current high-level commands
+                    actual_action_49d = np.concatenate([future_physical_state, current_commands])
                 else:
-                    actual_action = action[f_idx]
+                    # If not using future state, build action from raw action + current legs
+                    current_physical_action = action[f_idx][:upper_body_end] # 31D
+                    current_legs = state[f_idx][31:43] # 12D (Extracted from state)
+
+                    actual_action_49d = np.concatenate([current_physical_action, current_legs, current_commands])
 
                 frame = {
-                    "observation.state": current_state,
-                    "action": actual_action,
+                    "observation.state": current_state_49d,
+                    "action": actual_action_49d,
                 }
 
                 for camera, img_array in cameras.items():
