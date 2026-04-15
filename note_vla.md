@@ -315,7 +315,12 @@ PY
                   Reason: Shape mismatch. State: 29 (expected 43).
                   (This usually means hand tracking data was absent during recording).
 
-                有一些episode可能手的states 没有录制，没有数据就跳过。lerobot会跳过这个episode
+                # 有一些episode可能手的states 没有录制，没有数据就跳过。lerobot会跳过这个episode
+
+                # 把原始数据的state和action，字段复制补齐，这样两边都是49
+
+                    # raw_state is 43D: Arms(14) + Hands(14) + Waist(3) + Legs(12)
+                    # raw_action is 37D: Arms(14) + Hands(14) + Waist(3) + Triggers(2) + Loco(4)
 
                 # 会按照 Gr00T说的，额外生成modality.json，还有旧版的.jsonl meta文件
                     # https://github.com/NVIDIA/Isaac-GR00T/blob/main/getting_started/data_preparation.md

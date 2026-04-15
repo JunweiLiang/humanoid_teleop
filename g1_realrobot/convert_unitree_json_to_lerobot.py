@@ -368,13 +368,14 @@ def populate_dataset(
             action = episode["action"]
 
             # --- 1. PRE-FLIGHT VALIDATION ---
-            expected_state_dim = len(G1_WBC_CONFIG.state_names)
-            expected_action_dim = len(G1_WBC_CONFIG.action_names)
+            # Check against the RAW extracted JSON dimensions, not the final 49D shape
+            raw_expected_state_dim = 43  # Arms(14) + Hands(14) + Waist(3) + Legs(12)
+            raw_expected_action_dim = 37 # Arms(14) + Hands(14) + Waist(3) + Triggers(2) + Loco(4)
 
-            if state.shape[-1] != expected_state_dim or action.shape[-1] != expected_action_dim:
+            if state.shape[-1] != raw_expected_state_dim or action.shape[-1] != raw_expected_action_dim:
                 print(f"\n[WARNING] Skipping Episode {i} ({episode_path})")
-                print(f"          Reason: Shape mismatch. State: {state.shape[-1]} (expected {expected_state_dim}).")
-                print("          (This usually means hand tracking data was absent during recording).")
+                print(f"          Reason: Raw Shape mismatch. State: {state.shape[-1]} (expected {raw_expected_state_dim}), Action: {action.shape[-1]} (expected {raw_expected_action_dim}).")
+                print("          (This usually means hand tracking or loco_cmd data was absent during recording).")
                 continue # Skip this episode completely
 
             cameras = episode["cameras"]
