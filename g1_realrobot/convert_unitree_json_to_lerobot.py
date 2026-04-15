@@ -8,7 +8,8 @@ python convert_unitree_json_to_lerobot.py \
     --valp 0.1 \
     --repo-id-val your_name/g1_wbc_dataset_val \
     --downsample-factor 2 \
-    --use-future-state-as-action
+    --use-future-state-as-action \
+    --tasks close_washer_door,move_box
 """
 
 import os
@@ -111,13 +112,14 @@ DEFAULT_DATASET_CONFIG = DatasetConfig()
 
 
 class JsonDataset:
-    def __init__(self, data_dirs: Path, robot_type: str) -> None:
+    def __init__(self, data_dirs: Path, robot_type: str, allowed_tasks: list[str] | None = None) -> None:
         """
         Initialize the dataset for loading and processing JSON files containing robot manipulation data.
         """
         assert data_dirs is not None, "Data directory cannot be None"
         self.data_dirs = data_dirs
         self.json_file = "data.json"
+        self.allowed_tasks = allowed_tasks
 
         # Initialize paths and cache
         self._init_paths()
@@ -133,6 +135,12 @@ class JsonDataset:
 
         for task_path in glob.glob(os.path.join(self.data_dirs, "*")):
             if os.path.isdir(task_path):
+                task_name = os.path.basename(task_path)
+
+                # Filter by task if the --tasks argument was provided
+                if self.allowed_tasks is not None and task_name not in self.allowed_tasks:
+                    continue
+
                 episode_paths = glob.glob(os.path.join(task_path, "*"))
                 if episode_paths:
                     self.task_paths.append(task_path)
@@ -140,6 +148,9 @@ class JsonDataset:
 
         self.episode_paths = sorted(self.episode_paths)
         self.episode_ids = list(range(len(self.episode_paths)))
+
+        if not self.episode_paths:
+            print("[WARNING] No episodes found. Please check your raw-dir or your --tasks filter.")
 
     def __len__(self) -> int:
         return len(self.episode_paths)
@@ -497,6 +508,7 @@ def json_to_lerobot(
     resume: bool = False,
     mode: Literal["video", "image"] = "video",
     dataset_config: DatasetConfig = DEFAULT_DATASET_CONFIG,
+    allowed_tasks: list[str] | None = None,
 ):
     if valp > 0.0 and not repo_id_val:
         raise ValueError("If --valp > 0, --repo-id-val must be provided.")
@@ -505,8 +517,11 @@ def json_to_lerobot(
     target_fps = original_data_fps // downsample_factor
 
     # Init JsonDataset to get total count
-    json_dataset = JsonDataset(raw_dir, robot_type)
+    json_dataset = JsonDataset(raw_dir, robot_type, allowed_tasks=allowed_tasks)
     total_episodes = len(json_dataset)
+
+    if total_episodes == 0:
+        return
 
     # Generate a fixed random split to support consistent --resume behavior
     np.random.seed(42)
@@ -581,8 +596,13 @@ if __name__ == "__main__":
                         help="Resume processing an existing dataset without deleting it")
     parser.add_argument("--mode", type=str, choices=["video", "image"], default="video",
                         help="Store visual data as videos or discrete images")
+    parser.add_argument("--tasks", type=str, default=None,
+                        help="Comma-separated list of task names to filter (e.g., 'close_washer_door,move_box')")
 
     args = parser.parse_args()
+
+    # Process the comma-separated string into a list of tasks
+    allowed_tasks_list = args.tasks.split(",") if args.tasks else None
 
     json_to_lerobot(
         raw_dir=args.raw_dir,
@@ -593,5 +613,6 @@ if __name__ == "__main__":
         downsample_factor=args.downsample_factor,
         use_future_state_as_action=args.use_future_state_as_action,
         resume=args.resume,
-        mode=args.mode
+        mode=args.mode,
+        allowed_tasks=allowed_tasks_list
     )

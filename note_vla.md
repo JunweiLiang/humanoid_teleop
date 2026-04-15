@@ -304,7 +304,7 @@ PY
         # convert to LeRobot v2 and Gr00T complient (就是多一个modality.json)
             # https://github.com/NVIDIA/Isaac-GR00T/blob/main/getting_started/data_preparation.md
 
-        (tv) junweil@office-precognition:~/projects/huawei_data$ python ~/projects/humanoid_teleop/g1_realrobot/convert_unitree_json_to_lerobot.py --raw-dir wbc_task5_lerobotv2/ --repo-id junweiliang/wbc_5tasks --downsample-factor 2 --use-future-state-as-action
+        (tv) junweil@office-precognition:~/projects/huawei_data$ python ~/projects/humanoid_teleop/g1_realrobot/convert_unitree_json_to_lerobot.py --raw-dir wbc_task5_lerobotv2/ --repo-id junweiliang/wbc_5tasks --downsample-factor 2 --use-future-state-as-action --valp 0.1 --repo-id-val junweiliang/wbc_5tasks_val0.1
 
             # LeRobot 会提取jpg 生成mp4文件
 
@@ -314,6 +314,9 @@ PY
                 [WARNING] Skipping Episode 168 (wbc_task5_lerobotv2/open_washer_door/episode_0000)
                   Reason: Shape mismatch. State: 29 (expected 43).
                   (This usually means hand tracking data was absent during recording).
+
+                # 分一些到validation里
+                  ~/.cache/huggingface/lerobot/junweiliang/wbc_5tasks_val0.1
 
                 # 有一些episode可能手的states 没有录制，没有数据就跳过。lerobot会跳过这个episode
 
@@ -326,13 +329,57 @@ PY
                     # https://github.com/NVIDIA/Isaac-GR00T/blob/main/getting_started/data_preparation.md
 
 
-            # 转换完后查看数据集, 原本是5个任务一共281 episode，可能有个报错用了 --no_hand
+            # 转换完后查看数据集, 原本是5个任务一共281 episode，
+                # train set 252
+                    (tv) junweil@office-precognition:~/projects/huawei_data$ python ~/projects/humanoid_teleop/g1_realrobot/inspect_lerobot_dataset.py --repo-id junweiliang/wbc_5tasks
+
+                    [Overall Stats]
+                    - Total Episodes : 252
+                    - Total Frames   : 124560
+                    - FPS            : 30
+
+                    [Available Tasks]
+                    - Index 0: 'close_washer_door'
+                    - Index 1: 'move_and_open_pot'
+                    - Index 2: 'move_box'
+                    - Index 3: 'open_washer_door'
+                    - Index 4: 'pick_up_object_from_ground'
+
+                    [Episodes per Task]
+                    - 'close_washer_door': 50 episodes
+                    - 'move_and_open_pot': 50 episodes
+                    - 'move_box': 49 episodes
+                    - 'open_washer_door': 48 episodes
+                    - 'pick_up_object_from_ground': 55 episodes
+
+                    [Episode Length Stats (Frames)]
+                    - Average: 494.3 frames
+                    - Min    : 143 frames
+                    - Max    : 1381 frames
+
+                # val set 28 episode
+
+                    (tv) junweil@office-precognition:~/projects/huawei_data$ python ~/projects/humanoid_teleop/g1_realrobot/inspect_lerobot_dataset.py --repo-id junweiliang/wbc_5tasks_val0.1
+
+                    [Episodes per Task]
+                    - 'close_washer_door': 4 episodes
+                    - 'move_and_open_pot': 7 episodes
+                    - 'move_box': 8 episodes
+                    - 'open_washer_door': 3 episodes
+                    - 'pick_up_object_from_ground': 6 episodes
 
             # 可视化lerobot 数据
 
                 (tv) junweil@office-precognition:~/projects$ python ~/projects/humanoid_teleop/g1_realrobot/lerobot/src/lerobot/scripts/lerobot_dataset_viz.py --repo-id junweiliang/wbc_5tasks --episode-index 0
 
                     # 会打开rerun窗口，看到视频，还有各个关节的曲线图
+
+            # pack the data
+                (base) junweil@office-precognition:~/.cache/huggingface/lerobot/junweiliang$ tar -zcvf wbc_5tasks.tgz wbc_5tasks
+
+
+            # gr00T 可能会把全部5个任务一起训练。我们生成数据集的时候挑单个任务,比如关闭洗衣机门，搬箱子，捡起物体
+
 
 
 ```
@@ -394,6 +441,8 @@ export LD_LIBRARY_PATH=$CUDA_HOME/lib64:$LD_LIBRARY_PATH
             4. language:
 
         # 添加 my_configs/g1_dex3_gripper_homie.py, 还有修改gr00t.data.embodiment_tags加入G1_DEX3_GRIPPER_HOMIE
+
+        # 2x4090 48GB 测试
 
 
 
