@@ -311,6 +311,19 @@ PY
             # 要一个小时，数据会存在
                 ~/.cache/huggingface/lerobot/junweiliang/wbc_5tasks
 
+                [WARNING] Skipping Episode 168 (wbc_task5_lerobotv2/open_washer_door/episode_0000)
+                  Reason: Shape mismatch. State: 29 (expected 43).
+                  (This usually means hand tracking data was absent during recording).
+
+                有一些episode可能手的states 没有录制，没有数据就跳过。lerobot会跳过这个episode
+
+        # 可视化lerobot 数据
+
+            (tv) junweil@office-precognition:~/projects$ python ~/projects/humanoid_teleop/g1_realrobot/lerobot/src/lerobot/scripts/lerobot_dataset_viz.py --repo-id junweiliang/wbc_5tasks --episode-index 0
+
+                # 会打开rerun窗口，看到视频，还有各个关节的曲线图
+
+
 ```
 + 微调Gr00T N1.6
 ```
@@ -320,5 +333,33 @@ PY
         junweil@office-precognition:~/projects/wbc_manipulation$ git clone https://github.com/JunweiLiang/Isaac-GR00T
 
         junweil@office-precognition:~/projects/wbc_manipulation/Isaac-GR00T$ git submodule update --init --recursive
+
+        junweil@office-precognition:~/projects/wbc_manipulation/Isaac-GR00T$ bash scripts/deployment/dgpu/install_deps.sh
+
+        # 下载 N1.6 checkpoint
+
+            $ pip install -U "huggingface_hub[cli]"
+            (base) junweil@office-precognition:~/projects/wbc_manipulation$ hf download nvidia/GR00T-N1.6-3B --local-dir ./GR00T-N1.6-3B
+
+        # gpu3 安装
+            # 1. 安装uv
+
+                curl -LsSf https://astral.sh/uv/install.sh | sh
+
+            # 2. 安装cuda 12.6
+                $ wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/x86_64/cuda-keyring_1.1-1_all.deb
+                $ sudo dpkg -i cuda-keyring_1.1-1_all.deb
+                $ sudo apt-get update
+                $ sudo apt-get install -y cuda-toolkit-12-6 pybind11-dev libgmpxx4ldbl libgmp-dev
+
+                $ vi ~/.bashrc
+export CUDA_HOME=/usr/local/cuda-12.6
+export PATH=$CUDA_HOME/bin:$PATH
+export LD_LIBRARY_PATH=$CUDA_HOME/lib64:$LD_LIBRARY_PATH
+
+            # 3. gr00t
+                junweil@precognition-gpu3:~/projects/wbc_manipulation$ git clone https://github.com/JunweiLiang/Isaac-GR00T
+                junweil@precognition-gpu3:~/projects/wbc_manipulation/Isaac-GR00T$ git submodule update --init --recursive
+
 
 ```
