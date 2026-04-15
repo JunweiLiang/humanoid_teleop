@@ -374,13 +374,23 @@ PY
 
                     # 会打开rerun窗口，看到视频，还有各个关节的曲线图
 
-            # pack the data
-                (base) junweil@office-precognition:~/.cache/huggingface/lerobot/junweiliang$ tar -zcvf wbc_5tasks.tgz wbc_5tasks
-
 
             # gr00T 可能会把全部5个任务一起训练。我们生成数据集的时候挑单个任务,比如关闭洗衣机门，搬箱子，捡起物体
 
+                (tv) junweil@office-precognition:~/projects/huawei_data$ python ~/projects/humanoid_teleop/g1_realrobot/convert_unitree_json_to_lerobot.py --raw-dir wbc_task5_lerobotv2/ --repo-id junweiliang/wbc_close_washer_door --downsample-factor 2 --use-future-state-as-action --valp 0.1 --repo-id-val junweiliang/wbc_close_washer_door_val0.1 --tasks close_washer_door
 
+                (tv) junweil@office-precognition:~/projects/huawei_data$ python ~/projects/humanoid_teleop/g1_realrobot/convert_unitree_json_to_lerobot.py --raw-dir wbc_task5_lerobotv2/ --repo-id junweiliang/wbc_move_box --downsample-factor 2 --use-future-state-as-action --valp 0.1 --repo-id-val junweiliang/wbc_move_box_val0.1 --tasks move_box
+
+                (tv) junweil@office-precognition:~/projects/huawei_data$ python ~/projects/humanoid_teleop/g1_realrobot/convert_unitree_json_to_lerobot.py --raw-dir wbc_task5_lerobotv2/ --repo-id junweiliang/wbc_pick_up_object_from_ground --downsample-factor 2 --use-future-state-as-action --valp 0.1 --repo-id-val junweiliang/wbc_pick_up_object_from_ground_val0.1 --tasks pick_up_object_from_ground
+
+                # 再可视化一下
+                    (tv) junweil@office-precognition:~/projects$ python ~/projects/humanoid_teleop/g1_realrobot/lerobot/src/lerobot/scripts/lerobot_dataset_viz.py --repo-id junweiliang/wbc_pick_up_object_from_ground --episode-index 3
+
+                # 格式检查
+                    (tv) junweil@office-precognition:~/projects/huawei_data$ python ~/projects/humanoid_teleop/g1_realrobot/inspect_lerobot_dataset.py --repo-id junweiliang/wbc_pick_up_object_from_ground
+
+            # pack the data, 把全部任务、单个任务都一并打包
+                (tv) junweil@office-precognition:~/.cache/huggingface/lerobot$ tar -zcvf lerobot_wbc_datasets.tgz junweiliang/
 
 ```
 + 微调Gr00T N1.6
@@ -440,11 +450,49 @@ export LD_LIBRARY_PATH=$CUDA_HOME/lib64:$LD_LIBRARY_PATH
             3. action:
             4. language:
 
-        # 添加 my_configs/g1_dex3_gripper_homie.py, 还有修改gr00t.data.embodiment_tags加入G1_DEX3_GRIPPER_HOMIE
+        # 添加 my_configs/g1_dex3_gripper_homie.py,
 
         # 2x4090 48GB 测试
+            # 单个任务训练
 
+                junweil@office-precognition:~/projects/wbc_manipulation/Isaac-GR00T$ uv run python     gr00t/experiment/launch_finetune.py     --base-model-path ../GR00T-N1.6-3B     --dataset-path ~/.cache/huggingface/lerobot/junweiliang/wbc_pick_up_object_from_ground     --embodiment-tag NEW_EMBODIMENT     --modality-config-path my_configs/g1_dex3_gripper_homie.py     --num-gpus 2          --save-total-limit 5   --learning_rate 1e-4  --save-steps 2000     --max-steps 10000     --use-wandb  --warmup_ratio 0.05 --weight_decay 1e-5   --global-batch-size 128     --color-jitter-params brightness 0.3 contrast 0.4 saturation 0.5 hue 0.08     --dataloader-num-workers 6 --output-dir experiments/my_wbc_pick_up_object_from_ground
 
+                # 需要一个wandb账号
+                    # https://wandb.ai/authorize?signup=true&ref=models
+                    # 需要API key  ~/Desktop/github_projects/wandb_api_key.txt
+
+        # gr00t 官方wbc 的finetune config
+            export NUM_GPUS=8
+
+            torchrun --nproc_per_node=$NUM_GPUS --master_port=29500 \
+                gr00t/experiment/launch_finetune.py \
+                --base_model_path  nvidia/GR00T-N1.6-3B \
+                --dataset_path examples/GR00T-WholeBodyControl/PhysicalAI-Robotics-GR00T-X-Embodiment-Sim/unitree_g1.LMPnPAppleToPlateDC \
+                --embodiment_tag UNITREE_G1 \
+                --num_gpus $NUM_GPUS \
+                --output_dir /tmp/g1_finetune \
+                --save_total_limit 5 \
+                --max_steps 10000 \
+                --warmup_ratio 0.05 \
+                --weight_decay 1e-5 \
+                --learning_rate 1e-4 \
+                --use_wandb \
+                --global_batch_size 1024 \
+                --dataloader_num_workers 6 \
+                --color_jitter_params brightness 0.3 contrast 0.4 saturation 0.5 hue 0.08
+
+        # gpu3获取数据
+
+            (tv) junweil@office-precognition:~/.cache/huggingface/lerobot$ scp lerobot_wbc_datasets.tgz junweil@gpu3.precognition.team:~/
+
+            # 数据放在
+                (base) junweil@precognition-gpu3:~/projects/wbc_manipulation/junweiliang$ ls
+                    wbc_5tasks         wbc_close_washer_door         wbc_move_box         wbc_pick_up_object_from_ground
+                    wbc_5tasks_val0.1  wbc_close_washer_door_val0.1  wbc_move_box_val0.1  wbc_pick_up_object_from_ground_val0.1
+
+            # 训练！
+
+                uv run python gr00t/experiment/launch_finetune.py --base-model-path ../GR00T-N1.6-3B     --dataset-path ../junweiliang/wbc_pick_up_object_from_ground     --embodiment-tag NEW_EMBODIMENT     --modality-config-path my_configs/g1_dex3_gripper_homie.py     --num-gpus 2          --save-total-limit 5   --learning_rate 1e-4  --save-steps 2000     --max-steps 10000     --use-wandb  --warmup_ratio 0.05 --weight_decay 1e-5   --global-batch-size 128     --color-jitter-params brightness 0.3 contrast 0.4 saturation 0.5 hue 0.08     --dataloader-num-workers 8 --output-dir experiments/my_wbc_pick_up_object_from_ground
 
 ```
 + Psi微调
