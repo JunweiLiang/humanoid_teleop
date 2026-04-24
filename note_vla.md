@@ -389,8 +389,40 @@ PY
                 # 格式检查
                     (tv) junweil@office-precognition:~/projects/huawei_data$ python ~/projects/humanoid_teleop/g1_realrobot/inspect_lerobot_dataset.py --repo-id junweiliang/wbc_pick_up_object_from_ground
 
+
+
+            # 上述代码得到的数据是LeRobot v3，需要转回v2
+                # v3 和v2区别： https://io-ai.tech/platform/guides/Pipeline/LeRobot/LeRobotV2V3Format/
+                    # 主要是视频，v2按照episode存， v3弄成大文件
+                (tv) junweil@office-precognition:~/projects/wbc_manipulation/Isaac-GR00T$ python scripts/lerobot_conversion/convert_v3_to_v2.py --repo-id junweiliang/wbc_pick_up_object_from_ground
+
+                # 会直接修改原有数据集：/home/junweil/.cache/huggingface/lerobot/junweiliang/wbc_pick_up_object_from_ground
+
+                # 生成v3.0备份：/home/junweil/.cache/huggingface/lerobot/junweiliang/wbc_pick_up_object_from_ground_v3.0/
+
+                # 还缺modality.json
+
+                (tv) junweil@office-precognition:~/.cache/huggingface/lerobot/junweiliang$ cp wbc_move_and_open_pot_v3.0/meta/modality.json wbc_move_and_open_pot/meta/
+
+
+                # validation
+                    (tv) junweil@office-precognition:~/projects/wbc_manipulation/Isaac-GR00T$ python scripts/lerobot_conversion/convert_v3_to_v2.py --repo-id junweiliang/wbc_pick_up_object_from_ground_val0.1
+
+                    (tv) junweil@office-precognition:~/.cache/huggingface/lerobot/junweiliang$ cp wbc_pick_up_object_from_ground_val0.1_v3.0/meta/modality.json wbc_pick_up_object_from_ground_val0.1/meta/
+
+            (tv) junweil@office-precognition:~/.cache/huggingface/lerobot/junweiliang$ ls
+                # 一共24， 5个任务合集+分开，每个有3.0/2.1的train+val
+                wbc_5tasks                         wbc_move_and_open_pot              wbc_open_washer_door
+                wbc_5tasks_v3.0                    wbc_move_and_open_pot_v3.0         wbc_open_washer_door_v3.0
+                wbc_5tasks_val0.1                  wbc_move_and_open_pot_val0.1       wbc_open_washer_door_val0.1
+                wbc_5tasks_val0.1_v3.0             wbc_move_and_open_pot_val0.1_v3.0  wbc_open_washer_door_val0.1_v3.0
+                wbc_close_washer_door              wbc_move_box                       wbc_pick_up_object_from_ground
+                wbc_close_washer_door_v3.0         wbc_move_box_v3.0                  wbc_pick_up_object_from_ground_v3.0
+                wbc_close_washer_door_val0.1       wbc_move_box_val0.1                wbc_pick_up_object_from_ground_val0.1
+                wbc_close_washer_door_val0.1_v3.0  wbc_move_box_val0.1_v3.0           wbc_pick_up_object_from_ground_val0.1_v3.0
+
             # pack the data, 把全部任务、单个任务都一并打包
-                (tv) junweil@office-precognition:~/.cache/huggingface/lerobot$ tar -zcvf lerobot_wbc_datasets.tgz junweiliang/
+                (tv) junweil@office-precognition:~/.cache/huggingface/lerobot$ tar -zcvf lerobot_wbc_datasets_v3+v2_5tasks+5singletask.tgz junweiliang/
 
 ```
 + 微调Gr00T N1.6
@@ -455,11 +487,43 @@ export LD_LIBRARY_PATH=$CUDA_HOME/lib64:$LD_LIBRARY_PATH
         # 2x4090 48GB 测试
             # 单个任务训练
 
-                junweil@office-precognition:~/projects/wbc_manipulation/Isaac-GR00T$ uv run python     gr00t/experiment/launch_finetune.py     --base-model-path ../GR00T-N1.6-3B     --dataset-path ~/.cache/huggingface/lerobot/junweiliang/wbc_pick_up_object_from_ground     --embodiment-tag NEW_EMBODIMENT     --modality-config-path my_configs/g1_dex3_gripper_homie.py     --num-gpus 2          --save-total-limit 5   --learning_rate 1e-4  --save-steps 2000     --max-steps 10000     --use-wandb  --warmup_ratio 0.05 --weight_decay 1e-5   --global-batch-size 128     --color-jitter-params brightness 0.3 contrast 0.4 saturation 0.5 hue 0.08     --dataloader-num-workers 6 --output-dir experiments/my_wbc_pick_up_object_from_ground
+                # 多卡必须torchrun
+
+                junweil@office-precognition:~/projects/wbc_manipulation/Isaac-GR00T$ uv run torchrun --nproc_per_node=2 gr00t/experiment/launch_finetune.py      --base-model-path ../GR00T-N1.6-3B      --dataset-path ~/.cache/huggingface/lerobot/junweiliang/wbc_pick_up_object_from_ground      --embodiment-tag NEW_EMBODIMENT      --modality-config-path my_configs/g1_dex3_gripper_homie.py      --save-total-limit 5      --learning_rate 1e-4      --save-steps 2000      --max-steps 10000      --use-wandb      --warmup_ratio 0.05      --weight_decay 1e-5      --global-batch-size 32      --color-jitter-params brightness 0.3 contrast 0.4 saturation 0.5 hue 0.08      --dataloader-num-workers 6      --output-dir experiments/my_wbc_pick_up_object_from_ground
 
                 # 需要一个wandb账号
                     # https://wandb.ai/authorize?signup=true&ref=models
                     # 需要API key  ~/Desktop/github_projects/wandb_api_key.txt
+
+                # 2x4090, bs=32, s=10k 需要3小时wbc_pick_up_object_from_ground
+                    # bs=64,s=10k 需要4小时move_box
+                    # bs=128 OOM
+                    # dataloader-num-workers 4 比 8要更快 (32 thread CPU, 所以除以8)
+                    # GPU温度44度，260/450w, 所以效率比较差
+                    # CPU 90%, 内存33GB
+
+                # 看training log: https://wandb.ai/home
+
+                # open-loop 评测
+
+                    # 训练集, 挑10个ep, 看平均的MSE, MAE
+
+                        junweil@office-precognition:~/projects/wbc_manipulation/Isaac-GR00T$ uv run python gr00t/eval/open_loop_eval.py     --dataset-path ~/.cache/huggingface/lerobot/junweiliang/wbc_pick_up_object_from_ground/  --embodiment-tag NEW_EMBODIMENT     --model-path experiments/my_wbc_pick_up_object_from_ground/checkpoint-10000/     --traj-ids 0 1 2 3 4 5 6 7 8 9     --action-horizon 16 --save-plot-path experiments/my_wbc_pick_up_object_from_ground/open_loop_train_ep0-10.jpg
+
+                        INFO:root:Average MSE across all trajs: 0.00018743000691756606
+                        INFO:root:Average MAE across all trajs: 0.004905599635094404
+
+                    # validation set, 0-5 ep
+
+                        junweil@office-precognition:~/projects/wbc_manipulation/Isaac-GR00T$ uv run python gr00t/eval/open_loop_eval.py     --dataset-path ~/.cache/huggingface/lerobot/junweiliang/wbc_pick_up_object_from_ground_val0.1/  --embodiment-tag NEW_EMBODIMENT     --model-path experiments/my_wbc_pick_up_object_from_ground/checkpoint-10000/     --traj-ids 0 1 2 3 4 5     --action-horizon 16 --save-plot-path experiments/my_wbc_pick_up_object_from_ground/open_loop_val_ep0-5.jpg --steps 1000
+
+                        INFO:root:Average MSE across all trajs: 0.0024767746217548847
+                        INFO:root:Average MAE across all trajs: 0.01650149933993816
+
+
+                    # 可视化一下, 还有看上面的关节推理plot
+
+                    (tv) junweil@office-precognition:~/projects$ python ~/projects/humanoid_teleop/g1_realrobot/lerobot/src/lerobot/scripts/lerobot_dataset_viz.py --repo-id junweiliang/wbc_pick_up_object_from_ground --episode-index 3
 
         # gr00t 官方wbc 的finetune config
             export NUM_GPUS=8
@@ -483,16 +547,87 @@ export LD_LIBRARY_PATH=$CUDA_HOME/lib64:$LD_LIBRARY_PATH
 
         # gpu3获取数据
 
-            (tv) junweil@office-precognition:~/.cache/huggingface/lerobot$ scp lerobot_wbc_datasets.tgz junweil@gpu3.precognition.team:~/
+            (tv) junweil@office-precognition:~/.cache/huggingface/lerobot$ scp lerobot_wbc_datasets_v3+v2_5tasks+5singletask.tgz  junweil@gpu3.precognition.team:~/
 
             # 数据放在
                 (base) junweil@precognition-gpu3:~/projects/wbc_manipulation/junweiliang$ ls
-                    wbc_5tasks         wbc_close_washer_door         wbc_move_box         wbc_pick_up_object_from_ground
-                    wbc_5tasks_val0.1  wbc_close_washer_door_val0.1  wbc_move_box_val0.1  wbc_pick_up_object_from_ground_val0.1
+                    wbc_5tasks                         wbc_move_and_open_pot              wbc_open_washer_door
+                    wbc_5tasks_v3.0                    wbc_move_and_open_pot_v3.0         wbc_open_washer_door_v3.0
+                    wbc_5tasks_val0.1                  wbc_move_and_open_pot_val0.1       wbc_open_washer_door_val0.1
+                    wbc_5tasks_val0.1_v3.0             wbc_move_and_open_pot_val0.1_v3.0  wbc_open_washer_door_val0.1_v3.0
+                    wbc_close_washer_door              wbc_move_box                       wbc_pick_up_object_from_ground
+                    wbc_close_washer_door_v3.0         wbc_move_box_v3.0                  wbc_pick_up_object_from_ground_v3.0
+                    wbc_close_washer_door_val0.1       wbc_move_box_val0.1                wbc_pick_up_object_from_ground_val0.1
+                    wbc_close_washer_door_val0.1_v3.0  wbc_move_box_val0.1_v3.0           wbc_pick_up_object_from_ground_val0.1_v3.0
 
             # 训练！
 
-                uv run python gr00t/experiment/launch_finetune.py --base-model-path ../GR00T-N1.6-3B     --dataset-path ../junweiliang/wbc_pick_up_object_from_ground     --embodiment-tag NEW_EMBODIMENT     --modality-config-path my_configs/g1_dex3_gripper_homie.py     --num-gpus 2          --save-total-limit 5   --learning_rate 1e-4  --save-steps 2000     --max-steps 10000     --use-wandb  --warmup_ratio 0.05 --weight_decay 1e-5   --global-batch-size 128     --color-jitter-params brightness 0.3 contrast 0.4 saturation 0.5 hue 0.08     --dataloader-num-workers 8 --output-dir experiments/my_wbc_pick_up_object_from_ground
+                junweil@precognition-gpu3:~/projects/wbc_manipulation/Isaac-GR00T$ uv run torchrun --nproc_per_node=2 gr00t/experiment/launch_finetune.py      --base-model-path ../GR00T-N1.6-3B      --dataset-path ../junweiliang/wbc_close_washer_door      --embodiment-tag NEW_EMBODIMENT      --modality-config-path my_configs/g1_dex3_gripper_homie.py      --save-total-limit 3      --learning_rate 1e-4      --save-steps 2000      --max-steps 10000      --use-wandb      --warmup_ratio 0.05      --weight_decay 1e-5      --global-batch-size 32      --color-jitter-params brightness 0.3 contrast 0.4 saturation 0.5 hue 0.08      --dataloader-num-workers 6  --output-dir experiments/mygpu3_wbc_close_washer_door
+
+                # 2xA6000, b=32,s=10k, pick_up_object_from_ground也要3小时，和2x4090差不多，但是效率比较高，270w/300w
+
+                # open loop eval, train/val
+
+                    junweil@precognition-gpu3:~/projects/wbc_manipulation/Isaac-GR00T$ uv run python gr00t/eval/open_loop_eval.py     --dataset-path ~/projects/wbc_manipulation/junweiliang/wbc_close_washer_door_val0.1  --embodiment-tag NEW_EMBODIMENT     --model-path experiments/mygpu3_wbc_close_washer_door/checkpoint-10000/     --traj-ids 0 1 2 3 4 5     --action-horizon 16 --save-plot-path experiments/mygpu3_wbc_close_washer_door/open_loop_val_ep0-5.jpg
+
+
+            # 8卡, batch_size=128, (256/512 OOM), s=10k
+                bs=64,2xGPU, ok
+                bs=128,2xGPU, OOM, bs=128,8xGPU, OOM
+                bs=256, 8xGPU, gradient-accumulation-steps 4, export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True OOM
+                bs=128, 2xGPU, --gradient-accumulation-steps 8 OOM??
+
+                # bs=64, 2卡，训练5task, dataworker=6, 10k step, (worker=4会经常要等shard)
+                    #  CPU利用率44%, 内存使用40GB
+
+                junweil@precognition-gpu3:~/projects/wbc_manipulation/Isaac-GR00T$ uv run torchrun --nproc_per_node=2 gr00t/experiment/launch_finetune.py      --base-model-path ../GR00T-N1.6-3B      --dataset-path ../junweiliang/wbc_5tasks      --embodiment-tag NEW_EMBODIMENT      --modality-config-path my_configs/g1_dex3_gripper_homie.py      --save-total-limit 3      --learning_rate 1e-4      --save-steps 2000      --max-steps 10000      --use-wandb      --warmup_ratio 0.05      --weight_decay 1e-5      --global-batch-size 64 --color-jitter-params brightness 0.3 contrast 0.4 saturation 0.5 hue 0.08      --dataloader-num-workers 6  --output-dir experiments/mygpu3_wbc_5tasks_bs64_s10k
+
+                # 训练5 tasks, open loop 测试 0-5, 100-5, 200-5 的episode
+                    # validation 测试 0 1 8 9 12 13 19 20 24 25
+
+                        junweil@precognition-gpu3:~/projects/wbc_manipulation/Isaac-GR00T$ uv run python gr00t/eval/open_loop_eval.py     --dataset-path ~/projects/wbc_manipulation/junweiliang/wbc_5tasks_val0.1  --embodiment-tag NEW_EMBODIMENT     --model-path experiments/mygpu3_wbc_5tasks_bs64_s10k/checkpoint-10000/     --traj-ids 0 1 8 9 12 13 19 20 24 25     --action-horizon 16 --save-plot-path experiments/mygpu3_wbc_5tasks_bs64_s10k/open_loop_val_5tasks.jpg
+
+                    # 查看validation episode数量:
+
+                        (tv) junweil@office-precognition:~/projects/huawei_data$ python ~/projects/humanoid_teleop/g1_realrobot/inspect_lerobot_dataset.py --repo-id junweiliang/wbc_5tasks_val0.1
+
+                        [Episodes per Task]
+                        - 'Unknown Task (Index close_washer_door)': 4 episodes
+                        - 'Unknown Task (Index move_and_open_pot)': 7 episodes
+                        - 'Unknown Task (Index move_box)': 8 episodes
+                        - 'Unknown Task (Index open_washer_door)': 3 episodes
+                        - 'Unknown Task (Index pick_up_object_from_ground)': 6 episodes
+
+                    # 图像：
+                        junweiliang@work_laptop:~/Downloads$ scp -r junweil@gpu3.precognition.team:~/projects/wbc_manipulation/Isaac-GR00T/experiments/mygpu3_wbc_5tasks_bs64_s10k/*.jpg .
+
+            # [04/17/2026] 观察：单卡batch_size 64可以跑，但是8卡128 都OOM，肯定有bug, gradient accumulation也不work。后续用N1.7的code
+
+            # gpu3 单卡跑：
+                junweil@precognition-gpu3:~/projects/wbc_manipulation/Isaac-GR00T$ CUDA_VISIBLE_DEVICES=2 uv run torchrun --nproc_per_node=1 --master_port=29501 gr00t/experiment/launch_finetune.py      --base-model-path ../GR00T-N1.6-3B      --dataset-path ../junweiliang/wbc_move_and_open_pot      --embodiment-tag NEW_EMBODIMENT      --modality-config-path my_configs/g1_dex3_gripper_homie.py      --save-total-limit 3      --learning_rate 1e-4      --save-steps 2000      --max-steps 10000      --use-wandb      --warmup_ratio 0.05      --weight_decay 1e-5      --global-batch-size 64      --color-jitter-params brightness 0.3 contrast 0.4 saturation 0.5 hue 0.08      --dataloader-num-workers 6  --output-dir experiments/mygpu3_wbc_move_and_open_pot_bs64_s10k
+```
++ Gr00t N1.7
+```
+
+     # 下载 N1.7 checkpoint
+
+        $ pip install -U "huggingface_hub[cli]"
+            (base) junweil@office-precognition:~/projects/wbc_manipulation$ hf download nvidia/GR00T-N1.6-3B --local-dir ./GR00T-N1.6-3B
+
+    # 用precognitionlab fork
+        # https://github.com/precognitionlab/Isaac-GR00T-N1.7
+        # 看 Isaac-GR00T-N1.7/note_junwei.md
+
+
+```
++ Gr00t whole body control (有个decouple WBC，用在 groot的底层控制器，整个repo主要是sonic)
+```
+    # https://github.com/NVlabs/GR00T-WholeBodyControl/blob/main/docs/source/references/decoupled_wbc.md
+
+    # 安装，用docker
+        (base) junweil@office-precognition:~/projects/wbc_manipulation$ git clone https://github.com/NVlabs/GR00T-WholeBodyControl.git
+
+        (base) junweil@office-precognition:~/projects/wbc_manipulation/GR00T-WholeBodyControl/decoupled_wbc$ ./docker/run_docker.sh --install --root
 
 ```
 + Psi微调
