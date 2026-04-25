@@ -302,7 +302,7 @@ def create_empty_dataset(
         features[f"observation.images.{cam}"] = {
             "dtype": mode,
             "shape": (3, 480, 640),
-            "names": ["channel", "height", "width"],
+            "names": ["channels", "height", "width"], # 注意这里是channels
         }
 
     if Path(HF_LEROBOT_HOME / repo_id).exists():
