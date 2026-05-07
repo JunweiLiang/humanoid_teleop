@@ -1922,4 +1922,13 @@ exts."isaacsim.asset.browser".folders = [
             # https://github.com/huggingface/lerobot/pull/1246
 
 ```
++ [04/28/2026] 诗蕙table top 数据
+```
+    原始数据（clip resize过的）在这 shihuiz@m21.precognition.team:/home/shihuiz/xr_teleoperate_precognitionlab/teleop/utils/data/0329_5tasks
+    处理过后（降采样+左右手镜像+调整5task数据比例）的lerobot格式数据是：
+    第一阶段：shihuiz@m14.precognition.team:/mnt/nvme2/shihuiz/huggingface/lerobot/humanoideveryday_5tasks_origin_and_flip_x_times
+    第二阶段：shihuiz@m14.precognition.team:/mnt/nvme2/shihuiz/huggingface/lerobot/0329_5tasks_origin_and_flip_x_times
+
+    # 数据备份至office
+```
 

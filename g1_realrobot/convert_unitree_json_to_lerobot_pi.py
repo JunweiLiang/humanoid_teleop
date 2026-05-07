@@ -74,6 +74,8 @@ LEG_JOINTS = [
 LOCO_CMD_NAMES = ["loco_v_x", "loco_v_y", "loco_v_yaw", "loco_height"]
 TRIGGER_NAMES = ["left_trigger", "right_trigger"]
 
+# this is the full config gr00t can use
+"""
 G1_WBC_CONFIG = RobotConfig(
     # The final LeRobot dataset will still be 49D
     state_names=ARM_HAND_JOINTS + WAIST_JOINTS + LEG_JOINTS + TRIGGER_NAMES + LOCO_CMD_NAMES,
@@ -89,6 +91,31 @@ G1_WBC_CONFIG = RobotConfig(
     ],
 
     # What is ACTUALLY in the JSON "actions" dict (37 Dimensions)
+    json_action_data_name=[
+        "left_arm.qpos", "right_arm.qpos",
+        "left_ee.qpos", "right_ee.qpos",
+        "waist.qpos",
+        "left_trigger", "right_trigger", "loco_cmd"
+    ],
+)
+"""
+
+# this is for openpi, data keys need to be decided now
+# 2. modify populate_dataset for the slicing
+# 3. change genereate_modality
+G1_WBC_CONFIG = RobotConfig(
+    # New 23D vector: Arms(14) + Waist(3) + Triggers(2) + Loco(4)
+    state_names=ARM_HAND_JOINTS[:14] + WAIST_JOINTS + TRIGGER_NAMES + LOCO_CMD_NAMES,
+    action_names=ARM_HAND_JOINTS[:14] + WAIST_JOINTS + TRIGGER_NAMES + LOCO_CMD_NAMES,
+    cameras=["cam_high"],
+    camera_to_image_key={"color_0": "cam_high"},
+
+    # Leave json extraction lists unchanged so validation still passes
+    json_state_data_name=[
+        "left_arm.qpos", "right_arm.qpos",
+        "left_ee.qpos", "right_ee.qpos",
+        "waist.qpos", "leg.qpos"
+    ],
     json_action_data_name=[
         "left_arm.qpos", "right_arm.qpos",
         "left_ee.qpos", "right_ee.qpos",
@@ -414,25 +441,40 @@ def populate_dataset(
             loop_end = num_frames - 1 if use_future_state_as_action else num_frames
 
             for f_idx in range(loop_end):
-                upper_body_end = 31 # 14 + 14 + 3
+                # Raw extracted arrays:
+                # State (43D): Arms [0:14], Hands [14:28], Waist [28:31], Legs [31:43]
+                # Action (37D): Arms [0:14], Hands [14:28], Waist [28:31], Triggers [31:33], Loco [33:37]
 
-                # 1. BUILD THE 49D STATE
-                current_physical_state = state[f_idx] # 43D
-                current_commands = action[f_idx][upper_body_end:] # 6D
-                current_state_49d = np.concatenate([current_physical_state, current_commands])
+                raw_state = state[f_idx]
+                raw_action = action[f_idx]
 
-                # 2. BUILD THE 49D ACTION
+                # we don't want legs and hands
+
+                # Extract desired current state slices
+                arms_s = raw_state[0:14]
+                waist_s = raw_state[28:31]
+
+                # Extract commands from action vector
+                triggers_a = raw_action[31:33]
+                loco_a = raw_action[33:37]
+
+                # 1. BUILD THE 23D STATE
+                current_state_23d = np.concatenate([arms_s, waist_s, triggers_a, loco_a])
+
+                # 2. BUILD THE 23D ACTION
                 if use_future_state_as_action:
-                    future_physical_state = state[f_idx + 1]
-                    actual_action_49d = np.concatenate([future_physical_state, current_commands])
+                    future_state = state[f_idx + 1]
+                    arms_a = future_state[0:14]
+                    waist_a = future_state[28:31]
+                    actual_action_23d = np.concatenate([arms_a, waist_a, triggers_a, loco_a])
                 else:
-                    current_physical_action = action[f_idx][:upper_body_end] # 31D
-                    current_legs = state[f_idx][31:43] # 12D (Extracted from state)
-                    actual_action_49d = np.concatenate([current_physical_action, current_legs, current_commands])
+                    arms_a = raw_action[0:14]
+                    waist_a = raw_action[28:31]
+                    actual_action_23d = np.concatenate([arms_a, waist_a, triggers_a, loco_a])
 
                 frame = {
-                    "observation.state": current_state_49d,
-                    "action": actual_action_49d,
+                    "observation.state": current_state_23d,
+                    "action": actual_action_23d,
                     "task": task
                 }
 
@@ -443,7 +485,6 @@ def populate_dataset(
                     img = np.transpose(img, (2, 0, 1))
                     frame[f"observation.images.{camera}"] = img
 
-                frame["task"] = task
                 active_dataset.add_frame(frame)
 
             # Get the exact index LeRobot is assigning this episode
@@ -487,6 +528,7 @@ def generate_modality_json(repo_id: str):
     meta_dir.mkdir(parents=True, exist_ok=True)
 
     # State and Action slices are now perfectly 1:1
+    """
     modality_slice = {
         "arms": {"start": 0, "end": 14},
         "hands": {"start": 14, "end": 28},
@@ -494,6 +536,14 @@ def generate_modality_json(repo_id: str):
         "legs": {"start": 31, "end": 43},
         "triggers": {"start": 43, "end": 45},
         "loco_cmd": {"start": 45, "end": 49}
+    }
+    """
+    # State and Action slices for the new 23D array
+    modality_slice = {
+        "arms": {"start": 0, "end": 14},
+        "waist": {"start": 14, "end": 17},
+        "triggers": {"start": 17, "end": 19},
+        "loco_cmd": {"start": 19, "end": 23}
     }
 
     modality_config = {
